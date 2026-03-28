@@ -1,0 +1,8 @@
+node_modules/
+client/dist/
+.superpowers/
+*.log
+*.exe
+.env
+.DS_Store
+.claude/

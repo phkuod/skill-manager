@@ -1,0 +1,61 @@
+import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
+import { resolve, join } from 'path';
+import matter from 'gray-matter';
+import { classify } from './classifier.js';
+
+export function parseSkill(skillDir, skillName) {
+  const skillMdPath = join(skillDir, 'SKILL.md');
+  if (!existsSync(skillMdPath)) return null;
+
+  const raw = readFileSync(skillMdPath, 'utf-8');
+  const { data: frontmatter, content } = matter(raw);
+
+  const stat = statSync(skillMdPath);
+  const fileCount = countFiles(skillDir);
+  const { category, icon } = classify(skillName);
+
+  return {
+    name: frontmatter.name || skillName,
+    description: frontmatter.description || '',
+    license: frontmatter.license || 'Unknown',
+    category,
+    icon,
+    fileCount,
+    lastUpdated: stat.mtime.toISOString(),
+    content,
+  };
+}
+
+function countFiles(dir) {
+  let count = 0;
+  const entries = readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isFile()) {
+      count++;
+    } else if (entry.isDirectory()) {
+      count += countFiles(join(dir, entry.name));
+    }
+  }
+  return count;
+}
+
+export function parseAllSkills(skillRepoPath) {
+  const skills = new Map();
+
+  if (!existsSync(skillRepoPath)) {
+    console.error(`skill_repo not found: ${skillRepoPath}`);
+    return skills;
+  }
+
+  const entries = readdirSync(skillRepoPath, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const skillDir = resolve(skillRepoPath, entry.name);
+    const skill = parseSkill(skillDir, entry.name);
+    if (skill) {
+      skills.set(entry.name, skill);
+    }
+  }
+
+  return skills;
+}
