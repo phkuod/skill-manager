@@ -55,3 +55,28 @@ export function useSkillDetail(name) {
 
   return { skill, loading, error };
 }
+
+export function useSkillFiles(name) {
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!name) return;
+
+    setLoading(true);
+    fetch(`/api/skills/${name}/files`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        setFiles(data);
+        setError(null);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [name]);
+
+  return { files, loading, error };
+}

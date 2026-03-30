@@ -1,11 +1,15 @@
-import { describe, it, expect, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../test/render';
 import SkillDetail from './SkillDetail';
-import { mockSkillDetail } from '../test/mocks';
+import { mockSkillDetail, setupFetchMock } from '../test/mocks';
 
 describe('SkillDetail', () => {
+  beforeEach(() => {
+    setupFetchMock();
+  });
+
   it('should render skill name', () => {
     renderWithProviders(<SkillDetail skill={mockSkillDetail} />);
     expect(screen.getByText(mockSkillDetail.name)).toBeInTheDocument();
@@ -81,11 +85,11 @@ describe('SkillDetail', () => {
     expect(screen.getByText('Documentation')).toBeInTheDocument();
   });
 
-  it('should render markdown content', () => {
+  it('should render SkillFiles component in Documentation section', async () => {
     renderWithProviders(<SkillDetail skill={mockSkillDetail} />);
-    // react-markdown renders the heading from content
-    expect(screen.getByText('Frontend Design')).toBeInTheDocument();
-    expect(screen.getByText('Usage')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Loading files…')).not.toBeInTheDocument());
+    // SKILL.md file block header is visible
+    expect(screen.getByText('SKILL.md')).toBeInTheDocument();
   });
 
   it('should render sidebar details section', () => {

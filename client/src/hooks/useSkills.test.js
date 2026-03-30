@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useSkills, useSkillDetail } from './useSkills';
-import { mockSkills, mockCategories, mockSkillDetail, setupFetchMock } from '../test/mocks';
+import { useSkills, useSkillDetail, useSkillFiles } from './useSkills';
+import { mockSkills, mockCategories, mockSkillDetail, mockSkillFiles, setupFetchMock } from '../test/mocks';
 
 beforeEach(() => {
   setupFetchMock();
@@ -136,6 +136,60 @@ describe('useSkillDetail', () => {
   it('should re-fetch when name changes', async () => {
     const { result, rerender } = renderHook(
       ({ name }) => useSkillDetail(name),
+      { initialProps: { name: 'frontend-design' } }
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    rerender({ name: 'pdf' });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('useSkillFiles', () => {
+  it('should fetch and return skill files', async () => {
+    const { result } = renderHook(() => useSkillFiles('frontend-design'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.files).toEqual(mockSkillFiles);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('should start in loading state', () => {
+    const { result } = renderHook(() => useSkillFiles('frontend-design'));
+    expect(result.current.loading).toBe(true);
+  });
+
+  it('should not fetch when name is empty', () => {
+    renderHook(() => useSkillFiles(''));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('should not fetch when name is undefined', () => {
+    renderHook(() => useSkillFiles(undefined));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('should handle 404 error', async () => {
+    const { result } = renderHook(() => useSkillFiles('nonexistent'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.error).toBe('HTTP 404');
+    expect(result.current.files).toEqual([]);
+  });
+
+  it('should handle network errors', async () => {
+    global.fetch = vi.fn(() => Promise.reject(new Error('Timeout')));
+    const { result } = renderHook(() => useSkillFiles('frontend-design'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.error).toBe('Timeout');
+  });
+
+  it('should re-fetch when name changes', async () => {
+    const { result, rerender } = renderHook(
+      ({ name }) => useSkillFiles(name),
       { initialProps: { name: 'frontend-design' } }
     );
     await waitFor(() => expect(result.current.loading).toBe(false));
