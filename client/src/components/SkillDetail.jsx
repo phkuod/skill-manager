@@ -1,6 +1,5 @@
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import InstallCommands from './InstallCommands';
+import SkillFiles from './SkillFiles';
 
 const BADGE_STYLES = {
   Development: { bg: 'var(--badge-dev-bg)', color: 'var(--badge-dev-text)' },
@@ -94,16 +93,7 @@ export default function SkillDetail({ skill }) {
               </svg>
               Documentation
             </h2>
-            <div
-              className="prose prose-sm max-w-none rounded-xl p-6 skill-markdown"
-              style={{
-                backgroundColor: 'var(--bg-secondary)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-              }}
-            >
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{skill.content}</ReactMarkdown>
-            </div>
+            <SkillFiles name={skill.name} />
           </div>
         </div>
 
