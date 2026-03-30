@@ -21,5 +21,8 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.js'],
     include: ['src/**/*.test.{js,jsx}'],
     css: false,
+    resolve: {
+      dedupe: ['react', 'react-dom'],
+    },
   },
 });
