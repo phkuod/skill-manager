@@ -60,6 +60,7 @@ function collectFiles(dir, baseDir, results) {
 
 export function readSkillFiles(skillRepoPath, skillName) {
   const skillDir = join(skillRepoPath, skillName);
+  if (relative(skillRepoPath, skillDir).startsWith('..')) return [];
   if (!existsSync(skillDir)) return [];
 
   const results = [];

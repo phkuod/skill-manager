@@ -5,6 +5,7 @@ import { existsSync } from 'fs';
 import { getSkills } from './watcher.js';
 import { getCategories } from './classifier.js';
 import { sendZip } from './zipper.js';
+import { readSkillFiles } from './fileReader.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
@@ -65,6 +66,16 @@ export function createApp(skillRepoPath = SKILL_REPO_PATH) {
   // Download skill as ZIP
   app.get('/api/skills/:name/zip', (req, res) => {
     sendZip(res, skillRepoPath, req.params.name);
+  });
+
+  // List all files in a skill
+  app.get('/api/skills/:name/files', (req, res) => {
+    const skill = getSkills().get(req.params.name);
+    if (!skill) {
+      return res.status(404).json({ error: `Skill not found: ${req.params.name}` });
+    }
+    const files = readSkillFiles(skillRepoPath, req.params.name);
+    res.json(files);
   });
 
   // In production, serve the built React app

@@ -1,9 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { readSkillFiles, inferLanguage } from '../fileReader.js';
 import { resolve } from 'path';
 import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import request from 'supertest';
+import { initWatcher } from '../watcher.js';
+import { createApp } from '../app.js';
 
 const SKILL_REPO_PATH = resolve(import.meta.dirname, '..', '..', 'skill_repo');
 
@@ -149,5 +152,54 @@ describe('readSkillFiles - truncation behavior', () => {
     expect(smallFile).toBeDefined();
     expect(smallFile.content).toBeDefined();
     expect(smallFile.truncated).toBeUndefined();
+  });
+});
+
+let app;
+let watcher;
+
+beforeAll(async () => {
+  watcher = initWatcher(SKILL_REPO_PATH);
+  app = createApp(SKILL_REPO_PATH);
+});
+
+afterAll(async () => {
+  if (watcher) await watcher.close();
+});
+
+describe('GET /api/skills/:name/files', () => {
+  it('returns 200 with an array for a known skill', async () => {
+    const res = await request(app).get('/api/skills/brand-guidelines/files');
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+  });
+
+  it('returns SKILL.md as the first entry', async () => {
+    const res = await request(app).get('/api/skills/brand-guidelines/files');
+    expect(res.body[0].path).toBe('SKILL.md');
+  });
+
+  it('each entry has path, content, and language', async () => {
+    const res = await request(app).get('/api/skills/brand-guidelines/files');
+    res.body.forEach((f) => {
+      expect(f).toHaveProperty('path');
+      expect(f).toHaveProperty('content');
+      expect(f).toHaveProperty('language');
+    });
+  });
+
+  it('returns 404 for unknown skill', async () => {
+    const res = await request(app).get('/api/skills/nonexistent-skill-xyz/files');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toContain('nonexistent-skill-xyz');
+  });
+
+  it('includes files from subdirectories for claude-api', async () => {
+    const res = await request(app).get('/api/skills/claude-api/files');
+    expect(res.status).toBe(200);
+    const paths = res.body.map((f) => f.path);
+    const hasSubdir = paths.some((p) => p.includes('/'));
+    expect(hasSubdir).toBe(true);
   });
 });
