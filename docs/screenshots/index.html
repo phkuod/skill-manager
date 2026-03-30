@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skill Market — System Introduction</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      line-height: 1.6;
+    }
+
+    header {
+      background: #1a1d2e;
+      border-bottom: 1px solid #2d3148;
+      padding: 24px 48px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .logo {
+      width: 40px; height: 40px;
+      background: #5c6bc0;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 14px; color: #fff;
+      letter-spacing: 0.5px;
+    }
+
+    header h1 { font-size: 20px; font-weight: 700; color: #fff; }
+    header p { font-size: 13px; color: #8892b0; margin-top: 2px; }
+
+    .hero {
+      text-align: center;
+      padding: 72px 48px 48px;
+      background: linear-gradient(180deg, #1a1d2e 0%, #0f1117 100%);
+      border-bottom: 1px solid #2d3148;
+    }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #1e2235; border: 1px solid #2d3148;
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 12px; color: #8892b0; margin-bottom: 24px;
+    }
+
+    .badge-dot { width: 6px; height: 6px; background: #4ade80; border-radius: 50%; }
+
+    .hero h2 {
+      font-size: 48px; font-weight: 800; color: #fff;
+      letter-spacing: -1px; margin-bottom: 16px;
+    }
+
+    .hero p {
+      font-size: 18px; color: #8892b0; max-width: 560px;
+      margin: 0 auto 40px;
+    }
+
+    .stats {
+      display: flex; justify-content: center; gap: 48px;
+    }
+
+    .stat-value { font-size: 32px; font-weight: 800; color: #5c6bc0; }
+    .stat-label { font-size: 11px; color: #8892b0; text-transform: uppercase; letter-spacing: 1px; }
+
+    main { max-width: 1100px; margin: 0 auto; padding: 64px 48px; }
+
+    section { margin-bottom: 72px; }
+
+    .section-label {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 2px; color: #5c6bc0; margin-bottom: 12px;
+    }
+
+    section h3 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 16px; }
+
+    section > p { font-size: 15px; color: #8892b0; max-width: 640px; margin-bottom: 32px; }
+
+    .screen {
+      background: #1a1d2e;
+      border: 1px solid #2d3148;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .screen-bar {
+      background: #13162b;
+      border-bottom: 1px solid #2d3148;
+      padding: 10px 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-red { background: #ff5f57; }
+    .dot-yellow { background: #febc2e; }
+    .dot-green { background: #28c840; }
+
+    .screen-url {
+      flex: 1; text-align: center;
+      font-size: 11px; color: #4a5568;
+      font-family: monospace;
+    }
+
+    .screen img {
+      width: 100%; display: block;
+    }
+
+    .screen-caption {
+      padding: 12px 16px;
+      font-size: 13px; color: #8892b0;
+      border-top: 1px solid #2d3148;
+    }
+
+    .features {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 20px; margin-top: 32px;
+    }
+
+    .feature {
+      background: #1a1d2e; border: 1px solid #2d3148;
+      border-radius: 10px; padding: 20px;
+    }
+
+    .feature-icon { font-size: 24px; margin-bottom: 12px; }
+    .feature h4 { font-size: 14px; font-weight: 600; color: #e2e8f0; margin-bottom: 6px; }
+    .feature p { font-size: 13px; color: #8892b0; }
+
+    .api-table {
+      width: 100%; border-collapse: collapse; margin-top: 24px;
+      font-size: 13px;
+    }
+
+    .api-table th {
+      text-align: left; padding: 10px 16px;
+      background: #13162b; color: #8892b0;
+      border-bottom: 1px solid #2d3148; font-weight: 600;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    }
+
+    .api-table td {
+      padding: 10px 16px; border-bottom: 1px solid #1e2235;
+      color: #e2e8f0;
+    }
+
+    .api-table tr:last-child td { border-bottom: none; }
+
+    .method {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 700; font-family: monospace;
+    }
+
+    .get { background: #1a3a2a; color: #4ade80; }
+
+    code {
+      font-family: monospace; font-size: 12px;
+      background: #13162b; color: #a78bfa;
+      padding: 2px 6px; border-radius: 4px;
+    }
+
+    .gif-notice {
+      background: #1a2535; border: 1px solid #2d4a6b;
+      border-radius: 10px; padding: 20px 24px;
+      display: flex; align-items: center; gap: 16px;
+      margin-top: 32px;
+    }
+
+    .gif-notice-icon { font-size: 28px; }
+    .gif-notice h4 { font-size: 14px; font-weight: 600; color: #93c5fd; margin-bottom: 4px; }
+    .gif-notice p { font-size: 13px; color: #8892b0; }
+
+    footer {
+      text-align: center; padding: 32px;
+      border-top: 1px solid #2d3148;
+      font-size: 12px; color: #4a5568;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SM</div>
+  <div>
+    <h1>Skill Market</h1>
+    <p>System Introduction — 2026-03-30</p>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="badge">
+    <div class="badge-dot"></div>
+    Internal Network
+  </div>
+  <h2>Internal Skill Market</h2>
+  <p>Browse, search, and install skills for Claude Code &amp; Opencode directly from your local skill repository.</p>
+  <div class="stats">
+    <div>
+      <div class="stat-value">17</div>
+      <div class="stat-label">Skills</div>
+    </div>
+    <div>
+      <div class="stat-value">5</div>
+      <div class="stat-label">Categories</div>
+    </div>
+    <div>
+      <div class="stat-value">2</div>
+      <div class="stat-label">Platforms</div>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- Page 1: Home -->
+  <section>
+    <div class="section-label">Screen 1</div>
+    <h3>Home — Browse &amp; Search</h3>
+    <p>The home page lists all skills in your local <code>skill_repo/</code>. Filter by category, search by name or description, and sort by last updated.</p>
+
+    <div class="screen">
+      <div class="screen-bar">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+        <div class="screen-url">http://localhost:5173</div>
+      </div>
+      <img src="01-home.png" alt="Home page — skill grid with search and category filters"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
+      <div style="display:flex; align-items:center; justify-content:center; height:240px; color:#4a5568; font-size:13px; display:none;">
+        Screenshot: 01-home.png
+      </div>
+      <div class="screen-caption">
+        17 skills displayed in a responsive grid. Category filters (All · Content · Data &amp; AI · Development · Testing · Tools) narrow the list. Real-time search debounces input and highlights matching skills.
+      </div>
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🔍</div>
+        <h4>Real-time Search</h4>
+        <p>Debounced search filters by skill name and description simultaneously.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🏷️</div>
+        <h4>Category Filter</h4>
+        <p>5 categories: Content, Data &amp; AI, Development, Testing, Tools.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🌙</div>
+        <h4>Dark / Light Mode</h4>
+        <p>Theme toggle persists across sessions via local storage.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Page 2: Skill Detail -->
+  <section>
+    <div class="section-label">Screen 2</div>
+    <h3>Skill Detail — File Blocks</h3>
+    <p>Each skill's documentation is broken into individual file blocks — one per file in the skill directory. Markdown files render as rich markdown; all other files display as syntax-labeled code blocks.</p>
+
+    <div class="screen">
+      <div class="screen-bar">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+        <div class="screen-url">http://localhost:5173/skill/claude-api</div>
+      </div>
+      <img src="02-skill-detail.png" alt="Skill detail page showing file blocks in documentation section"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
+      <div style="display:flex; align-items:center; justify-content:center; height:240px; color:#4a5568; font-size:13px; display:none;">
+        Screenshot: 02-skill-detail.png
+      </div>
+      <div class="screen-caption">
+        <strong>SKILL.md</strong> is always first. Subsequent files (LICENSE.txt, language examples, shared references) follow alphabetically. Each block shows the relative path and, for non-markdown files, a language badge.
+      </div>
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">📄</div>
+        <h4>Markdown Rendering</h4>
+        <p>.md files render with headings, tables, code blocks, and GFM support via ReactMarkdown.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">💻</div>
+        <h4>Code Blocks</h4>
+        <p>All other files display verbatim in a monospace block with a language badge (python, typescript, go, etc.).</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">⚡</div>
+        <h4>Large File Guard</h4>
+        <p>Files over 500 KB show "File too large to preview". Binary files are silently excluded.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- API Reference -->
+  <section>
+    <div class="section-label">API</div>
+    <h3>REST API Endpoints</h3>
+    <p>The Express server exposes a JSON API. All endpoints are prefixed with <code>/api</code>.</p>
+
+    <table class="api-table">
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>Path</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="method get">GET</span></td>
+          <td><code>/api/health</code></td>
+          <td>Health check — returns status and skill count</td>
+        </tr>
+        <tr>
+          <td><span class="method get">GET</span></td>
+          <td><code>/api/skills</code></td>
+          <td>List all skills (supports <code>?search=</code> and <code>?category=</code> filters)</td>
+        </tr>
+        <tr>
+          <td><span class="method get">GET</span></td>
+          <td><code>/api/skills/:name</code></td>
+          <td>Skill detail — metadata, content, and install paths</td>
+        </tr>
+        <tr>
+          <td><span class="method get">GET</span></td>
+          <td><code>/api/skills/:name/files</code></td>
+          <td>All files in the skill directory as <code>[&#123; path, content, language &#125;]</code></td>
+        </tr>
+        <tr>
+          <td><span class="method get">GET</span></td>
+          <td><code>/api/skills/:name/zip</code></td>
+          <td>Download the skill as a ZIP archive</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Running -->
+  <section>
+    <div class="section-label">Running the System</div>
+    <h3>How to Start</h3>
+    <p>Use <code>manage.js</code> from the project root for all operations.</p>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">🚀</div>
+        <h4>Development</h4>
+        <p><code>node manage.js dev</code><br/>Starts Express API on :3001 and Vite on :5173.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🏗️</div>
+        <h4>Production Build</h4>
+        <p><code>node manage.js build</code><br/>Builds React app to <code>client/dist/</code>, served by Express.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🧪</div>
+        <h4>Tests</h4>
+        <p><code>node manage.js test</code><br/>Runs all 180 tests (72 server + 108 client) via Vitest.</p>
+      </div>
+    </div>
+
+    <div class="gif-notice">
+      <div class="gif-notice-icon">🎬</div>
+      <div>
+        <h4>Walkthrough GIF</h4>
+        <p>A recorded walkthrough <strong>skill-market-walkthrough.gif</strong> is available in your Downloads folder. Copy it here to embed it in this page.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Skill Market · Internal Skill Repository UI · Generated 2026-03-30
+</footer>
+
+</body>
+</html>
