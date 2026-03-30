@@ -166,6 +166,11 @@ describe('useSkillFiles', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it('should not fetch when name is undefined', () => {
+    renderHook(() => useSkillFiles(undefined));
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('should handle 404 error', async () => {
     const { result } = renderHook(() => useSkillFiles('nonexistent'));
     await waitFor(() => expect(result.current.loading).toBe(false));
