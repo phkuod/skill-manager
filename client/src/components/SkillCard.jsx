@@ -30,24 +30,42 @@ export default function SkillCard({ skill }) {
   return (
     <div
       onClick={() => navigate(`/skill/${skill.name}`)}
-      className="rounded-lg p-4 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg"
+      className="rounded-xl p-4 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg group"
       style={{
         backgroundColor: 'var(--bg-card)',
         border: '1px solid var(--border)',
       }}
     >
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-lg">{skill.icon}</span>
-        <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-          {skill.name}
-        </span>
+      {/* Top Row: Icon + Name */}
+      <div className="flex items-center gap-3 mb-3">
+        <div
+          className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
+          style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}
+        >
+          {skill.icon}
+        </div>
+        <div className="min-w-0">
+          <span
+            className="font-semibold text-sm block truncate group-hover:underline"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {skill.name}
+          </span>
+          <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+            {skill.fileCount} files
+          </span>
+        </div>
       </div>
+
+      {/* Description */}
       <p
         className="text-xs leading-relaxed mb-3 line-clamp-2"
         style={{ color: 'var(--text-secondary)' }}
       >
         {skill.description}
       </p>
+
+      {/* Bottom Row: Badge + Time */}
       <div className="flex items-center justify-between">
         <span
           className="text-[10px] font-medium px-2 py-0.5 rounded"

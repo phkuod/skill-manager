@@ -73,6 +73,37 @@ function start() {
   });
 }
 
+function test() {
+  const target = process.argv[3]; // 'server', 'client', or undefined (all)
+  const children = [];
+
+  if (!target || target === 'server') {
+    console.log('Running server tests...');
+    children.push(
+      run('npx', ['vitest', 'run', '--config', 'vitest.config.server.js'])
+    );
+  }
+
+  if (!target || target === 'client') {
+    console.log('Running client tests...');
+    children.push(
+      run('npx', ['vitest', 'run'], { cwd: resolve(__dirname, 'client') })
+    );
+  }
+
+  let exitCode = 0;
+  let completed = 0;
+  children.forEach((child) => {
+    child.on('close', (code) => {
+      if (code !== 0) exitCode = code;
+      completed++;
+      if (completed === children.length) {
+        process.exit(exitCode);
+      }
+    });
+  });
+}
+
 function clean() {
   const targets = [
     resolve(__dirname, 'client', 'dist'),
@@ -87,7 +118,7 @@ function clean() {
   console.log('Clean complete.');
 }
 
-const commands = { dev, build, start, clean };
+const commands = { dev, build, start, test, clean };
 
 if (!command || !commands[command]) {
   console.log(`
@@ -99,6 +130,7 @@ Commands:
   dev     Start development servers (Vite + Express)
   build   Build React app to client/dist/
   start   Start production server
+  test    Run tests (all, server, or client)
   clean   Remove build artifacts and cache
 `);
   process.exit(command ? 1 : 0);

@@ -1,90 +1,21 @@
-import express from 'express';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync } from 'fs';
-import { initWatcher, getSkills } from './watcher.js';
-import { getCategories } from './classifier.js';
-import { sendZip } from './zipper.js';
+import { initWatcher } from './watcher.js';
+import { createApp } from './app.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
 const PORT = process.env.PORT || 3001;
-const NODE_ENV = process.env.NODE_ENV || 'development';
 const SKILL_REPO_PATH = process.env.SKILL_REPO_PATH || resolve(rootDir, 'skill_repo');
-
-const app = express();
 
 // Initialize file watcher
 initWatcher(SKILL_REPO_PATH);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', environment: NODE_ENV, skillCount: getSkills().size });
-});
-
-// List all skills (with optional search and category filters)
-app.get('/api/skills', (req, res) => {
-  const { search, category } = req.query;
-  let results = Array.from(getSkills().values()).map(({ content, ...meta }) => meta);
-
-  if (category && category !== 'All') {
-    results = results.filter((s) => s.category === category);
-  }
-
-  if (search) {
-    const term = search.toLowerCase();
-    results = results.filter(
-      (s) =>
-        s.name.toLowerCase().includes(term) ||
-        s.description.toLowerCase().includes(term)
-    );
-    // Sort: name matches first, then description matches
-    results.sort((a, b) => {
-      const aName = a.name.toLowerCase().includes(term) ? 0 : 1;
-      const bName = b.name.toLowerCase().includes(term) ? 0 : 1;
-      return aName - bName;
-    });
-  }
-
-  res.json({ skills: results, categories: getCategories() });
-});
-
-// Skill detail (includes full markdown content)
-app.get('/api/skills/:name', (req, res) => {
-  const skill = getSkills().get(req.params.name);
-  if (!skill) {
-    return res.status(404).json({ error: `Skill not found: ${req.params.name}` });
-  }
-  res.json({
-    ...skill,
-    installPaths: {
-      claudeCode: `~/.claude/skills/${skill.name}`,
-      opencode: `~/.opencode/skills/${skill.name}`,
-    },
-    repoPath: resolve(SKILL_REPO_PATH, req.params.name),
-  });
-});
-
-// Download skill as ZIP
-app.get('/api/skills/:name/zip', (req, res) => {
-  sendZip(res, SKILL_REPO_PATH, req.params.name);
-});
-
-// In production, serve the built React app
-if (NODE_ENV === 'production') {
-  const distPath = resolve(rootDir, 'client', 'dist');
-  if (existsSync(distPath)) {
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      if (!req.path.startsWith('/api')) {
-        res.sendFile(resolve(distPath, 'index.html'));
-      }
-    });
-  }
-}
+// Create and start app
+const app = createApp(SKILL_REPO_PATH);
 
 app.listen(PORT, () => {
-  console.log(`Skill Market API running at http://localhost:${PORT} [${NODE_ENV}]`);
+  console.log(`Skill Market API running at http://localhost:${PORT} [${process.env.NODE_ENV || 'development'}]`);
 });
 
 export default app;

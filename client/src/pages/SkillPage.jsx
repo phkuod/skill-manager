@@ -15,7 +15,7 @@ export default function SkillPage() {
         className="sticky top-0 z-10 backdrop-blur"
         style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-primary)', opacity: 0.97 }}
       >
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-4">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-4">
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-1 text-sm transition-colors"
@@ -34,7 +34,7 @@ export default function SkillPage() {
       </header>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8">
         {loading && (
           <p className="text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
             Loading...
