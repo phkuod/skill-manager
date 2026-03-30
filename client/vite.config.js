@@ -7,6 +7,7 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   server: {
+    allowedHosts: true,
     proxy: {
       '/api': {
         target: `http://localhost:${process.env.VITE_API_PORT || 3001}`,
