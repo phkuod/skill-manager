@@ -40,10 +40,17 @@ export const mockSkillDetail = {
   repoPath: '/path/to/skill_repo/frontend-design',
 };
 
+export const mockSkillFiles = [
+  { path: 'SKILL.md', content: '# Frontend Design\n\nThis is the skill content.\n\n## Usage\n\nUse it to build UIs.', language: 'markdown' },
+  { path: 'LICENSE.txt', content: 'MIT License\n\nCopyright (c) 2024', language: 'text' },
+  { path: 'templates/example.js', content: 'export default function() {}', language: 'javascript' },
+];
+
 export function setupFetchMock(overrides = {}) {
   const defaultResponses = {
     '/api/skills': { skills: mockSkills, categories: mockCategories },
     '/api/skills/frontend-design': mockSkillDetail,
+    '/api/skills/frontend-design/files': mockSkillFiles,
   };
   const responses = { ...defaultResponses, ...overrides };
 
