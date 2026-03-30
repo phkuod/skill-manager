@@ -1,6 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readSkillFiles, inferLanguage } from '../fileReader.js';
 import { resolve } from 'path';
+import { writeFileSync, mkdirSync, rmSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
 const SKILL_REPO_PATH = resolve(import.meta.dirname, '..', '..', 'skill_repo');
 
@@ -37,6 +40,30 @@ describe('inferLanguage', () => {
     expect(inferLanguage('config.yaml')).toBe('yaml');
     expect(inferLanguage('config.yml')).toBe('yaml');
   });
+
+  it('returns go for .go files', () => {
+    expect(inferLanguage('main.go')).toBe('go');
+  });
+
+  it('returns ruby for .rb files', () => {
+    expect(inferLanguage('app.rb')).toBe('ruby');
+  });
+
+  it('returns java for .java files', () => {
+    expect(inferLanguage('App.java')).toBe('java');
+  });
+
+  it('returns csharp for .cs files', () => {
+    expect(inferLanguage('App.cs')).toBe('csharp');
+  });
+
+  it('returns php for .php files', () => {
+    expect(inferLanguage('index.php')).toBe('php');
+  });
+
+  it('returns bash for .sh files', () => {
+    expect(inferLanguage('run.sh')).toBe('bash');
+  });
 });
 
 describe('readSkillFiles', () => {
@@ -65,17 +92,62 @@ describe('readSkillFiles', () => {
     expect(files).toEqual([]);
   });
 
-  it('marks large files as truncated', () => {
-    const files = readSkillFiles(SKILL_REPO_PATH, 'brand-guidelines');
-    const truncated = files.filter((f) => f.truncated);
-    expect(truncated.length).toBe(0);
-  });
-
   it('includes all files for skill with subdirectories', () => {
     const files = readSkillFiles(SKILL_REPO_PATH, 'claude-api');
     const paths = files.map((f) => f.path);
     expect(paths).toContain('SKILL.md');
     const hasSubdirFiles = paths.some((p) => p.includes('/'));
     expect(hasSubdirFiles).toBe(true);
+  });
+});
+
+describe('readSkillFiles - truncation behavior', () => {
+  let tmpSkillRepo;
+  let tmpSkillDir;
+
+  beforeEach(() => {
+    tmpSkillRepo = join(tmpdir(), 'skill-test-' + Date.now());
+    tmpSkillDir = join(tmpSkillRepo, 'test-skill');
+    mkdirSync(tmpSkillDir, { recursive: true });
+    // Write SKILL.md
+    writeFileSync(join(tmpSkillDir, 'SKILL.md'), '# Test Skill\n');
+  });
+
+  afterEach(() => {
+    rmSync(tmpSkillRepo, { recursive: true, force: true });
+  });
+
+  it('returns truncated:true and content:null for files over 500KB', () => {
+    // Create a file > 500 KB
+    const bigContent = 'x'.repeat(501 * 1024);
+    writeFileSync(join(tmpSkillDir, 'bigfile.txt'), bigContent);
+
+    const files = readSkillFiles(tmpSkillRepo, 'test-skill');
+    const bigFile = files.find((f) => f.path === 'bigfile.txt');
+    expect(bigFile).toBeDefined();
+    expect(bigFile.truncated).toBe(true);
+    expect(bigFile.content).toBeNull();
+  });
+
+  it('skips binary files containing null bytes', () => {
+    // Create a binary file with null bytes
+    const binaryBuffer = Buffer.alloc(100, 0); // all null bytes
+    writeFileSync(join(tmpSkillDir, 'image.bin'), binaryBuffer);
+
+    const files = readSkillFiles(tmpSkillRepo, 'test-skill');
+    const binaryFile = files.find((f) => f.path === 'image.bin');
+    expect(binaryFile).toBeUndefined();
+  });
+
+  it('includes non-binary files that pass size limit', () => {
+    // Create a text file just under the limit
+    const smallContent = 'This is a small text file\n'.repeat(100);
+    writeFileSync(join(tmpSkillDir, 'smallfile.txt'), smallContent);
+
+    const files = readSkillFiles(tmpSkillRepo, 'test-skill');
+    const smallFile = files.find((f) => f.path === 'smallfile.txt');
+    expect(smallFile).toBeDefined();
+    expect(smallFile.content).toBeDefined();
+    expect(smallFile.truncated).toBeUndefined();
   });
 });
