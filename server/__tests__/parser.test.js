@@ -182,6 +182,39 @@ describe('parser', () => {
       const skill = parseSkill(resolve(TEST_DIR, 'does-not-exist'), 'does-not-exist');
       expect(skill).toBeNull();
     });
+
+    it('should read from latest version directory for versioned skill', () => {
+      const skill = parseSkill(resolve(TEST_DIR, 'versioned-skill'), 'versioned-skill');
+      expect(skill).not.toBeNull();
+      expect(skill.description).toBe('Added dark mode support');
+      expect(skill.content).toContain('dark mode');
+    });
+
+    it('should set currentVersion for versioned skill', () => {
+      const skill = parseSkill(resolve(TEST_DIR, 'versioned-skill'), 'versioned-skill');
+      expect(skill.currentVersion).toBe('20260415-dark-mode');
+    });
+
+    it('should include versions list with original entry last', () => {
+      const skill = parseSkill(resolve(TEST_DIR, 'versioned-skill'), 'versioned-skill');
+      expect(skill.versions).toEqual([
+        { version: '20260415-dark-mode', date: '20260415' },
+        { version: '20260401-initial-release', date: '20260401' },
+        { version: 'original', date: null },
+      ]);
+    });
+
+    it('should count files only in the current version directory', () => {
+      const skill = parseSkill(resolve(TEST_DIR, 'versioned-skill'), 'versioned-skill');
+      // 20260415-dark-mode has SKILL.md + helper.js = 2 files
+      expect(skill.fileCount).toBe(2);
+    });
+
+    it('should set currentVersion to null for unversioned skill', () => {
+      const skill = parseSkill(resolve(TEST_DIR, 'valid-skill'), 'valid-skill');
+      expect(skill.currentVersion).toBeNull();
+      expect(skill.versions).toEqual([]);
+    });
   });
 
   describe('parseAllSkills', () => {
@@ -197,6 +230,7 @@ describe('parser', () => {
       expect(skills.has('valid-skill')).toBe(true);
       expect(skills.has('minimal-skill')).toBe(true);
       expect(skills.has('nested-skill')).toBe(true);
+      expect(skills.has('versioned-skill')).toBe(true);
     });
 
     it('should skip directories without SKILL.md', () => {

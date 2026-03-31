@@ -3,15 +3,15 @@ import { resolve, join } from 'path';
 import matter from 'gray-matter';
 import { classify } from './classifier.js';
 
-export function parseSkill(skillDir, skillName) {
-  const skillMdPath = join(skillDir, 'SKILL.md');
+export function parseSkillFromDir(dir, skillName) {
+  const skillMdPath = join(dir, 'SKILL.md');
   if (!existsSync(skillMdPath)) return null;
 
   const raw = readFileSync(skillMdPath, 'utf-8');
   const { data: frontmatter, content } = matter(raw);
 
   const stat = statSync(skillMdPath);
-  const fileCount = countFiles(skillDir);
+  const fileCount = countFiles(dir);
   const { category, icon } = classify(skillName);
 
   return {
@@ -24,6 +24,30 @@ export function parseSkill(skillDir, skillName) {
     lastUpdated: stat.mtime.toISOString(),
     content,
   };
+}
+
+export function parseSkill(skillDir, skillName) {
+  const versions = detectVersions(skillDir);
+
+  if (versions.length > 0) {
+    const currentDir = versions[0].path;
+    const skill = parseSkillFromDir(currentDir, skillName);
+    if (!skill) return null;
+
+    skill.currentVersion = versions[0].version;
+    skill.versions = [
+      ...versions.map((v) => ({ version: v.version, date: v.date })),
+      { version: 'original', date: null },
+    ];
+    return skill;
+  }
+
+  const skill = parseSkillFromDir(skillDir, skillName);
+  if (!skill) return null;
+
+  skill.currentVersion = null;
+  skill.versions = [];
+  return skill;
 }
 
 function countFiles(dir) {
