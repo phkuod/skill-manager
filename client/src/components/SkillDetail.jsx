@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import InstallCommands from './InstallCommands';
 import SkillFiles from './SkillFiles';
+import { useSkillVersion } from '../hooks/useSkills';
 
 const BADGE_STYLES = {
   Development: { bg: 'var(--badge-dev-bg)', color: 'var(--badge-dev-text)' },
@@ -11,10 +13,22 @@ const BADGE_STYLES = {
 };
 
 export default function SkillDetail({ skill }) {
+  const [selectedVersion, setSelectedVersion] = useState(null);
+  const { skill: versionSkill, loading: versionLoading } = useSkillVersion(
+    skill.name,
+    selectedVersion
+  );
+
+  // Use version data if a non-current version is selected, otherwise use default skill data
+  const displaySkill = versionSkill || skill;
   const badge = BADGE_STYLES[skill.category] || BADGE_STYLES.Other;
 
   const handleDownload = () => {
-    window.open(`/api/skills/${skill.name}/zip`, '_blank');
+    if (selectedVersion) {
+      window.open(`/api/skills/${skill.name}/versions/${selectedVersion}/zip`, '_blank');
+    } else {
+      window.open(`/api/skills/${skill.name}/zip`, '_blank');
+    }
   };
 
   return (
@@ -36,10 +50,10 @@ export default function SkillDetail({ skill }) {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-              {skill.name}
+              {displaySkill.name}
             </h1>
             <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-secondary)' }}>
-              {skill.description}
+              {displaySkill.description}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <span
@@ -52,12 +66,58 @@ export default function SkillDetail({ skill }) {
                 className="px-2.5 py-1 rounded-md text-xs"
                 style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
-                {skill.license}
+                {displaySkill.license}
               </span>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Version Selector */}
+      {skill.versions && skill.versions.length > 0 && (
+        <div
+          className="rounded-xl p-4 mb-6 flex items-center gap-3"
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <label
+            className="text-sm font-medium shrink-0"
+            style={{ color: 'var(--text-primary)' }}
+            htmlFor="version-select"
+          >
+            Version
+          </label>
+          <select
+            id="version-select"
+            value={selectedVersion || ''}
+            onChange={(e) => setSelectedVersion(e.target.value || null)}
+            className="flex-1 text-sm rounded-lg px-3 py-2 outline-none"
+            style={{
+              backgroundColor: 'var(--bg-primary)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <option value="">
+              {skill.currentVersion} (latest)
+            </option>
+            {skill.versions
+              .filter((v) => v.version !== skill.currentVersion)
+              .map((v) => (
+                <option key={v.version} value={v.version}>
+                  {v.version}
+                </option>
+              ))}
+          </select>
+          {versionLoading && (
+            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Loading...
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Two-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -75,7 +135,7 @@ export default function SkillDetail({ skill }) {
               </svg>
               Install
             </h2>
-            <InstallCommands skill={skill} />
+            <InstallCommands skill={displaySkill} />
           </div>
 
           {/* Documentation */}
@@ -93,7 +153,7 @@ export default function SkillDetail({ skill }) {
               </svg>
               Documentation
             </h2>
-            <SkillFiles name={skill.name} />
+            <SkillFiles name={skill.name} version={selectedVersion} />
           </div>
         </div>
 
@@ -120,7 +180,7 @@ export default function SkillDetail({ skill }) {
                   Files
                 </span>
                 <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {skill.fileCount} files
+                  {displaySkill.fileCount} files
                 </span>
               </div>
               <div
@@ -136,7 +196,7 @@ export default function SkillDetail({ skill }) {
                   License
                 </span>
                 <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {skill.license}
+                  {displaySkill.license}
                 </span>
               </div>
               <div
@@ -152,7 +212,7 @@ export default function SkillDetail({ skill }) {
                   Updated
                 </span>
                 <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {new Date(skill.lastUpdated).toLocaleDateString()}
+                  {new Date(displaySkill.lastUpdated).toLocaleDateString()}
                 </span>
               </div>
               <div
@@ -199,7 +259,7 @@ export default function SkillDetail({ skill }) {
                     color: 'var(--text-primary)',
                   }}
                 >
-                  {skill.installPaths.claudeCode}
+                  {displaySkill.installPaths.claudeCode}
                 </div>
               </div>
               <div>
@@ -212,7 +272,7 @@ export default function SkillDetail({ skill }) {
                     color: 'var(--text-primary)',
                   }}
                 >
-                  {skill.installPaths.opencode}
+                  {displaySkill.installPaths.opencode}
                 </div>
               </div>
             </div>

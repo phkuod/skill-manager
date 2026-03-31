@@ -159,8 +159,8 @@ function FileBlock({ file }) {
   );
 }
 
-export default function SkillFiles({ name }) {
-  const { files, loading, error } = useSkillFiles(name);
+export default function SkillFiles({ name, version }) {
+  const { files, loading, error } = useSkillFiles(name, version);
 
   if (loading) {
     return (
