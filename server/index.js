@@ -16,6 +16,12 @@ const app = createApp(SKILL_REPO_PATH);
 
 app.listen(PORT, () => {
   console.log(`Skill Market API running at http://localhost:${PORT} [${process.env.NODE_ENV || 'development'}]`);
+}).on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Error: port ${PORT} is already in use. Update the PORT environment variable or ecosystem.config.cjs to use a different port.`);
+    process.exit(1);
+  }
+  throw err;
 });
 
 export default app;

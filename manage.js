@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { createServer } from 'net';
 import { rmSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -8,6 +9,23 @@ const command = process.argv[2];
 
 const PORT = process.env.PORT || 3000;
 const API_PORT = process.env.API_PORT || 3001;
+
+function findFreePort(startPort) {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.listen(startPort, () => {
+      const port = server.address().port;
+      server.close(() => resolve(port));
+    });
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        resolve(findFreePort(startPort + 1));
+      } else {
+        reject(err);
+      }
+    });
+  });
+}
 
 function run(cmd, args, options = {}) {
   const child = spawn(cmd, args, {
@@ -24,14 +42,18 @@ function run(cmd, args, options = {}) {
   return child;
 }
 
-function dev() {
+async function dev() {
+  const apiPort = await findFreePort(parseInt(API_PORT));
+  if (apiPort !== parseInt(API_PORT)) {
+    console.log(`Port ${API_PORT} in use, using ${apiPort} for API`);
+  }
   console.log('Starting development servers...');
   const api = run('node', ['server/index.js'], {
-    env: { ...process.env, PORT: API_PORT, NODE_ENV: 'development' },
+    env: { ...process.env, PORT: apiPort, NODE_ENV: 'development' },
   });
   const vite = run('npx', ['vite', '--host'], {
     cwd: resolve(__dirname, 'client'),
-    env: { ...process.env, VITE_API_PORT: API_PORT },
+    env: { ...process.env, VITE_API_PORT: apiPort },
   });
 
   process.on('SIGINT', () => {
