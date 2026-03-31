@@ -1,20 +1,41 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { resolve } from 'path';
+import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
 import request from 'supertest';
 import { initWatcher } from '../watcher.js';
 import { createApp } from '../app.js';
 
 const SKILL_REPO_PATH = resolve(import.meta.dirname, '..', '..', 'skill_repo');
+const VERSION_FIXTURE = resolve(SKILL_REPO_PATH, 'webapp-testing', '20260331-version-test');
 let app;
 let watcher;
 
 beforeAll(async () => {
+  // Remove any stale fixture from a previous crashed run
+  if (existsSync(VERSION_FIXTURE)) {
+    rmSync(VERSION_FIXTURE, { recursive: true, force: true });
+  }
+  mkdirSync(VERSION_FIXTURE, { recursive: true });
+  writeFileSync(
+    resolve(VERSION_FIXTURE, 'SKILL.md'),
+    `---
+name: webapp-testing
+description: "Versioned webapp testing skill"
+license: Complete terms in LICENSE.txt
+---
+
+Versioned content for webapp-testing.
+`
+  );
   watcher = initWatcher(SKILL_REPO_PATH);
   app = createApp(SKILL_REPO_PATH);
 });
 
 afterAll(async () => {
   if (watcher) await watcher.close();
+  if (existsSync(VERSION_FIXTURE)) {
+    rmSync(VERSION_FIXTURE, { recursive: true, force: true });
+  }
 });
 
 describe('API', () => {
@@ -53,6 +74,8 @@ describe('API', () => {
       expect(skill).toHaveProperty('license');
       expect(skill).toHaveProperty('fileCount');
       expect(skill).toHaveProperty('lastUpdated');
+      expect(skill).toHaveProperty('currentVersion');
+      expect(skill).toHaveProperty('versions');
     });
 
     describe('search filter', () => {
@@ -186,6 +209,94 @@ describe('API', () => {
 
     it('should return 404 for unknown skill ZIP', async () => {
       const res = await request(app).get('/api/skills/nonexistent/zip');
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('GET /api/skills/:name/versions', () => {
+    it('should return versions list for versioned skill', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions');
+      expect(res.status).toBe(200);
+      expect(res.body.skill).toBe('webapp-testing');
+      expect(res.body.currentVersion).toBeDefined();
+      expect(res.body.versions).toBeInstanceOf(Array);
+      expect(res.body.versions.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should return empty versions for unversioned skill', async () => {
+      const res = await request(app).get('/api/skills/pdf/versions');
+      expect(res.status).toBe(200);
+      expect(res.body.currentVersion).toBeNull();
+      expect(res.body.versions).toEqual([]);
+    });
+
+    it('should return 404 for unknown skill', async () => {
+      const res = await request(app).get('/api/skills/nonexistent/versions');
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('GET /api/skills/:name/versions/:version', () => {
+    it('should return specific version data', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/20260331-version-test');
+      expect(res.status).toBe(200);
+      expect(res.body.name).toBe('webapp-testing');
+      expect(res.body.content).toContain('Versioned content');
+    });
+
+    it('should return original version data', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/original');
+      expect(res.status).toBe(200);
+      expect(res.body.name).toBe('webapp-testing');
+      expect(res.body.content).toBeDefined();
+    });
+
+    it('should return 404 for nonexistent version', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/99990101-fake');
+      expect(res.status).toBe(404);
+    });
+
+    it('should return 404 for unknown skill', async () => {
+      const res = await request(app).get('/api/skills/nonexistent/versions/original');
+      expect(res.status).toBe(404);
+    });
+
+    it('should return 404 for original version on unversioned skill', async () => {
+      const res = await request(app).get('/api/skills/pdf/versions/original');
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('GET /api/skills/:name/versions/:version/zip', () => {
+    it('should return a ZIP for a specific version', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/20260331-version-test/zip');
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toBe('application/zip');
+    });
+
+    it('should return ZIP for original version', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/original/zip');
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toBe('application/zip');
+    });
+
+    it('should return 404 for nonexistent version ZIP', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/99990101-fake/zip');
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('GET /api/skills/:name/versions/:version/files', () => {
+    it('should return files for a specific version', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/20260331-version-test/files');
+      expect(res.status).toBe(200);
+      expect(res.body).toBeInstanceOf(Array);
+      const paths = res.body.map((f) => f.path);
+      expect(paths).toContain('SKILL.md');
+    });
+
+    it('should return 404 for nonexistent version files', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/99990101-fake/files');
       expect(res.status).toBe(404);
     });
   });

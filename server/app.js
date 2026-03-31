@@ -6,6 +6,7 @@ import { getSkills } from './watcher.js';
 import { getCategories } from './classifier.js';
 import { sendZip } from './zipper.js';
 import { readSkillFiles } from './fileReader.js';
+import { parseSkillFromDir } from './parser.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
@@ -14,6 +15,18 @@ const SKILL_REPO_PATH = process.env.SKILL_REPO_PATH || resolve(rootDir, 'skill_r
 
 export function createApp(skillRepoPath = SKILL_REPO_PATH) {
   const app = express();
+
+  function resolveVersionDir(skillName, version) {
+    if (version === 'original') {
+      return resolve(skillRepoPath, skillName);
+    }
+    return resolve(skillRepoPath, skillName, version);
+  }
+
+  function isValidVersion(skill, version) {
+    if (skill.currentVersion === null) return false;
+    return skill.versions.some((v) => v.version === version);
+  }
 
   // Health check
   app.get('/api/health', (req, res) => {
@@ -65,7 +78,14 @@ export function createApp(skillRepoPath = SKILL_REPO_PATH) {
 
   // Download skill as ZIP
   app.get('/api/skills/:name/zip', (req, res) => {
-    sendZip(res, skillRepoPath, req.params.name);
+    const skill = getSkills().get(req.params.name);
+    if (!skill) {
+      return res.status(404).json({ error: `Skill not found: ${req.params.name}` });
+    }
+    const currentDir = skill.currentVersion
+      ? resolve(skillRepoPath, req.params.name, skill.currentVersion)
+      : resolve(skillRepoPath, req.params.name);
+    sendZip(res, currentDir, req.params.name);
   });
 
   // List all files in a skill
@@ -74,7 +94,84 @@ export function createApp(skillRepoPath = SKILL_REPO_PATH) {
     if (!skill) {
       return res.status(404).json({ error: `Skill not found: ${req.params.name}` });
     }
-    const files = readSkillFiles(skillRepoPath, req.params.name);
+    const currentDir = skill.currentVersion
+      ? resolve(skillRepoPath, req.params.name, skill.currentVersion)
+      : resolve(skillRepoPath, req.params.name);
+    const files = readSkillFiles(currentDir);
+    res.json(files);
+  });
+
+  // List versions for a skill
+  app.get('/api/skills/:name/versions', (req, res) => {
+    const skill = getSkills().get(req.params.name);
+    if (!skill) {
+      return res.status(404).json({ error: `Skill not found: ${req.params.name}` });
+    }
+    res.json({
+      skill: req.params.name,
+      currentVersion: skill.currentVersion,
+      versions: skill.versions,
+    });
+  });
+
+  // Get specific version of a skill
+  app.get('/api/skills/:name/versions/:version', (req, res) => {
+    const skill = getSkills().get(req.params.name);
+    if (!skill) {
+      return res.status(404).json({ error: `Skill not found: ${req.params.name}` });
+    }
+
+    const { version } = req.params;
+    if (!isValidVersion(skill, version)) {
+      return res.status(404).json({ error: `Version not found: ${version}` });
+    }
+
+    const versionDir = resolveVersionDir(req.params.name, version);
+    const versionSkill = parseSkillFromDir(versionDir, req.params.name);
+    if (!versionSkill) {
+      return res.status(404).json({ error: `Version not found: ${version}` });
+    }
+
+    res.json({
+      ...versionSkill,
+      installPaths: {
+        claudeCode: `~/.claude/skills/${versionSkill.name}`,
+        opencode: `~/.opencode/skills/${versionSkill.name}`,
+      },
+      repoPath: versionDir,
+    });
+  });
+
+  // Download specific version as ZIP
+  app.get('/api/skills/:name/versions/:version/zip', (req, res) => {
+    const skill = getSkills().get(req.params.name);
+    if (!skill) {
+      return res.status(404).json({ error: `Skill not found: ${req.params.name}` });
+    }
+
+    const { version } = req.params;
+    if (!isValidVersion(skill, version)) {
+      return res.status(404).json({ error: `Version not found: ${version}` });
+    }
+
+    const versionDir = resolveVersionDir(req.params.name, version);
+    sendZip(res, versionDir, `${req.params.name}-${version}`);
+  });
+
+  // List files in specific version
+  app.get('/api/skills/:name/versions/:version/files', (req, res) => {
+    const skill = getSkills().get(req.params.name);
+    if (!skill) {
+      return res.status(404).json({ error: `Skill not found: ${req.params.name}` });
+    }
+
+    const { version } = req.params;
+    if (!isValidVersion(skill, version)) {
+      return res.status(404).json({ error: `Version not found: ${version}` });
+    }
+
+    const versionDir = resolveVersionDir(req.params.name, version);
+    const files = readSkillFiles(versionDir);
     res.json(files);
   });
 
