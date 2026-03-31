@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useSkills, useSkillDetail, useSkillFiles } from './useSkills';
+import { useSkills, useSkillDetail, useSkillFiles, useSkillVersion } from './useSkills';
 import { mockSkills, mockCategories, mockSkillDetail, mockSkillFiles, setupFetchMock } from '../test/mocks';
 
 beforeEach(() => {
@@ -198,5 +198,44 @@ describe('useSkillFiles', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('useSkillFiles with version', () => {
+  it('should fetch version-specific files when version provided', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve([{ path: 'SKILL.md', content: 'test', language: 'markdown' }]),
+    });
+
+    const { result } = renderHook(() => useSkillFiles('test-skill', '20260401-v1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(global.fetch).toHaveBeenCalledWith('/api/skills/test-skill/versions/20260401-v1/files');
+  });
+});
+
+describe('useSkillVersion', () => {
+  it('should fetch specific version data', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        name: 'test-skill',
+        description: 'Version 1',
+        content: 'v1 content',
+      }),
+    });
+
+    const { result } = renderHook(() => useSkillVersion('test-skill', '20260401-v1'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.skill.description).toBe('Version 1');
+    expect(global.fetch).toHaveBeenCalledWith('/api/skills/test-skill/versions/20260401-v1');
+  });
+
+  it('should not fetch when version is null', async () => {
+    global.fetch = vi.fn();
+    renderHook(() => useSkillVersion('test-skill', null));
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });
