@@ -91,7 +91,10 @@ export function useSkillVersion(name, version) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!name || !version) return;
+    if (!name || !version) {
+      setSkill(null);
+      return;
+    }
 
     setLoading(true);
     fetch(`/api/skills/${name}/versions/${version}`)

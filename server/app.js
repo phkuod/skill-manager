@@ -23,6 +23,11 @@ export function createApp(skillRepoPath = SKILL_REPO_PATH) {
     return resolve(skillRepoPath, skillName, version);
   }
 
+  function isValidVersion(skill, version) {
+    if (skill.currentVersion === null) return false;
+    return skill.versions.some((v) => v.version === version);
+  }
+
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', environment: NODE_ENV, skillCount: getSkills().size });
@@ -117,11 +122,7 @@ export function createApp(skillRepoPath = SKILL_REPO_PATH) {
     }
 
     const { version } = req.params;
-    const validVersions = skill.versions.map((v) => v.version);
-    if (skill.currentVersion === null) {
-      return res.status(404).json({ error: `Version not found: ${version}` });
-    }
-    if (skill.currentVersion !== null && !validVersions.includes(version)) {
+    if (!isValidVersion(skill, version)) {
       return res.status(404).json({ error: `Version not found: ${version}` });
     }
 
@@ -149,11 +150,7 @@ export function createApp(skillRepoPath = SKILL_REPO_PATH) {
     }
 
     const { version } = req.params;
-    const validVersions = skill.versions.map((v) => v.version);
-    if (skill.currentVersion !== null && !validVersions.includes(version)) {
-      return res.status(404).json({ error: `Version not found: ${version}` });
-    }
-    if (skill.currentVersion === null) {
+    if (!isValidVersion(skill, version)) {
       return res.status(404).json({ error: `Version not found: ${version}` });
     }
 
@@ -169,11 +166,7 @@ export function createApp(skillRepoPath = SKILL_REPO_PATH) {
     }
 
     const { version } = req.params;
-    const validVersions = skill.versions.map((v) => v.version);
-    if (skill.currentVersion !== null && !validVersions.includes(version)) {
-      return res.status(404).json({ error: `Version not found: ${version}` });
-    }
-    if (skill.currentVersion === null) {
+    if (!isValidVersion(skill, version)) {
       return res.status(404).json({ error: `Version not found: ${version}` });
     }
 
