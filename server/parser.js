@@ -39,6 +39,33 @@ function countFiles(dir) {
   return count;
 }
 
+const VERSION_PATTERN = /^\d{8}-.+/;
+
+export function detectVersions(skillDir) {
+  if (!existsSync(skillDir)) return [];
+
+  const entries = readdirSync(skillDir, { withFileTypes: true });
+  const versions = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (!VERSION_PATTERN.test(entry.name)) continue;
+
+    const versionDir = resolve(skillDir, entry.name);
+    const skillMdPath = join(versionDir, 'SKILL.md');
+    if (!existsSync(skillMdPath)) continue;
+
+    versions.push({
+      version: entry.name,
+      path: versionDir,
+      date: entry.name.substring(0, 8),
+    });
+  }
+
+  versions.sort((a, b) => b.date.localeCompare(a.date) || b.version.localeCompare(a.version));
+  return versions;
+}
+
 export function parseAllSkills(skillRepoPath) {
   const skills = new Map();
 
