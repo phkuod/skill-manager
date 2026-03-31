@@ -71,18 +71,18 @@ describe('inferLanguage', () => {
 
 describe('readSkillFiles', () => {
   it('returns an array for a known skill', () => {
-    const files = readSkillFiles(SKILL_REPO_PATH, 'brand-guidelines');
+    const files = readSkillFiles(resolve(SKILL_REPO_PATH, 'brand-guidelines'));
     expect(Array.isArray(files)).toBe(true);
     expect(files.length).toBeGreaterThan(0);
   });
 
   it('puts SKILL.md first', () => {
-    const files = readSkillFiles(SKILL_REPO_PATH, 'brand-guidelines');
+    const files = readSkillFiles(resolve(SKILL_REPO_PATH, 'brand-guidelines'));
     expect(files[0].path).toBe('SKILL.md');
   });
 
   it('each file has path, content, and language fields', () => {
-    const files = readSkillFiles(SKILL_REPO_PATH, 'brand-guidelines');
+    const files = readSkillFiles(resolve(SKILL_REPO_PATH, 'brand-guidelines'));
     files.forEach((f) => {
       expect(f).toHaveProperty('path');
       expect(f).toHaveProperty('content');
@@ -91,12 +91,12 @@ describe('readSkillFiles', () => {
   });
 
   it('returns empty array for unknown skill', () => {
-    const files = readSkillFiles(SKILL_REPO_PATH, 'nonexistent-skill-xyz');
+    const files = readSkillFiles(resolve(SKILL_REPO_PATH, 'nonexistent-skill-xyz'));
     expect(files).toEqual([]);
   });
 
   it('includes all files for skill with subdirectories', () => {
-    const files = readSkillFiles(SKILL_REPO_PATH, 'claude-api');
+    const files = readSkillFiles(resolve(SKILL_REPO_PATH, 'claude-api'));
     const paths = files.map((f) => f.path);
     expect(paths).toContain('SKILL.md');
     const hasSubdirFiles = paths.some((p) => p.includes('/'));
@@ -125,7 +125,7 @@ describe('readSkillFiles - truncation behavior', () => {
     const bigContent = 'x'.repeat(501 * 1024);
     writeFileSync(join(tmpSkillDir, 'bigfile.txt'), bigContent);
 
-    const files = readSkillFiles(tmpSkillRepo, 'test-skill');
+    const files = readSkillFiles(tmpSkillDir);
     const bigFile = files.find((f) => f.path === 'bigfile.txt');
     expect(bigFile).toBeDefined();
     expect(bigFile.truncated).toBe(true);
@@ -137,7 +137,7 @@ describe('readSkillFiles - truncation behavior', () => {
     const binaryBuffer = Buffer.alloc(100, 0); // all null bytes
     writeFileSync(join(tmpSkillDir, 'image.bin'), binaryBuffer);
 
-    const files = readSkillFiles(tmpSkillRepo, 'test-skill');
+    const files = readSkillFiles(tmpSkillDir);
     const binaryFile = files.find((f) => f.path === 'image.bin');
     expect(binaryFile).toBeUndefined();
   });
@@ -147,7 +147,7 @@ describe('readSkillFiles - truncation behavior', () => {
     const smallContent = 'This is a small text file\n'.repeat(100);
     writeFileSync(join(tmpSkillDir, 'smallfile.txt'), smallContent);
 
-    const files = readSkillFiles(tmpSkillRepo, 'test-skill');
+    const files = readSkillFiles(tmpSkillDir);
     const smallFile = files.find((f) => f.path === 'smallfile.txt');
     expect(smallFile).toBeDefined();
     expect(smallFile.content).toBeDefined();

@@ -58,13 +58,11 @@ function collectFiles(dir, baseDir, results) {
   }
 }
 
-export function readSkillFiles(skillRepoPath, skillName) {
-  const skillDir = join(skillRepoPath, skillName);
-  if (relative(skillRepoPath, skillDir).startsWith('..')) return [];
-  if (!existsSync(skillDir)) return [];
+export function readSkillFiles(dirPath) {
+  if (!existsSync(dirPath)) return [];
 
   const results = [];
-  collectFiles(skillDir, skillDir, results);
+  collectFiles(dirPath, dirPath, results);
 
   results.sort((a, b) => {
     if (a.path === 'SKILL.md') return -1;

@@ -266,4 +266,38 @@ describe('API', () => {
       expect(res.status).toBe(404);
     });
   });
+
+  describe('GET /api/skills/:name/versions/:version/zip', () => {
+    it('should return a ZIP for a specific version', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/20260331-version-test/zip');
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toBe('application/zip');
+    });
+
+    it('should return ZIP for original version', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/original/zip');
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toBe('application/zip');
+    });
+
+    it('should return 404 for nonexistent version ZIP', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/99990101-fake/zip');
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('GET /api/skills/:name/versions/:version/files', () => {
+    it('should return files for a specific version', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/20260331-version-test/files');
+      expect(res.status).toBe(200);
+      expect(res.body).toBeInstanceOf(Array);
+      const paths = res.body.map((f) => f.path);
+      expect(paths).toContain('SKILL.md');
+    });
+
+    it('should return 404 for nonexistent version files', async () => {
+      const res = await request(app).get('/api/skills/webapp-testing/versions/99990101-fake/files');
+      expect(res.status).toBe(404);
+    });
+  });
 });

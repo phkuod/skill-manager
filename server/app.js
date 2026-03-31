@@ -73,7 +73,14 @@ export function createApp(skillRepoPath = SKILL_REPO_PATH) {
 
   // Download skill as ZIP
   app.get('/api/skills/:name/zip', (req, res) => {
-    sendZip(res, skillRepoPath, req.params.name);
+    const skill = getSkills().get(req.params.name);
+    if (!skill) {
+      return res.status(404).json({ error: `Skill not found: ${req.params.name}` });
+    }
+    const currentDir = skill.currentVersion
+      ? resolve(skillRepoPath, req.params.name, skill.currentVersion)
+      : resolve(skillRepoPath, req.params.name);
+    sendZip(res, currentDir, req.params.name);
   });
 
   // List all files in a skill
@@ -82,7 +89,10 @@ export function createApp(skillRepoPath = SKILL_REPO_PATH) {
     if (!skill) {
       return res.status(404).json({ error: `Skill not found: ${req.params.name}` });
     }
-    const files = readSkillFiles(skillRepoPath, req.params.name);
+    const currentDir = skill.currentVersion
+      ? resolve(skillRepoPath, req.params.name, skill.currentVersion)
+      : resolve(skillRepoPath, req.params.name);
+    const files = readSkillFiles(currentDir);
     res.json(files);
   });
 
@@ -129,6 +139,47 @@ export function createApp(skillRepoPath = SKILL_REPO_PATH) {
       },
       repoPath: versionDir,
     });
+  });
+
+  // Download specific version as ZIP
+  app.get('/api/skills/:name/versions/:version/zip', (req, res) => {
+    const skill = getSkills().get(req.params.name);
+    if (!skill) {
+      return res.status(404).json({ error: `Skill not found: ${req.params.name}` });
+    }
+
+    const { version } = req.params;
+    const validVersions = skill.versions.map((v) => v.version);
+    if (skill.currentVersion !== null && !validVersions.includes(version)) {
+      return res.status(404).json({ error: `Version not found: ${version}` });
+    }
+    if (skill.currentVersion === null) {
+      return res.status(404).json({ error: `Version not found: ${version}` });
+    }
+
+    const versionDir = resolveVersionDir(req.params.name, version);
+    sendZip(res, versionDir, `${req.params.name}-${version}`);
+  });
+
+  // List files in specific version
+  app.get('/api/skills/:name/versions/:version/files', (req, res) => {
+    const skill = getSkills().get(req.params.name);
+    if (!skill) {
+      return res.status(404).json({ error: `Skill not found: ${req.params.name}` });
+    }
+
+    const { version } = req.params;
+    const validVersions = skill.versions.map((v) => v.version);
+    if (skill.currentVersion !== null && !validVersions.includes(version)) {
+      return res.status(404).json({ error: `Version not found: ${version}` });
+    }
+    if (skill.currentVersion === null) {
+      return res.status(404).json({ error: `Version not found: ${version}` });
+    }
+
+    const versionDir = resolveVersionDir(req.params.name, version);
+    const files = readSkillFiles(versionDir);
+    res.json(files);
   });
 
   // In production, serve the built React app
