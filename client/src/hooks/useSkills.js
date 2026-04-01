@@ -40,7 +40,7 @@ export function useSkillDetail(name) {
     if (!name) return;
 
     setLoading(true);
-    fetch(`/api/skills/${name}`)
+    fetch(`/api/skills/${encodeURIComponent(name)}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -64,9 +64,10 @@ export function useSkillFiles(name, version) {
   useEffect(() => {
     if (!name) return;
 
+    const encodedName = encodeURIComponent(name);
     const url = version
-      ? `/api/skills/${name}/versions/${version}/files`
-      : `/api/skills/${name}/files`;
+      ? `/api/skills/${encodedName}/versions/${encodeURIComponent(version)}/files`
+      : `/api/skills/${encodedName}/files`;
 
     setLoading(true);
     fetch(url)
@@ -97,7 +98,7 @@ export function useSkillVersion(name, version) {
     }
 
     setLoading(true);
-    fetch(`/api/skills/${name}/versions/${version}`)
+    fetch(`/api/skills/${encodeURIComponent(name)}/versions/${encodeURIComponent(version)}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();

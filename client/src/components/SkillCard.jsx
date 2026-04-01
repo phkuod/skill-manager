@@ -29,7 +29,7 @@ export default function SkillCard({ skill }) {
 
   return (
     <div
-      onClick={() => navigate(`/skill/${skill.name}`)}
+      onClick={() => navigate(`/skill/${encodeURIComponent(skill.name)}`)}
       className="rounded-xl p-4 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-lg group"
       style={{
         backgroundColor: 'var(--bg-card)',

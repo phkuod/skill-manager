@@ -25,9 +25,9 @@ export default function SkillDetail({ skill }) {
 
   const handleDownload = () => {
     if (selectedVersion) {
-      window.open(`/api/skills/${skill.name}/versions/${selectedVersion}/zip`, '_blank');
+      window.open(`/api/skills/${encodeURIComponent(skill.name)}/versions/${encodeURIComponent(selectedVersion)}/zip`, '_blank');
     } else {
-      window.open(`/api/skills/${skill.name}/zip`, '_blank');
+      window.open(`/api/skills/${encodeURIComponent(skill.name)}/zip`, '_blank');
     }
   };
 

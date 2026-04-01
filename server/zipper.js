@@ -9,7 +9,7 @@ export function sendZip(res, dirPath, zipName) {
 
   res.set({
     'Content-Type': 'application/zip',
-    'Content-Disposition': `attachment; filename="${zipName}.zip"`,
+    'Content-Disposition': `attachment; filename="${encodeURIComponent(zipName)}.zip"; filename*=UTF-8''${encodeURIComponent(zipName)}.zip`,
   });
 
   const archive = archiver('zip', { zlib: { level: 9 } });
