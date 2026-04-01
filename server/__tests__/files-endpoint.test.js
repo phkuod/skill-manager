@@ -5,7 +5,7 @@ import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import request from 'supertest';
-import { initWatcher } from '../watcher.js';
+import { initWatcher, getSkills } from '../watcher.js';
 import { createApp } from '../app.js';
 
 const SKILL_REPO_PATH = resolve(import.meta.dirname, '..', '..', 'skill_repo');
@@ -160,7 +160,7 @@ let watcher;
 
 beforeAll(async () => {
   watcher = initWatcher(SKILL_REPO_PATH);
-  app = createApp(SKILL_REPO_PATH);
+  app = createApp(SKILL_REPO_PATH, { getSkills });
 });
 
 afterAll(async () => {

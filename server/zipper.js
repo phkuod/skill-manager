@@ -1,20 +1,20 @@
-import archiver from 'archiver';
-import { existsSync } from 'fs';
+var archiver = require('archiver');
+var fs = require('fs');
 
-export function sendZip(res, dirPath, zipName) {
-  if (!existsSync(dirPath)) {
-    res.status(404).json({ error: `Directory not found: ${dirPath}` });
+function sendZip(res, dirPath, zipName) {
+  if (!fs.existsSync(dirPath)) {
+    res.status(404).json({ error: 'Directory not found: ' + dirPath });
     return;
   }
 
   res.set({
     'Content-Type': 'application/zip',
-    'Content-Disposition': `attachment; filename="${zipName}.zip"`,
+    'Content-Disposition': 'attachment; filename="' + zipName + '.zip"',
   });
 
-  const archive = archiver('zip', { zlib: { level: 9 } });
+  var archive = archiver('zip', { zlib: { level: 9 } });
 
-  archive.on('error', (err) => {
+  archive.on('error', function (err) {
     res.status(500).json({ error: err.message });
   });
 
@@ -22,3 +22,5 @@ export function sendZip(res, dirPath, zipName) {
   archive.directory(dirPath, zipName);
   archive.finalize();
 }
+
+module.exports = { sendZip: sendZip };

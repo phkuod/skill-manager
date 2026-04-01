@@ -1,30 +1,45 @@
-import { spawn } from 'child_process';
-import { createServer } from 'net';
-import { rmSync, existsSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
+var spawn = require('child_process').spawn;
+var net = require('net');
+var fs = require('fs');
+var path = require('path');
+var dotenv = require('dotenv');
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+var resolve = path.resolve;
+var existsSync = fs.existsSync;
+
+// Recursive directory removal compatible with Node v10 (no fs.rmSync)
+function rmRecursiveSync(targetPath) {
+  if (!existsSync(targetPath)) return;
+  var stat = fs.lstatSync(targetPath);
+  if (stat.isDirectory()) {
+    var entries = fs.readdirSync(targetPath);
+    for (var i = 0; i < entries.length; i++) {
+      rmRecursiveSync(path.join(targetPath, entries[i]));
+    }
+    fs.rmdirSync(targetPath);
+  } else {
+    fs.unlinkSync(targetPath);
+  }
+}
 
 // Load env-specific file first (higher priority), then .env as fallback
-const nodeEnv = process.env.NODE_ENV || 'development';
-dotenv.config({ path: resolve(__dirname, `.env.${nodeEnv}`) });
+var nodeEnv = process.env.NODE_ENV || 'development';
+dotenv.config({ path: resolve(__dirname, '.env.' + nodeEnv) });
 dotenv.config({ path: resolve(__dirname, '.env') });
 
-const command = process.argv[2];
+var command = process.argv[2];
 
-const PORT = process.env.PORT || 3000;
-const API_PORT = process.env.API_PORT || 3001;
+var PORT = process.env.PORT || 3000;
+var API_PORT = process.env.API_PORT || 3001;
 
 function findFreePort(startPort) {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.listen(startPort, () => {
-      const port = server.address().port;
-      server.close(() => resolve(port));
+  return new Promise(function (resolve, reject) {
+    var server = net.createServer();
+    server.listen(startPort, function () {
+      var port = server.address().port;
+      server.close(function () { resolve(port); });
     });
-    server.on('error', (err) => {
+    server.on('error', function (err) {
       if (err.code === 'EADDRINUSE') {
         resolve(findFreePort(startPort + 1));
       } else {
@@ -34,82 +49,96 @@ function findFreePort(startPort) {
   });
 }
 
-function run(cmd, args, options = {}) {
-  const child = spawn(cmd, args, {
+function run(cmd, args, options) {
+  if (!options) options = {};
+  var env = options.env || process.env;
+  var cwd = options.cwd || __dirname;
+  var child = spawn(cmd, args, {
     stdio: 'inherit',
     shell: true,
-    cwd: __dirname,
-    ...options,
+    cwd: cwd,
+    env: env,
   });
-  child.on('error', (err) => {
-    console.error(`Failed to start: ${cmd} ${args.join(' ')}`);
+  child.on('error', function (err) {
+    console.error('Failed to start: ' + cmd + ' ' + args.join(' '));
     console.error(err.message);
     process.exit(1);
   });
   return child;
 }
 
-async function dev() {
-  const apiPort = await findFreePort(parseInt(API_PORT));
-  if (apiPort !== parseInt(API_PORT)) {
-    console.log(`Port ${API_PORT} in use, using ${apiPort} for API`);
-  }
-  console.log('Starting development servers...');
-  const api = run('node', ['server/index.js'], {
-    env: { ...process.env, PORT: apiPort, NODE_ENV: 'development' },
-  });
-  const vite = run('npx', ['vite', '--host'], {
-    cwd: resolve(__dirname, 'client'),
-    env: { ...process.env, VITE_API_PORT: apiPort },
-  });
+function dev() {
+  findFreePort(parseInt(API_PORT)).then(function (apiPort) {
+    if (apiPort !== parseInt(API_PORT)) {
+      console.log('Port ' + API_PORT + ' in use, using ' + apiPort + ' for API');
+    }
+    console.log('Starting development servers...');
 
-  process.on('SIGINT', () => {
-    api.kill();
-    vite.kill();
-    process.exit(0);
-  });
-  process.on('SIGTERM', () => {
-    api.kill();
-    vite.kill();
-    process.exit(0);
+    var apiEnv = {};
+    Object.keys(process.env).forEach(function (k) { apiEnv[k] = process.env[k]; });
+    apiEnv.PORT = apiPort;
+    apiEnv.NODE_ENV = 'development';
+
+    var viteEnv = {};
+    Object.keys(process.env).forEach(function (k) { viteEnv[k] = process.env[k]; });
+    viteEnv.VITE_API_PORT = apiPort;
+
+    var api = run('node', ['server/index.js'], { env: apiEnv });
+    var vite = run('npx', ['vite', '--host'], {
+      cwd: resolve(__dirname, 'client'),
+      env: viteEnv,
+    });
+
+    process.on('SIGINT', function () {
+      api.kill();
+      vite.kill();
+      process.exit(0);
+    });
+    process.on('SIGTERM', function () {
+      api.kill();
+      vite.kill();
+      process.exit(0);
+    });
   });
 }
 
 function build() {
   console.log('Building client...');
-  const child = run('npx', ['vite', 'build'], {
+  var child = run('npx', ['vite', 'build'], {
     cwd: resolve(__dirname, 'client'),
   });
-  child.on('close', (code) => {
+  child.on('close', function (code) {
     if (code === 0) {
       console.log('Build complete: client/dist/');
     } else {
-      console.error(`Build failed with code ${code}`);
+      console.error('Build failed with code ' + code);
       process.exit(code);
     }
   });
 }
 
 function start() {
-  console.log(`Starting production server on port ${PORT}...`);
-  const distPath = resolve(__dirname, 'client', 'dist');
+  console.log('Starting production server on port ' + PORT + '...');
+  var distPath = resolve(__dirname, 'client', 'dist');
   if (!existsSync(distPath)) {
     console.error('Error: client/dist/ not found. Run "node manage.js build" first.');
     process.exit(1);
   }
-  run('node', ['server/index.js'], {
-    env: { ...process.env, PORT, NODE_ENV: 'production' },
-  });
+  var env = {};
+  Object.keys(process.env).forEach(function (k) { env[k] = process.env[k]; });
+  env.PORT = PORT;
+  env.NODE_ENV = 'production';
+  run('node', ['server/index.js'], { env: env });
 }
 
 function test() {
-  const target = process.argv[3]; // 'server', 'client', or undefined (all)
-  const children = [];
+  var target = process.argv[3]; // 'server', 'client', or undefined (all)
+  var children = [];
 
   if (!target || target === 'server') {
     console.log('Running server tests...');
     children.push(
-      run('npx', ['vitest', 'run', '--config', 'vitest.config.server.js'])
+      run('npx', ['vitest', 'run', '--config', 'vitest.config.server.mjs'])
     );
   }
 
@@ -120,10 +149,10 @@ function test() {
     );
   }
 
-  let exitCode = 0;
-  let completed = 0;
-  children.forEach((child) => {
-    child.on('close', (code) => {
+  var exitCode = 0;
+  var completed = 0;
+  children.forEach(function (child) {
+    child.on('close', function (code) {
       if (code !== 0) exitCode = code;
       completed++;
       if (completed === children.length) {
@@ -134,34 +163,34 @@ function test() {
 }
 
 function clean() {
-  const targets = [
+  var targets = [
     resolve(__dirname, 'client', 'dist'),
     resolve(__dirname, 'client', 'node_modules', '.vite'),
   ];
-  targets.forEach((target) => {
+  targets.forEach(function (target) {
     if (existsSync(target)) {
-      rmSync(target, { recursive: true, force: true });
-      console.log(`Removed: ${target}`);
+      rmRecursiveSync(target);
+      console.log('Removed: ' + target);
     }
   });
   console.log('Clean complete.');
 }
 
-const commands = { dev, build, start, test, clean };
+var commands = { dev: dev, build: build, start: start, test: test, clean: clean };
 
 if (!command || !commands[command]) {
-  console.log(`
-Skill Market — manage.js
-
-Usage: node manage.js <command>
-
-Commands:
-  dev     Start development servers (Vite + Express)
-  build   Build React app to client/dist/
-  start   Start production server
-  test    Run tests (all, server, or client)
-  clean   Remove build artifacts and cache
-`);
+  console.log('\n' +
+    'Skill Market — manage.js\n' +
+    '\n' +
+    'Usage: node manage.js <command>\n' +
+    '\n' +
+    'Commands:\n' +
+    '  dev     Start development servers (Vite + Express)\n' +
+    '  build   Build React app to client/dist/\n' +
+    '  start   Start production server\n' +
+    '  test    Run tests (all, server, or client)\n' +
+    '  clean   Remove build artifacts and cache\n'
+  );
   process.exit(command ? 1 : 0);
 }
 

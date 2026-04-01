@@ -1,48 +1,57 @@
-import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
-import { resolve, join } from 'path';
-import matter from 'gray-matter';
-import { classify } from './classifier.js';
+var fs = require('fs');
+var path = require('path');
+var matter = require('gray-matter');
+var classifier = require('./classifier.js');
 
-export function parseSkillFromDir(dir, skillName) {
-  const skillMdPath = join(dir, 'SKILL.md');
+var readFileSync = fs.readFileSync;
+var readdirSync = fs.readdirSync;
+var statSync = fs.statSync;
+var existsSync = fs.existsSync;
+var resolve = path.resolve;
+var join = path.join;
+var classify = classifier.classify;
+
+function parseSkillFromDir(dir, skillName) {
+  var skillMdPath = join(dir, 'SKILL.md');
   if (!existsSync(skillMdPath)) return null;
 
-  const raw = readFileSync(skillMdPath, 'utf-8');
-  const { data: frontmatter, content } = matter(raw);
+  var raw = readFileSync(skillMdPath, 'utf-8');
+  var parsed = matter(raw);
+  var frontmatter = parsed.data;
+  var content = parsed.content;
 
-  const stat = statSync(skillMdPath);
-  const fileCount = countFiles(dir);
-  const { category, icon } = classify(skillName);
+  var stat = statSync(skillMdPath);
+  var fileCount = countFiles(dir);
+  var classified = classify(skillName);
 
   return {
     name: frontmatter.name || skillName,
     description: frontmatter.description || '',
     license: frontmatter.license || 'Unknown',
-    category,
-    icon,
-    fileCount,
+    category: classified.category,
+    icon: classified.icon,
+    fileCount: fileCount,
     lastUpdated: stat.mtime.toISOString(),
-    content,
+    content: content,
   };
 }
 
-export function parseSkill(skillDir, skillName) {
-  const versions = detectVersions(skillDir);
+function parseSkill(skillDir, skillName) {
+  var versions = detectVersions(skillDir);
 
   if (versions.length > 0) {
-    const currentDir = versions[0].path;
-    const skill = parseSkillFromDir(currentDir, skillName);
+    var currentDir = versions[0].path;
+    var skill = parseSkillFromDir(currentDir, skillName);
     if (!skill) return null;
 
     skill.currentVersion = versions[0].version;
-    skill.versions = [
-      ...versions.map((v) => ({ version: v.version, date: v.date })),
-      { version: 'original', date: null },
-    ];
+    skill.versions = versions.map(function (v) {
+      return { version: v.version, date: v.date };
+    }).concat([{ version: 'original', date: null }]);
     return skill;
   }
 
-  const skill = parseSkillFromDir(skillDir, skillName);
+  var skill = parseSkillFromDir(skillDir, skillName);
   if (!skill) return null;
 
   skill.currentVersion = null;
@@ -51,9 +60,10 @@ export function parseSkill(skillDir, skillName) {
 }
 
 function countFiles(dir) {
-  let count = 0;
-  const entries = readdirSync(dir, { withFileTypes: true });
-  for (const entry of entries) {
+  var count = 0;
+  var entries = readdirSync(dir, { withFileTypes: true });
+  for (var i = 0; i < entries.length; i++) {
+    var entry = entries[i];
     if (entry.isFile()) {
       count++;
     } else if (entry.isDirectory()) {
@@ -63,20 +73,21 @@ function countFiles(dir) {
   return count;
 }
 
-const VERSION_PATTERN = /^\d{8}-.+/;
+var VERSION_PATTERN = /^\d{8}-.+/;
 
-export function detectVersions(skillDir) {
+function detectVersions(skillDir) {
   if (!existsSync(skillDir)) return [];
 
-  const entries = readdirSync(skillDir, { withFileTypes: true });
-  const versions = [];
+  var entries = readdirSync(skillDir, { withFileTypes: true });
+  var versions = [];
 
-  for (const entry of entries) {
+  for (var i = 0; i < entries.length; i++) {
+    var entry = entries[i];
     if (!entry.isDirectory()) continue;
     if (!VERSION_PATTERN.test(entry.name)) continue;
 
-    const versionDir = resolve(skillDir, entry.name);
-    const skillMdPath = join(versionDir, 'SKILL.md');
+    var versionDir = resolve(skillDir, entry.name);
+    var skillMdPath = join(versionDir, 'SKILL.md');
     if (!existsSync(skillMdPath)) continue;
 
     versions.push({
@@ -86,23 +97,26 @@ export function detectVersions(skillDir) {
     });
   }
 
-  versions.sort((a, b) => b.date.localeCompare(a.date) || b.version.localeCompare(a.version));
+  versions.sort(function (a, b) {
+    return b.date.localeCompare(a.date) || b.version.localeCompare(a.version);
+  });
   return versions;
 }
 
-export function parseAllSkills(skillRepoPath) {
-  const skills = new Map();
+function parseAllSkills(skillRepoPath) {
+  var skills = new Map();
 
   if (!existsSync(skillRepoPath)) {
-    console.error(`skill_repo not found: ${skillRepoPath}`);
+    console.error('skill_repo not found: ' + skillRepoPath);
     return skills;
   }
 
-  const entries = readdirSync(skillRepoPath, { withFileTypes: true });
-  for (const entry of entries) {
+  var entries = readdirSync(skillRepoPath, { withFileTypes: true });
+  for (var i = 0; i < entries.length; i++) {
+    var entry = entries[i];
     if (!entry.isDirectory()) continue;
-    const skillDir = resolve(skillRepoPath, entry.name);
-    const skill = parseSkill(skillDir, entry.name);
+    var skillDir = resolve(skillRepoPath, entry.name);
+    var skill = parseSkill(skillDir, entry.name);
     if (skill) {
       skills.set(entry.name, skill);
     }
@@ -110,3 +124,10 @@ export function parseAllSkills(skillRepoPath) {
 
   return skills;
 }
+
+module.exports = {
+  parseSkillFromDir: parseSkillFromDir,
+  parseSkill: parseSkill,
+  detectVersions: detectVersions,
+  parseAllSkills: parseAllSkills,
+};

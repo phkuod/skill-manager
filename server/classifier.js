@@ -1,4 +1,4 @@
-const CATEGORY_MAP = {
+var CATEGORY_MAP = {
   // Development
   'frontend-design': { category: 'Development', icon: '🎨' },
   'web-artifacts-builder': { category: 'Development', icon: '🌐' },
@@ -27,16 +27,19 @@ const CATEGORY_MAP = {
   'webapp-testing': { category: 'Testing', icon: '🧪' },
 };
 
-const DEFAULT = { category: 'Other', icon: '📦' };
+var DEFAULT = { category: 'Other', icon: '📦' };
 
-export function classify(skillName) {
+function classify(skillName) {
   return CATEGORY_MAP[skillName] || DEFAULT;
 }
 
-export function getCategories() {
-  const categories = new Set();
-  for (const entry of Object.values(CATEGORY_MAP)) {
-    categories.add(entry.category);
+function getCategories() {
+  var categories = new Set();
+  var values = Object.values(CATEGORY_MAP);
+  for (var i = 0; i < values.length; i++) {
+    categories.add(values[i].category);
   }
-  return ['All', ...Array.from(categories).sort()];
+  return ['All'].concat(Array.from(categories).sort());
 }
+
+module.exports = { classify: classify, getCategories: getCategories };

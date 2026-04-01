@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { resolve } from 'path';
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
 import request from 'supertest';
-import { initWatcher } from '../watcher.js';
+import { initWatcher, getSkills } from '../watcher.js';
 import { createApp } from '../app.js';
 
 const SKILL_REPO_PATH = resolve(import.meta.dirname, '..', '..', 'skill_repo');
@@ -28,7 +28,7 @@ Versioned content for webapp-testing.
 `
   );
   watcher = initWatcher(SKILL_REPO_PATH);
-  app = createApp(SKILL_REPO_PATH);
+  app = createApp(SKILL_REPO_PATH, { getSkills });
 });
 
 afterAll(async () => {
