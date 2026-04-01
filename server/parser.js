@@ -63,7 +63,7 @@ function countFiles(dir) {
   return count;
 }
 
-const VERSION_PATTERN = /^\d{8}-.+/;
+const VERSION_PATTERN = /^\d{8}/;
 
 export function detectVersions(skillDir) {
   if (!existsSync(skillDir)) return [];
