@@ -5,5 +5,8 @@ client/dist/
 *.log
 *.exe
 .env
+.env.development
+.env.production
+.env.local
 .DS_Store
 .claude/

@@ -1,10 +1,17 @@
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 import { initWatcher } from './watcher.js';
 import { createApp } from './app.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
+
+// Load env-specific file first (higher priority), then .env as fallback
+const nodeEnv = process.env.NODE_ENV || 'development';
+dotenv.config({ path: resolve(rootDir, `.env.${nodeEnv}`) });
+dotenv.config({ path: resolve(rootDir, '.env') });
+
 const PORT = process.env.PORT || 3001;
 const SKILL_REPO_PATH = process.env.SKILL_REPO_PATH || resolve(rootDir, 'skill_repo');
 
