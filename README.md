@@ -48,25 +48,27 @@ Starts the Vite dev server on `http://localhost:3000` (with hot reload) and the 
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and adjust as needed:
+Each environment has one configuration file:
+
+| Environment | File | Template |
+|---|---|---|
+| Development | `.env.development` | `.env.development.example` |
+| Production | `.env.production` | `.env.production.example` |
+| Shared fallback | `.env` | `.env.example` |
 
 ```bash
-cp .env.example .env
-```
+# Development
+cp .env.development.example .env.development
 
-For environment-specific overrides, create `.env.development` or `.env.production` — these take priority over `.env`.
+# Production
+cp .env.production.example .env.production
+```
 
 | Variable | Default | Description |
 |---|---|---|
-| `PORT` | `3000` | Production server port |
-| `API_PORT` | `3001` | API port in development |
+| `PORT` | `3000` | Server port |
+| `API_PORT` | `3001` | API port (development only) |
 | `SKILL_REPO_PATH` | `./skill_repo` | Path to your skill repository |
-| `NODE_ENV` | `development` | Set to `production` for production builds |
-
-**Load priority (highest → lowest):**
-1. Variables already set in the shell environment
-2. `.env.development` or `.env.production` (whichever matches `NODE_ENV`)
-3. `.env`
 
 ## Production Deployment with PM2
 

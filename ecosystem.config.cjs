@@ -8,8 +8,6 @@ module.exports = {
       watch: false,
       env_production: {
         NODE_ENV: 'production',
-        PORT: 3001,
-        SKILL_REPO_PATH: './skill_repo',
       },
     },
   ],
