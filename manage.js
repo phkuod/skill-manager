@@ -3,8 +3,15 @@ import { createServer } from 'net';
 import { rmSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Load env-specific file first (higher priority), then .env as fallback
+const nodeEnv = process.env.NODE_ENV || 'development';
+dotenv.config({ path: resolve(__dirname, `.env.${nodeEnv}`) });
+dotenv.config({ path: resolve(__dirname, '.env') });
+
 const command = process.argv[2];
 
 const PORT = process.env.PORT || 3000;

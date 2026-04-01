@@ -48,12 +48,27 @@ Starts the Vite dev server on `http://localhost:3000` (with hot reload) and the 
 
 ## Environment Variables
 
+Each environment has one configuration file:
+
+| Environment | File | Template |
+|---|---|---|
+| Development | `.env.development` | `.env.development.example` |
+| Production | `.env.production` | `.env.production.example` |
+| Shared fallback | `.env` | `.env.example` |
+
+```bash
+# Development
+cp .env.development.example .env.development
+
+# Production
+cp .env.production.example .env.production
+```
+
 | Variable | Default | Description |
 |---|---|---|
-| `PORT` | `3000` | Production server port |
-| `API_PORT` | `3001` | API port in development |
+| `PORT` | `3000` | Server port |
+| `API_PORT` | `3001` | API port (development only) |
 | `SKILL_REPO_PATH` | `./skill_repo` | Path to your skill repository |
-| `NODE_ENV` | — | Set to `production` for production builds |
 
 ## Production Deployment with PM2
 
