@@ -9,9 +9,22 @@ VENV="$BACKEND/venv"
 MODE="${1:-dev}"
 
 # ── Checks ────────────────────────────────────────────────────────────────────
+# ── Select requirements file based on Python version ──────────────────────────
+PY_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "unknown")
+PY_MINOR=$(python3 -c "import sys; print(sys.version_info.minor)" 2>/dev/null || echo "0")
+PY_MAJOR=$(python3 -c "import sys; print(sys.version_info.major)" 2>/dev/null || echo "0")
+
+if [ "$PY_MAJOR" = "3" ] && [ "$PY_MINOR" -ge 12 ]; then
+  REQUIREMENTS="$BACKEND/requirements_py3.12.txt"
+elif [ "$PY_MAJOR" = "3" ] && [ "$PY_MINOR" -ge 10 ]; then
+  REQUIREMENTS="$BACKEND/requirements_py3.10_plus.txt"
+else
+  REQUIREMENTS="$BACKEND/requirements_py3.8_3.9.txt"
+fi
+
 if [ ! -d "$VENV" ]; then
   echo "ERROR: virtualenv not found at $VENV"
-  echo "       Run:  python3 -m venv $VENV && $VENV/bin/pip install -r $BACKEND/requirements.txt"
+  echo "       Run:  python3 -m venv $VENV && $VENV/bin/pip install -r $REQUIREMENTS"
   exit 1
 fi
 
