@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 import time
 
 import pytest
@@ -13,15 +14,21 @@ BASE_URL = f"http://127.0.0.1:{PORT}"
 
 
 def _venv_python():
+    """Project venv (matched to the current OS) first, else the active interpreter.
+
+    Gated by sys.platform so a Windows-side venv exposed via a Linux bind mount
+    isn't picked up inside a Linux container — the .exe exists as a file but
+    isn't executable. sys.executable fallback covers CI / Docker / fresh
+    checkouts that have no checked-in venv."""
     base = os.path.join(os.path.dirname(__file__), "../venv")
-    candidates = [
-        os.path.join(base, "bin", "python"),
-        os.path.join(base, "Scripts", "python.exe"),
-    ]
-    for c in candidates:
-        if os.path.isfile(c):
-            return c
-    return candidates[0]
+    candidate = (
+        os.path.join(base, "Scripts", "python.exe")
+        if sys.platform == "win32"
+        else os.path.join(base, "bin", "python")
+    )
+    if os.path.isfile(candidate):
+        return candidate
+    return sys.executable
 
 
 @pytest.fixture(scope="session")
