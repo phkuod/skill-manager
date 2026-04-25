@@ -77,7 +77,7 @@ def parse_skill_from_dir(dir_path, skill_name):
         return None
 
     meta = post.metadata
-    classification = classify(skill_name)
+    classification = classify(skill_name, meta)
 
     return {
         'name': meta.get('name') or skill_name,

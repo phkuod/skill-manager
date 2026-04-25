@@ -156,6 +156,11 @@ body {
   background: none;
 }
 
+/* Hide the `/` shortcut hint once the search box is focused */
+#search-input:focus ~ #search-shortcut-hint {
+  opacity: 0;
+}
+
 /* Line clamp */
 .line-clamp-2 {
   display: -webkit-box;

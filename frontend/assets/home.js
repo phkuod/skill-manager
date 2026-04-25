@@ -50,6 +50,15 @@
   // Filter / sort / render
   // -------------------------------------------------------------------------
 
+  // Rank by where the query hit: name (0) > description (1) > content (2).
+  // Mirrors backend/skills/views.py::_search_sort_key.
+  function matchRank(skill, q) {
+    if ((skill.name || '').toLowerCase().indexOf(q) !== -1) return 0;
+    if ((skill.description || '').toLowerCase().indexOf(q) !== -1) return 1;
+    if ((skill.content || '').toLowerCase().indexOf(q) !== -1) return 2;
+    return -1;
+  }
+
   function render() {
     var q = currentSearch.toLowerCase();
 
@@ -57,10 +66,7 @@
       var matchCat = currentCategory === 'All' || s.category === currentCategory;
       if (!matchCat) return false;
       if (!q) return true;
-      return (
-        (s.name || '').toLowerCase().indexOf(q) !== -1 ||
-        (s.description || '').toLowerCase().indexOf(q) !== -1
-      );
+      return matchRank(s, q) !== -1;
     });
 
     visible.sort(function (a, b) {
@@ -72,9 +78,7 @@
 
     if (q) {
       visible.sort(function (a, b) {
-        var aName = (a.name || '').toLowerCase().indexOf(q) !== -1 ? 0 : 1;
-        var bName = (b.name || '').toLowerCase().indexOf(q) !== -1 ? 0 : 1;
-        return aName - bName;
+        return matchRank(a, q) - matchRank(b, q);
       });
     }
 
@@ -132,6 +136,40 @@
       render();
     });
   }
+
+  // -------------------------------------------------------------------------
+  // Keyboard shortcuts
+  //   /        focus the search box
+  //   Ctrl+K   focus the search box (also Cmd+K on macOS)
+  //   Esc      while searching, clear the query and unfocus
+  // -------------------------------------------------------------------------
+
+  document.addEventListener('keydown', function (e) {
+    if (!searchInput) return;
+    var typing = isTypingTarget(e.target);
+
+    if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+      return;
+    }
+
+    if (e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey) && !e.altKey) {
+      e.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+      return;
+    }
+
+    if (e.key === 'Escape' && document.activeElement === searchInput) {
+      e.preventDefault();
+      searchInput.value = '';
+      currentSearch = '';
+      render();
+      searchInput.blur();
+    }
+  });
 
   // -------------------------------------------------------------------------
   // Fetch and initialize

@@ -40,27 +40,16 @@ function relativeTime(isoString) {
 }
 
 // ---------------------------------------------------------------------------
-// Copy to clipboard (delegated — works for elements added after load)
+// Keyboard helpers
 // ---------------------------------------------------------------------------
 
-function copyButtonHandler(e) {
-  var btn = e.target.closest('.copy-btn');
-  if (!btn) return;
-
-  var text;
-  if (btn.dataset.copyTarget) {
-    var el = document.getElementById(btn.dataset.copyTarget);
-    text = el ? el.textContent : '';
-  } else {
-    text = btn.dataset.copy || '';
-  }
-  if (!text) return;
-
-  navigator.clipboard.writeText(text).then(function () {
-    var orig = btn.textContent;
-    btn.textContent = 'Copied!';
-    setTimeout(function () { btn.textContent = orig; }, 2000);
-  });
+// True if the event's target is a text-entry surface, so global single-key
+// shortcuts (e.g. `/`, `d`) should not fire.
+function isTypingTarget(el) {
+  if (!el) return false;
+  var tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  return !!el.isContentEditable;
 }
 
 // ---------------------------------------------------------------------------
@@ -85,5 +74,4 @@ document.addEventListener('DOMContentLoaded', function () {
   applyThemeIcons();
   var themeBtn = document.getElementById('theme-toggle');
   if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
-  document.addEventListener('click', copyButtonHandler);
 });

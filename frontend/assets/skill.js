@@ -216,5 +216,29 @@
 
   window.addEventListener('popstate', load);
 
+  // -------------------------------------------------------------------------
+  // Keyboard shortcuts
+  //   Esc   navigate back to the catalog
+  //   d     trigger Download ZIP for the current skill / version
+  // -------------------------------------------------------------------------
+
+  document.addEventListener('keydown', function (e) {
+    if (isTypingTarget(e.target)) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      window.location.href = '/';
+      return;
+    }
+
+    if (e.key === 'd' || e.key === 'D') {
+      var link = document.getElementById('download-link');
+      if (!link) return;
+      e.preventDefault();
+      link.click();
+    }
+  });
+
   load();
 })();

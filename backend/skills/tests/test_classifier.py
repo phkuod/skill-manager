@@ -66,3 +66,43 @@ def test_get_categories_sorted_no_duplicates():
     without_all = categories[1:]
     assert without_all == sorted(without_all)
     assert len(categories) == len(set(categories))
+
+
+# --- frontmatter overrides ---
+
+def test_classify_frontmatter_overrides_map():
+    # Frontmatter should win over CATEGORY_MAP for a known skill name.
+    meta = {'category': 'Custom', 'icon': '✨'}
+    assert classify('frontend-design', meta) == {'category': 'Custom', 'icon': '✨'}
+
+
+def test_classify_frontmatter_partial_override():
+    # Only `category` provided — icon falls back to CATEGORY_MAP entry.
+    meta = {'category': 'Custom'}
+    assert classify('frontend-design', meta) == {'category': 'Custom', 'icon': '🎨'}
+
+
+def test_classify_frontmatter_for_unknown_skill():
+    # Unknown skill + frontmatter category: skip the 'Other' default.
+    meta = {'category': 'Custom', 'icon': '🎯'}
+    assert classify('brand-new-skill', meta) == {'category': 'Custom', 'icon': '🎯'}
+
+
+def test_classify_empty_meta_uses_fallback():
+    assert classify('frontend-design', {}) == {'category': 'Development', 'icon': '🎨'}
+
+
+def test_get_categories_includes_observed():
+    skills = {
+        'a': {'category': 'Custom Cat'},
+        'b': {'category': 'Development'},  # already in map, no duplicate
+    }
+    cats = get_categories(skills)
+    assert 'Custom Cat' in cats
+    # No duplicates
+    assert len(cats) == len(set(cats))
+
+
+def test_get_categories_excludes_other_even_if_observed():
+    skills = {'x': {'category': 'Other'}}
+    assert 'Other' not in get_categories(skills)
