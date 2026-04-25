@@ -1,0 +1,11 @@
+backend/venv/
+backend/staticfiles/
+backend/.env
+backend/**/__pycache__/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/e2e/
+node_modules/
+client/
+.git/
+skill_repo/
