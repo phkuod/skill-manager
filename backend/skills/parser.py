@@ -85,10 +85,34 @@ def parse_skill_from_dir(dir_path, skill_name):
         'license': meta.get('license') or 'Unknown',
         'category': classification['category'],
         'icon': classification['icon'],
+        'tags': _parse_tags(meta.get('tags')),
         'fileCount': _count_files(dir_path),
         'lastUpdated': _last_modified(dir_path),
         'content': post.content,
     }
+
+
+def _parse_tags(raw):
+    """Normalize a frontmatter `tags:` value to a sorted list of strings.
+
+    Accepts a YAML list (`[a, b]`) or a comma-separated string (`"a, b"`).
+    Drops blanks; lowercases for consistent matching/dedup."""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        items = [t.strip() for t in raw.split(',')]
+    elif isinstance(raw, (list, tuple)):
+        items = [str(t).strip() for t in raw]
+    else:
+        return []
+    seen = []
+    for t in items:
+        if not t:
+            continue
+        t = t.lower()
+        if t not in seen:
+            seen.append(t)
+    return sorted(seen)
 
 
 def parse_skill(skill_dir, skill_name):

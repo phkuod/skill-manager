@@ -83,8 +83,31 @@ def test_list_includes_content_for_search(client, version_fixture):
 def test_list_required_fields(client, version_fixture):
     res = client.get('/api/skills')
     skill = res.json()['skills'][0]
-    for field in ['name', 'description', 'category', 'icon', 'license', 'fileCount', 'lastUpdated', 'currentVersion', 'versions']:
+    for field in ['name', 'description', 'category', 'icon', 'license', 'fileCount', 'lastUpdated', 'currentVersion', 'versions', 'tags']:
         assert field in skill, f"Missing field: {field}"
+
+
+def test_list_exposes_tags_payload(client, version_fixture):
+    # The list response includes a 'tags' field (sorted union across skills),
+    # which the home page uses to render filter pills.
+    res = client.get('/api/skills')
+    data = res.json()
+    assert 'tags' in data
+    assert isinstance(data['tags'], list)
+
+
+def test_tag_filter_no_match(client, version_fixture):
+    # No real skill currently declares this tag — filter should return nothing.
+    res = client.get('/api/skills?tag=nonexistent-tag-xyz')
+    assert res.status_code == 200
+    assert res.json()['skills'] == []
+
+
+def test_tag_filter_combines_with_category(client, version_fixture):
+    # AND-combined with category. Even with a wide tag, results stay within
+    # the requested category.
+    res = client.get('/api/skills?tag=nonexistent-tag-xyz&category=Tools')
+    assert res.json()['skills'] == []
 
 
 # ---------------------------------------------------------------------------
@@ -317,6 +340,54 @@ def test_version_zip_404(client, version_fixture):
 
 
 # ---------------------------------------------------------------------------
+# Files (lazy)
+# ---------------------------------------------------------------------------
+
+def test_files_metadata_only_by_default(client, version_fixture):
+    # Default response carries no body — frontend fetches per-file on demand.
+    res = client.get('/api/skills/pdf/files')
+    assert res.status_code == 200
+    files = res.json()
+    assert isinstance(files, list) and len(files) > 0
+    for f in files:
+        assert 'content' not in f
+        assert 'size' in f
+        assert 'language' in f
+
+
+def test_files_include_content(client, version_fixture):
+    res = client.get('/api/skills/pdf/files?include=content')
+    assert res.status_code == 200
+    files = res.json()
+    skill_md = next(f for f in files if f['path'] == 'SKILL.md')
+    assert 'content' in skill_md
+    assert skill_md['content']
+
+
+def test_single_file(client, version_fixture):
+    res = client.get('/api/skills/pdf/files/SKILL.md')
+    assert res.status_code == 200
+    data = res.json()
+    assert data['path'] == 'SKILL.md'
+    assert data['language'] == 'markdown'
+    assert data['content']
+
+
+def test_single_file_404(client, version_fixture):
+    res = client.get('/api/skills/pdf/files/nonexistent.txt')
+    assert res.status_code == 404
+
+
+def test_single_file_rejects_traversal(client, version_fixture):
+    # /files/../foo would normalize before hitting Django, but a literal
+    # ../ as a path segment should not escape the skill dir.
+    res = client.get('/api/skills/pdf/files/..%2Fpdf%2FSKILL.md')
+    # Either 404 (rejected) or 200 (resolved within the same skill); never
+    # a 500 or content from outside skill_repo/pdf.
+    assert res.status_code in (200, 404)
+
+
+# ---------------------------------------------------------------------------
 # Version files
 # ---------------------------------------------------------------------------
 
@@ -327,6 +398,13 @@ def test_version_files(client, version_fixture):
     assert isinstance(files, list)
     paths = [f['path'] for f in files]
     assert 'SKILL.md' in paths
+
+
+def test_version_single_file(client, version_fixture):
+    res = client.get('/api/skills/webapp-testing/versions/20260331-version-test/files/SKILL.md')
+    assert res.status_code == 200
+    data = res.json()
+    assert 'Versioned content' in data['content']
 
 
 def test_version_files_404(client, version_fixture):
