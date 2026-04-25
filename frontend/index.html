@@ -1,10 +1,25 @@
-{% extends "skills/base.html" %}
-{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skill Market</title>
+  <link rel="stylesheet" href="/static/vendor/tailwind.min.css">
+  <link rel="stylesheet" href="/static/vendor/github-dark.min.css">
+  <link rel="stylesheet" href="/static/assets/app.css">
+  <script>
+    // Apply theme before first paint to avoid flash
+    (function () {
+      var stored = localStorage.getItem('theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (stored === 'dark' || (!stored && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
+</head>
+<body class="min-h-screen" style="background-color:var(--bg-primary);color:var(--text-primary)">
 
-{% block title %}Skill Market{% endblock %}
-
-{% block content %}
-<!-- Header -->
 <header class="sticky top-0 z-50 border-b px-6 py-4 flex items-center gap-4" style="background-color:var(--bg-secondary);border-color:var(--border)">
   <div class="flex items-center gap-2 flex-shrink-0">
     <span class="text-2xl">🛍️</span>
@@ -30,28 +45,18 @@
   </button>
 </header>
 
-<!-- Hero -->
 <section class="px-6 py-10 text-center">
   <h1 class="text-3xl font-bold mb-2" style="color:var(--text-primary)">Internal Skill Market</h1>
   <p class="mb-6" style="color:var(--text-secondary)">Discover and install skills for Claude Code and Opencode CLI</p>
   <div class="flex justify-center gap-8 text-sm" style="color:var(--text-secondary)">
-    <div><span class="font-bold text-lg" style="color:var(--accent)">{{ skills|length }}</span> Skills</div>
-    <div><span class="font-bold text-lg" style="color:var(--accent)">{{ categories|length|add:"-1" }}</span> Categories</div>
+    <div><span id="stat-skills" class="font-bold text-lg" style="color:var(--accent)">—</span> Skills</div>
+    <div><span id="stat-categories" class="font-bold text-lg" style="color:var(--accent)">—</span> Categories</div>
     <div><span class="font-bold text-lg" style="color:var(--accent)">2</span> Platforms</div>
   </div>
 </section>
 
-<!-- Filters -->
 <div class="px-6 mb-6 flex flex-wrap items-center gap-3">
-  <div id="category-filters" class="flex flex-wrap gap-2">
-    {% for cat in categories %}
-    <button class="category-pill px-3 py-1 rounded-full text-sm border font-medium transition-colors"
-      data-category="{{ cat }}"
-      style="border-color:var(--border);color:var(--text-secondary);background-color:var(--bg-secondary)">
-      {{ cat }}
-    </button>
-    {% endfor %}
-  </div>
+  <div id="category-filters" class="flex flex-wrap gap-2"></div>
   <div class="ml-auto flex items-center gap-2">
     <label class="text-sm" style="color:var(--text-secondary)">Sort:</label>
     <select id="sort-select" class="text-sm rounded-lg border px-2 py-1"
@@ -62,38 +67,18 @@
   </div>
 </div>
 
-<!-- Skill Grid -->
 <main class="px-6 pb-10">
-  <div id="skill-grid" class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-    {% for skill in skills %}
-    <a href="/skill/{{ skill.name }}"
-      class="skill-card block rounded-xl border p-5 transition-all hover:shadow-lg"
-      style="background-color:var(--bg-card);border-color:var(--border);text-decoration:none"
-      data-name="{{ skill.name }}"
-      data-description="{{ skill.description }}"
-      data-category="{{ skill.category }}"
-      data-updated="{{ skill.lastUpdated }}">
-      <div class="flex items-start justify-between mb-3">
-        <span class="text-3xl">{{ skill.icon }}</span>
-        <span class="text-xs px-2 py-0.5 rounded-full category-badge" data-category="{{ skill.category }}">{{ skill.category }}</span>
-      </div>
-      <h3 class="font-semibold mb-1 truncate" style="color:var(--text-primary)">{{ skill.name }}</h3>
-      <p class="text-sm mb-3 line-clamp-2" style="color:var(--text-secondary)">{{ skill.description }}</p>
-      <div class="flex items-center justify-between text-xs" style="color:var(--text-secondary)">
-        <span>{{ skill.fileCount }} file{{ skill.fileCount|pluralize }}</span>
-        <span class="relative-time" data-time="{{ skill.lastUpdated }}">{{ skill.lastUpdated|slice:":10" }}</span>
-      </div>
-    </a>
-    {% endfor %}
-  </div>
+  <div id="skill-grid" class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
   <p id="no-results" class="hidden text-center py-12" style="color:var(--text-secondary)">No skills match your search.</p>
+  <p id="load-error" class="hidden text-center py-12" style="color:var(--text-secondary)">Failed to load skills. Refresh to try again.</p>
 </main>
 
-<!-- Footer -->
 <footer class="text-center py-4 text-sm border-t" style="color:var(--text-secondary);border-color:var(--border)">
-  <span id="footer-count">{{ skills|length }}</span> skills available
+  <span id="footer-count">—</span> skills available
 </footer>
 
-<!-- Skills data for JS filtering -->
-{{ skills_for_js|json_script:"skills-data" }}
-{% endblock %}
+<script src="/static/config.js"></script>
+<script src="/static/assets/common.js"></script>
+<script src="/static/assets/home.js"></script>
+</body>
+</html>
