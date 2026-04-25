@@ -2,9 +2,9 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # HTML pages
-    path('', views.home, name='home'),
-    path('skill/<str:name>', views.skill_detail, name='skill_detail'),
+    # HTML shells (static, no templating — the frontend JS fetches /api/*)
+    path('', views.index_shell, name='home'),
+    path('skill/<str:name>', views.skill_shell, name='skill_detail'),
 
     # JSON API
     path('api/health', views.api_health, name='api_health'),

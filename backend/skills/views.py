@@ -1,9 +1,7 @@
 import os
 
-import markdown as md
 from django.conf import settings
-from django.http import JsonResponse
-from django.shortcuts import render
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET
 
 from .classifier import get_categories
@@ -50,53 +48,25 @@ def _search_sort_key(skill, search):
 
 
 # ---------------------------------------------------------------------------
-# HTML views
+# HTML shells — return the static frontend HTML as-is (no templating)
 # ---------------------------------------------------------------------------
 
-def home(request):
-    skills = list(get_skills().values())
-    categories = get_categories()
-    # Simplified list for JS-side filtering (no content field)
-    skills_for_js = [
-        {
-            'name': s['name'],
-            'description': s.get('description', ''),
-            'category': s.get('category', ''),
-            'lastUpdated': s.get('lastUpdated', ''),
-        }
-        for s in skills
-    ]
-    return render(request, 'skills/home.html', {
-        'skills': skills,
-        'categories': categories,
-        'skills_for_js': skills_for_js,
-    })
+def _read_shell(filename):
+    path = settings.FRONTEND_DIR / filename
+    with open(path, 'rb') as f:
+        return HttpResponse(f.read(), content_type='text/html; charset=utf-8')
 
 
-def skill_detail(request, name):
-    skill = get_skills().get(name)
-    if skill is None:
-        return render(request, 'skills/home.html', {
-            'skills': list(get_skills().values()),
-            'categories': get_categories(),
-            'error': f"Skill '{name}' not found.",
-        }, status=404)
+@require_GET
+def index_shell(request):
+    return _read_shell('index.html')
 
-    content_html = md.markdown(
-        skill.get('content', ''),
-        extensions=['tables', 'fenced_code', 'nl2br'],
-    )
-    files = read_skill_files(_skill_dir(name))
-    install_paths = _install_paths(name)
-    repo_path = _skill_dir(name)
 
-    return render(request, 'skills/detail.html', {
-        'skill': skill,
-        'content_html': content_html,
-        'files': files,
-        'install_paths': install_paths,
-        'repo_path': repo_path,
-    })
+@require_GET
+def skill_shell(request, name):
+    # The shell is served regardless of whether <name> exists; the frontend
+    # calls /api/skills/<name> and shows an inline "not found" state on 404.
+    return _read_shell('skill.html')
 
 
 # ---------------------------------------------------------------------------

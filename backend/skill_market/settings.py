@@ -17,23 +17,12 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'skills.middleware.ApiCorsMiddleware',
     'django.middleware.common.CommonMiddleware',
 ]
 
 ROOT_URLCONF = 'skill_market.urls'
 WSGI_APPLICATION = 'skill_market.wsgi.application'
-
-TEMPLATES = [{
-    'BACKEND': 'django.template.backends.django.DjangoTemplates',
-    'DIRS': [],
-    'APP_DIRS': True,
-    'OPTIONS': {
-        'context_processors': [
-            'django.template.context_processors.request',
-            'django.template.context_processors.static',
-        ],
-    },
-}]
 
 DATABASES = {
     'default': {
@@ -44,9 +33,11 @@ DATABASES = {
 
 APPEND_SLASH = False
 
+FRONTEND_DIR = BASE_DIR.parent / 'frontend'
+
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'skills' / 'static']
+STATICFILES_DIRS = [FRONTEND_DIR]
 WHITENOISE_MANIFEST_STRICT = False
 
 SKILL_REPO_PATH = os.environ.get('SKILL_REPO_PATH', str(BASE_DIR.parent / 'skill_repo'))
