@@ -72,10 +72,12 @@ def test_list_all_skills(client, version_fixture):
     assert data['categories'][0] == 'All'
 
 
-def test_list_no_content_field(client, version_fixture):
+def test_list_includes_content_for_search(client, version_fixture):
+    # `content` is included in the list response so the home-page search
+    # can match against the full SKILL.md body, not just name/description.
     res = client.get('/api/skills')
     for skill in res.json()['skills']:
-        assert 'content' not in skill
+        assert 'content' in skill
 
 
 def test_list_required_fields(client, version_fixture):
@@ -150,6 +152,24 @@ def test_search_and_category(client, version_fixture):
         assert s['category'] == 'Tools'
     names = [s['name'] for s in skills]
     assert 'pdf' in names
+
+
+def test_search_matches_content(client, version_fixture):
+    # `pypdf` only appears in the body of the pdf SKILL.md, not in name
+    # or description. Content search should still surface it.
+    res = client.get('/api/skills?search=pypdf')
+    assert res.status_code == 200
+    names = [s['name'] for s in res.json()['skills']]
+    assert 'pdf' in names
+
+
+def test_search_ranks_name_above_content(client, version_fixture):
+    # 'pdf' matches the pdf skill's name and likely appears in other skills'
+    # content. The name match must rank first.
+    res = client.get('/api/skills?search=pdf')
+    skills = res.json()['skills']
+    assert len(skills) > 0
+    assert skills[0]['name'] == 'pdf'
 
 
 # ---------------------------------------------------------------------------

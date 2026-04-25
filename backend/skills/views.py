@@ -41,10 +41,13 @@ def _version_dir(skill_name, version):
 
 
 def _search_sort_key(skill, search):
-    name = skill.get('name', '').lower()
-    if search.lower() in name:
+    """Rank skills by where the query hit: name > description > content."""
+    q = search.lower()
+    if q in skill.get('name', '').lower():
         return 0
-    return 1
+    if q in skill.get('description', '').lower():
+        return 1
+    return 2
 
 
 # ---------------------------------------------------------------------------
@@ -94,24 +97,20 @@ def api_skill_list(request):
     if category and category != 'All':
         skills = [s for s in skills if s.get('category') == category]
 
-    # Filter by search
+    # Filter by search — match name, description, or markdown body
     if search:
         q = search.lower()
         skills = [
             s for s in skills
-            if q in s.get('name', '').lower() or q in s.get('description', '').lower()
+            if q in s.get('name', '').lower()
+            or q in s.get('description', '').lower()
+            or q in (s.get('content') or '').lower()
         ]
         skills.sort(key=lambda s: _search_sort_key(s, search))
 
-    # Strip content from list response
-    result = []
-    for s in skills:
-        item = {k: v for k, v in s.items() if k != 'content'}
-        result.append(item)
-
     return JsonResponse({
-        'skills': result,
-        'categories': get_categories(),
+        'skills': list(skills),
+        'categories': get_categories(get_skills()),
     })
 
 

@@ -20,11 +20,12 @@
 <body class="min-h-screen" style="background-color:var(--bg-primary);color:var(--text-primary)">
 
 <header class="sticky top-0 z-50 border-b px-6 py-4 flex items-center justify-between" style="background-color:var(--bg-secondary);border-color:var(--border)">
-  <a href="/" class="flex items-center gap-2 text-sm font-medium" style="color:var(--text-secondary);text-decoration:none">
+  <a href="/" title="Back to catalog (Esc)" class="flex items-center gap-2 text-sm font-medium" style="color:var(--text-secondary);text-decoration:none">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
     </svg>
     Back
+    <kbd class="text-xs px-1.5 py-0.5 rounded border ml-1" style="border-color:var(--border);font-family:inherit">Esc</kbd>
   </a>
   <button id="theme-toggle" class="p-2 rounded-lg border" style="border-color:var(--border)" aria-label="Toggle theme">
     <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,15 +75,13 @@
               <button class="install-tab px-3 py-1 text-sm rounded-lg font-medium" data-tab="opencode">Opencode CLI</button>
             </div>
             <div id="tab-claude" class="install-tab-content">
-              <div class="flex items-center gap-2 rounded-lg p-3" style="background-color:var(--bg-secondary)">
-                <code id="cmd-claude" class="flex-1 text-sm break-all" style="color:var(--text-primary)"></code>
-                <button class="copy-btn flex-shrink-0 text-xs px-2 py-1 rounded border" style="border-color:var(--border);color:var(--text-secondary)" data-copy-target="cmd-claude">Copy</button>
+              <div class="rounded-lg p-3" style="background-color:var(--bg-secondary)">
+                <code id="cmd-claude" class="block text-sm break-all" style="color:var(--text-primary)"></code>
               </div>
             </div>
             <div id="tab-opencode" class="install-tab-content hidden">
-              <div class="flex items-center gap-2 rounded-lg p-3" style="background-color:var(--bg-secondary)">
-                <code id="cmd-opencode" class="flex-1 text-sm break-all" style="color:var(--text-primary)"></code>
-                <button class="copy-btn flex-shrink-0 text-xs px-2 py-1 rounded border" style="border-color:var(--border);color:var(--text-secondary)" data-copy-target="cmd-opencode">Copy</button>
+              <div class="rounded-lg p-3" style="background-color:var(--bg-secondary)">
+                <code id="cmd-opencode" class="block text-sm break-all" style="color:var(--text-primary)"></code>
               </div>
             </div>
           </div>
@@ -142,13 +141,14 @@
           </div>
         </div>
 
-        <a id="download-link" href="#"
+        <a id="download-link" href="#" title="Download ZIP (D)"
           class="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-medium text-sm text-white"
           style="background-color:var(--accent)">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
           </svg>
           Download ZIP
+          <kbd class="text-xs px-1.5 py-0.5 rounded border ml-1" style="border-color:rgba(255,255,255,0.4);font-family:inherit">D</kbd>
         </a>
 
       </div>
