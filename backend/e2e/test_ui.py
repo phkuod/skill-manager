@@ -4,6 +4,22 @@ Playwright e2e tests for the Skill Market web UI.
 import re
 
 
+def _card_name(card):
+    """Skill name from a card's href: '/skill/pdf' -> 'pdf'."""
+    href = card.get_attribute("href") or ""
+    return href.rsplit("/", 1)[-1]
+
+
+def _open_detail(page, server_url, name):
+    """Navigate to the detail page and wait for the SPA to finish loading.
+
+    The detail page is a static shell that calls /api/skills/<name> client-side
+    and only un-hides #skill-root once the JSON arrives. Tests that read body
+    text or query rendered controls must wait for that signal."""
+    page.goto(f"{server_url}/skill/{name}")
+    page.locator("#skill-root").wait_for(state="visible", timeout=5000)
+
+
 # ---------------------------------------------------------------------------
 # Home page — basic render
 # ---------------------------------------------------------------------------
@@ -52,7 +68,7 @@ def test_search_filters_cards(page, server_url):
         if page.locator(".skill-card").nth(i).is_visible()
     ]
     assert len(visible) >= 1
-    assert any("pdf" in c.get_attribute("data-name") for c in visible)
+    assert any(_card_name(c) == "pdf" for c in visible)
 
 
 def test_search_shows_no_results_message(page, server_url):
@@ -130,7 +146,7 @@ def test_sort_by_name(page, server_url):
     page.wait_for_timeout(200)
 
     names = [
-        page.locator(".skill-card").nth(i).get_attribute("data-name")
+        _card_name(page.locator(".skill-card").nth(i))
         for i in range(page.locator(".skill-card").count())
         if page.locator(".skill-card").nth(i).is_visible()
     ]
@@ -172,37 +188,37 @@ def test_dark_mode_persists_on_reload(page, server_url):
 
 def test_skill_card_navigates_to_detail(page, server_url):
     page.goto(server_url)
-    page.locator(".skill-card[data-name='pdf']").click()
+    page.locator(".skill-card[href$='/skill/pdf']").click()
     page.wait_for_url(re.compile(r"/skill/pdf"))
     assert "/skill/pdf" in page.url
 
 
 def test_detail_shows_license(page, server_url):
-    page.goto(f"{server_url}/skill/pdf")
+    _open_detail(page, server_url, "pdf")
     assert "Proprietary" in page.inner_text("body")
 
 
 def test_detail_shows_install_paths(page, server_url):
-    page.goto(f"{server_url}/skill/pdf")
+    _open_detail(page, server_url, "pdf")
     body = page.inner_text("body")
     assert "~/.claude/skills/pdf" in body
     assert "~/.opencode/skills/pdf" in body
 
 
 def test_detail_shows_file_list(page, server_url):
-    page.goto(f"{server_url}/skill/pdf")
+    _open_detail(page, server_url, "pdf")
     body = page.inner_text("body")
     assert "SKILL.md" in body or "LICENSE.txt" in body
 
 
 def test_detail_download_zip_link_exists(page, server_url):
-    page.goto(f"{server_url}/skill/pdf")
+    _open_detail(page, server_url, "pdf")
     zip_links = page.locator("a[href*='/zip']")
     assert zip_links.count() >= 1
 
 
 def test_detail_back_link_returns_home(page, server_url):
-    page.goto(f"{server_url}/skill/pdf")
+    _open_detail(page, server_url, "pdf")
     page.locator("a[href='/']").first.click()
     page.wait_for_url(re.compile(r"/$"))
     assert page.url.rstrip("/") == server_url.rstrip("/")

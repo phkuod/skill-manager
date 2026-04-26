@@ -1,6 +1,8 @@
 # Skill Market
 
-A self-hosted web app for browsing, searching, and installing Claude Code skills from a local skill repository.
+A self-hosted web app for browsing, searching, and installing Claude Code /
+Opencode CLI skills from a local skill repository. Designed for internal-network
+deployment.
 
 ![Home](docs/screenshots/01-home.png)
 ![Skill Detail](docs/screenshots/02-skill-detail.png)
@@ -8,105 +10,128 @@ A self-hosted web app for browsing, searching, and installing Claude Code skills
 ## Features
 
 - Browse skills with real-time search and category filters
-- One-click copy of install commands for Claude Code and Opencode
-- Download any skill as a ZIP archive
+- Server-rendered install commands and per-skill ZIP download
 - Dark / light theme (auto-detects system preference)
-- Live reload — drop a new skill into `skill_repo/` and the UI updates instantly
+- Live reload — drop a new skill into `skill_repo/` and the catalog updates
+  without a restart (filesystem watcher with 300 ms debounce)
+- Keyboard shortcuts: `/` or `Ctrl+K` to focus search, `Esc` to clear or to
+  return to the catalog from a detail page, `D` to download the current skill
+
+## Stack
+
+- **Backend:** Django 5.x (Django 4.x on Python 3.8/3.9), single app `skills`
+- **Frontend:** static HTML + vanilla JS in `frontend/`, vendored Tailwind /
+  marked / highlight.js (no bundler, no build step)
+- **Storage:** none — the catalog is an in-memory dict refreshed by a
+  `watchdog` observer over `SKILL_REPO_PATH`. SQLite is configured to
+  `:memory:` only to satisfy Django.
+- **Process manager (prod):** PM2 + gunicorn
 
 ## Quick Start
 
 ```bash
 git clone <repo-url>
 cd skill-manager
-npm install
-node manage.js build
-node manage.js start
+
+# Create venv and install deps. start.sh picks the requirements file based
+# on your Python version (3.12+ / 3.10–3.11 / 3.8–3.9).
+python3 -m venv backend/venv
+backend/venv/bin/pip install -r backend/requirements-dev.txt   # includes pytest
+# or backend/requirements.txt for prod-only
+
+# Run dev server (Django runserver on :3000)
+./start.sh
+
+# Run prod server (gunicorn, DEBUG=False)
+./start.sh prod
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open <http://localhost:3000>.
 
-## Development
+## Tests
+
+From `backend/` with the venv active:
 
 ```bash
-npm install
-node manage.js dev
+pytest                                       # all unit tests
+pytest skills/tests/test_parser.py           # one file
+pytest skills/tests/test_parser.py::test_x   # one test
+pytest e2e/                                  # Playwright E2E
 ```
 
-Starts the Vite dev server on `http://localhost:3000` (with hot reload) and the Express API on `http://localhost:3001`. Vite proxies `/api` requests to Express automatically.
-
-## Commands
-
-| Command | Description |
-|---|---|
-| `node manage.js dev` | Start dev servers with hot reload |
-| `node manage.js build` | Build React app to `client/dist/` |
-| `node manage.js start` | Start production server |
-| `node manage.js test` | Run all tests |
-| `node manage.js test server` | Server tests only |
-| `node manage.js test client` | Client tests only |
-| `node manage.js clean` | Remove `dist/` and Vite cache |
-
-## Environment Variables
-
-Each environment has one configuration file:
-
-| Environment | File | Template |
-|---|---|---|
-| Development | `.env.development` | `.env.development.example` |
-| Production | `.env.production` | `.env.production.example` |
-| Shared fallback | `.env` | `.env.example` |
-
-```bash
-# Development
-cp .env.development.example .env.development
-
-# Production
-cp .env.production.example .env.production
-```
-
-| Variable | Default | Description |
-|---|---|---|
-| `PORT` | `3000` | Server port |
-| `API_PORT` | `3001` | API port (development only) |
-| `SKILL_REPO_PATH` | `./skill_repo` | Path to your skill repository |
-
-## Production Deployment with PM2
-
-[PM2](https://pm2.keymetrics.io/) keeps the server running and restarts it automatically on failure or reboot.
-
-```bash
-npm install -g pm2
-node manage.js build
-pm2 start ecosystem.config.cjs --env production
-pm2 save       # persist the process list
-pm2 startup    # enable auto-start on system reboot
-```
-
-Common PM2 commands:
-
-```bash
-pm2 list                    # view running processes
-pm2 logs skill-market       # tail application logs
-pm2 restart skill-market    # restart the process
-pm2 stop skill-market       # stop the process
-pm2 delete skill-market     # remove from PM2
-```
+E2E uses Playwright's bundled Chromium by default. Override with
+`CHROMIUM_EXEC=/path/to/chrome` if you want a specific binary.
 
 ## Adding Skills
 
-Drop a folder containing a `SKILL.md` file into `skill_repo/`. The server watches the directory and updates the catalog automatically — no restart needed.
+Drop a folder containing a `SKILL.md` into `skill_repo/`. The watcher picks it
+up live — no restart needed.
 
 ```
 skill_repo/
 └── my-skill/
-    ├── SKILL.md       # required — name, description, license in frontmatter
+    ├── SKILL.md       # required — frontmatter: name, description, license,
+    │                  # optional category and icon
     └── ...            # any other files
 ```
 
-## Tech Stack
+### Versioning
 
-| Layer | Technologies |
-|---|---|
-| Frontend | React 18, Vite, Tailwind CSS, React Router |
-| Backend | Node.js, Express, chokidar, archiver, gray-matter |
-| Testing | Vitest, Testing Library |
+Subdirectories matching `yyyymmdd-<suffix>` that contain their own `SKILL.md`
+are treated as versions. The newest by date becomes the active content; the
+top-level directory is exposed as the synthetic `original` version.
+
+```
+skill_repo/
+└── my-skill/
+    ├── SKILL.md
+    └── 20260331-rewrite/
+        └── SKILL.md
+```
+
+## Environment Variables
+
+| Variable           | Default                | Purpose                              |
+|--------------------|------------------------|--------------------------------------|
+| `PORT`             | `3000`                 | HTTP port                            |
+| `SKILL_REPO_PATH`  | `<repo>/skill_repo`    | Source-of-truth catalog directory    |
+| `CHROMIUM_EXEC`    | (Playwright default)   | E2E Chromium binary override         |
+
+Templates live in `.env.example`, `.env.development.example`, and
+`.env.production.example`.
+
+## Production with PM2
+
+```bash
+pm2 start ecosystem.config.cjs --env production
+pm2 save       # persist the process list
+pm2 startup    # auto-start on system reboot
+
+pm2 list
+pm2 logs skill-market
+pm2 restart skill-market
+```
+
+## Repository Layout
+
+```
+backend/
+  manage.py
+  skill_market/        # Django settings / urls
+  skills/              # the only Django app
+    parser.py          # SKILL.md → dict
+    watcher.py         # filesystem observer + in-memory catalog
+    classifier.py      # category / icon resolution
+    file_reader.py     # detail-page recursive text walk
+    zipper.py          # in-memory ZIP builder
+    views.py           # HTML shells + JSON API
+    tests/             # pytest unit tests
+  e2e/                 # Playwright tests
+frontend/              # static HTML + vanilla JS, served by WhiteNoise
+skill_repo/            # the catalog (gitignored in production)
+docs/
+  archive/             # original Node/React-era plan.md and spec.md
+```
+
+See `CLAUDE.md` for an architecture deep-dive and conventions
+(`APPEND_SLASH = False`, the `RUN_MAIN` watcher guard, etc.).

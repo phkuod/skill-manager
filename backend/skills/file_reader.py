@@ -47,7 +47,7 @@ def read_skill_files(dir_path):
         dirs.sort()
         for fname in sorted(files):
             abs_path = os.path.join(root, fname)
-            rel_path = os.path.relpath(abs_path, dir_path)
+            rel_path = os.path.relpath(abs_path, dir_path).replace(os.sep, '/')
 
             if _is_binary(abs_path):
                 continue
