@@ -5,10 +5,14 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET
 
 from .classifier import get_categories
-from .file_reader import read_skill_files
+from .file_reader import read_skill_files, read_one_file
 from .zipper import create_zip_response
 from .watcher import get_skills
 from .parser import parse_skill
+
+
+def _wants_content(request):
+    return request.GET.get('include', '') == 'content'
 
 
 # ---------------------------------------------------------------------------
@@ -90,12 +94,19 @@ def api_health(request):
 def api_skill_list(request):
     search = request.GET.get('search', '').strip()
     category = request.GET.get('category', '').strip()
+    # `?tag=a&tag=b` → OR-combined tag filter (a skill matches if it has any).
+    tags = [t.strip().lower() for t in request.GET.getlist('tag') if t.strip()]
 
     skills = list(get_skills().values())
 
     # Filter by category
     if category and category != 'All':
         skills = [s for s in skills if s.get('category') == category]
+
+    # Filter by tag (OR within tags, AND with category/search)
+    if tags:
+        wanted = set(tags)
+        skills = [s for s in skills if wanted & set(s.get('tags') or [])]
 
     # Filter by search — match name, description, or markdown body
     if search:
@@ -111,7 +122,17 @@ def api_skill_list(request):
     return JsonResponse({
         'skills': list(skills),
         'categories': get_categories(get_skills()),
+        'tags': _all_tags(get_skills()),
     })
+
+
+def _all_tags(skills):
+    """Sorted list of every tag observed across skills."""
+    seen = set()
+    for s in skills.values():
+        for t in s.get('tags') or []:
+            seen.add(t)
+    return sorted(seen)
 
 
 @require_GET
@@ -139,8 +160,19 @@ def api_skill_files(request, name):
     skill = get_skills().get(name)
     if skill is None:
         return JsonResponse({'error': f"Skill '{name}' not found"}, status=404)
-    files = read_skill_files(_skill_dir(name))
+    files = read_skill_files(_skill_dir(name), include_content=_wants_content(request))
     return JsonResponse(files, safe=False)
+
+
+@require_GET
+def api_skill_file(request, name, filepath):
+    skill = get_skills().get(name)
+    if skill is None:
+        return JsonResponse({'error': f"Skill '{name}' not found"}, status=404)
+    file_data = read_one_file(_skill_dir(name), filepath)
+    if file_data is None:
+        return JsonResponse({'error': f"File '{filepath}' not found"}, status=404)
+    return JsonResponse(file_data)
 
 
 @require_GET
@@ -199,8 +231,24 @@ def api_version_files(request, name, version):
     if ver_dir is None:
         return JsonResponse({'error': f"Version '{version}' not found"}, status=404)
 
-    files = read_skill_files(ver_dir)
+    files = read_skill_files(ver_dir, include_content=_wants_content(request))
     return JsonResponse(files, safe=False)
+
+
+@require_GET
+def api_version_file(request, name, version, filepath):
+    skill = get_skills().get(name)
+    if skill is None:
+        return JsonResponse({'error': f"Skill '{name}' not found"}, status=404)
+
+    ver_dir = _version_dir(name, version)
+    if ver_dir is None:
+        return JsonResponse({'error': f"Version '{version}' not found"}, status=404)
+
+    file_data = read_one_file(ver_dir, filepath)
+    if file_data is None:
+        return JsonResponse({'error': f"File '{filepath}' not found"}, status=404)
+    return JsonResponse(file_data)
 
 
 # ---------------------------------------------------------------------------

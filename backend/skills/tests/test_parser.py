@@ -5,7 +5,7 @@ import tempfile
 
 import pytest
 
-from skills.parser import parse_skill, parse_all_skills, detect_versions
+from skills.parser import parse_skill, parse_all_skills, detect_versions, _parse_tags
 
 SKILL_REPO_PATH = os.path.join(
     os.path.dirname(__file__), '..', '..', '..', 'skill_repo'
@@ -243,3 +243,48 @@ def test_detect_versions_unversioned(fixtures_dir):
 def test_detect_versions_nonexistent(fixtures_dir):
     versions = detect_versions(os.path.join(fixtures_dir, 'does-not-exist'))
     assert versions == []
+
+
+# ---------------------------------------------------------------------------
+# Tags
+# ---------------------------------------------------------------------------
+
+def test_parse_tags_list():
+    assert _parse_tags(['Foo', 'bar', 'BAR']) == ['bar', 'foo']
+
+
+def test_parse_tags_string():
+    assert _parse_tags('foo, BAR, , baz') == ['bar', 'baz', 'foo']
+
+
+def test_parse_tags_none_or_empty():
+    assert _parse_tags(None) == []
+    assert _parse_tags('') == []
+    assert _parse_tags([]) == []
+    assert _parse_tags(123) == []  # unsupported type
+
+
+def test_parse_tags_field_present_on_skill(fixtures_dir):
+    # Skills with no `tags:` frontmatter still expose an empty list,
+    # so the API/frontend can rely on the field always existing.
+    skill = parse_skill(os.path.join(fixtures_dir, 'valid-skill'), 'valid-skill')
+    assert skill['tags'] == []
+
+
+def test_parse_tags_from_frontmatter():
+    tmp = tempfile.mkdtemp(prefix='skill-tags-')
+    try:
+        d = os.path.join(tmp, 'tagged-skill')
+        os.makedirs(d)
+        with open(os.path.join(d, 'SKILL.md'), 'w') as f:
+            f.write(
+                '---\n'
+                'name: tagged-skill\n'
+                'description: x\n'
+                'tags: [Testing, development]\n'
+                '---\n\nbody\n'
+            )
+        skill = parse_skill(d, 'tagged-skill')
+        assert skill['tags'] == ['development', 'testing']
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)

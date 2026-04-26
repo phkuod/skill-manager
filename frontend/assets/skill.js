@@ -29,6 +29,10 @@
     return apiBase(name, version) + '/files';
   }
 
+  function fileUrl(name, version, path) {
+    return apiBase(name, version) + '/files/' + path.split('/').map(encodeURIComponent).join('/');
+  }
+
   function zipUrl(name, version) {
     return apiBase(name, version) + '/zip';
   }
@@ -132,6 +136,32 @@
   // Files
   // ---------------------------------------------------------------------------
 
+  // Each entry from /files (metadata mode) is {path, language, size, truncated?}.
+  // The body is fetched on first expand and cached in-memory in the row's
+  // .file-body element.
+
+  function formatSize(bytes) {
+    if (bytes == null) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  }
+
+  function renderFileBody(bodyEl, file) {
+    if (file.truncated) {
+      bodyEl.innerHTML = '<div class="px-5 py-4 text-sm italic" style="color:var(--text-secondary)">File too large to preview.</div>';
+    } else if (file.language === 'markdown') {
+      bodyEl.innerHTML = '<div class="px-5 py-4 skill-markdown">' + window.marked.parse(file.content || '') + '</div>';
+    } else {
+      bodyEl.innerHTML = '<pre class="px-5 py-4 overflow-x-auto text-sm m-0"><code class="language-' + escapeHtml(file.language) + '">' + escapeHtml(file.content || '') + '</code></pre>';
+      if (typeof hljs !== 'undefined') {
+        bodyEl.querySelectorAll('pre code').forEach(function (block) {
+          hljs.highlightElement(block);
+        });
+      }
+    }
+  }
+
   function renderFiles(files) {
     var section = document.getElementById('files-section');
     var list = document.getElementById('files-list');
@@ -141,33 +171,74 @@
       return;
     }
 
-    list.innerHTML = files.map(function (f) {
+    list.innerHTML = files.map(function (f, idx) {
+      var sizeLabel = formatSize(f.size);
       var header =
-        '<div class="flex items-center justify-between px-5 py-3" style="background-color:var(--bg-secondary)">' +
-          '<span class="text-sm font-mono" style="color:var(--text-primary)">' + escapeHtml(f.path) + '</span>' +
-          '<span class="text-xs px-2 py-0.5 rounded border ml-2 flex-shrink-0" style="color:var(--text-secondary);border-color:var(--border)">' + escapeHtml(f.language) + '</span>' +
-        '</div>';
+        '<button type="button" class="file-header w-full flex items-center justify-between px-5 py-3 text-left" data-idx="' + idx + '" style="background-color:var(--bg-secondary)">' +
+          '<span class="flex items-center gap-2 min-w-0">' +
+            '<svg class="file-chevron w-4 h-4 flex-shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>' +
+            '<span class="text-sm font-mono truncate" style="color:var(--text-primary)">' + escapeHtml(f.path) + '</span>' +
+          '</span>' +
+          '<span class="flex items-center gap-2 flex-shrink-0">' +
+            (sizeLabel ? '<span class="text-xs" style="color:var(--text-secondary)">' + escapeHtml(sizeLabel) + '</span>' : '') +
+            '<span class="text-xs px-2 py-0.5 rounded border" style="color:var(--text-secondary);border-color:var(--border)">' + escapeHtml(f.language) + '</span>' +
+          '</span>' +
+        '</button>' +
+        '<div class="file-body hidden"></div>';
 
-      var body;
-      if (f.truncated) {
-        body = '<div class="px-5 py-4 text-sm italic" style="color:var(--text-secondary)">File too large to preview.</div>';
-      } else if (f.language === 'markdown') {
-        body = '<div class="px-5 py-4 skill-markdown">' + window.marked.parse(f.content || '') + '</div>';
-      } else {
-        body = '<pre class="px-5 py-4 overflow-x-auto text-sm m-0"><code class="language-' + escapeHtml(f.language) + '">' + escapeHtml(f.content || '') + '</code></pre>';
-      }
-
-      return '<div class="file-block">' + header + body + '</div>';
+      return '<div class="file-block" data-idx="' + idx + '">' + header + '</div>';
     }).join('');
 
     section.classList.remove('hidden');
 
-    // Syntax highlighting
-    if (typeof hljs !== 'undefined') {
-      list.querySelectorAll('pre code').forEach(function (block) {
-        hljs.highlightElement(block);
+    var version = getVersion();
+    list.querySelectorAll('.file-block').forEach(function (block) {
+      var idx = +block.dataset.idx;
+      var file = files[idx];
+      var header = block.querySelector('.file-header');
+      var body = block.querySelector('.file-body');
+      var chevron = block.querySelector('.file-chevron');
+      var loaded = false;
+      var loading = false;
+
+      header.addEventListener('click', function () {
+        if (loading) return;
+        var isHidden = body.classList.contains('hidden');
+        if (!isHidden) {
+          body.classList.add('hidden');
+          chevron.style.transform = '';
+          return;
+        }
+
+        body.classList.remove('hidden');
+        chevron.style.transform = 'rotate(90deg)';
+
+        if (loaded) return;
+
+        if (file.truncated) {
+          renderFileBody(body, file);
+          loaded = true;
+          return;
+        }
+
+        loading = true;
+        body.innerHTML = '<div class="px-5 py-4 text-sm" style="color:var(--text-secondary)">Loading…</div>';
+        fetch(fileUrl(skillName, version, file.path))
+          .then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+          })
+          .then(function (data) {
+            renderFileBody(body, data);
+            loaded = true;
+            loading = false;
+          })
+          .catch(function () {
+            body.innerHTML = '<div class="px-5 py-4 text-sm" style="color:var(--text-secondary)">Failed to load file.</div>';
+            loading = false;
+          });
       });
-    }
+    });
   }
 
   // ---------------------------------------------------------------------------

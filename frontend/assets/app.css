@@ -73,6 +73,13 @@ body {
   border-color: var(--accent) !important;
 }
 
+/* Active tag pill (multi-select) */
+.tag-pill.active {
+  background-color: var(--accent) !important;
+  color: #ffffff !important;
+  border-color: var(--accent) !important;
+}
+
 /* Install tabs */
 .install-tab {
   background-color: transparent;

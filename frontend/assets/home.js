@@ -5,9 +5,11 @@
 
   var allSkills = [];
   var categories = ['All'];
+  var allTags = [];
   var currentCategory = 'All';
   var currentSearch = '';
   var currentSort = 'lastUpdated';
+  var selectedTags = {}; // tag -> true (OR-combined)
   var debounceTimer = null;
 
   var skillGrid = document.getElementById('skill-grid');
@@ -17,6 +19,8 @@
   var searchInput = document.getElementById('search-input');
   var sortSelect = document.getElementById('sort-select');
   var categoryFilters = document.getElementById('category-filters');
+  var tagFilters = document.getElementById('tag-filters');
+  var tagFilterRow = document.getElementById('tag-filter-row');
   var statSkills = document.getElementById('stat-skills');
   var statCategories = document.getElementById('stat-categories');
 
@@ -26,6 +30,14 @@
 
   function cardHtml(skill) {
     var updated = skill.lastUpdated || '';
+    var tags = skill.tags || [];
+    var tagsHtml = tags.length
+      ? '<div class="flex flex-wrap gap-1 mb-3">' +
+          tags.slice(0, 4).map(function (t) {
+            return '<span class="text-xs px-1.5 py-0.5 rounded border" style="color:var(--text-secondary);border-color:var(--border)">' + escapeHtml(t) + '</span>';
+          }).join('') +
+        '</div>'
+      : '';
     return (
       '<a href="/skill/' + encodeURIComponent(skill.name) + '"' +
       ' class="skill-card block rounded-xl border p-5 transition-all hover:shadow-lg"' +
@@ -38,6 +50,7 @@
         '</div>' +
         '<h3 class="font-semibold mb-1 truncate" style="color:var(--text-primary)">' + escapeHtml(skill.name) + '</h3>' +
         '<p class="text-sm mb-3 line-clamp-2" style="color:var(--text-secondary)">' + escapeHtml(skill.description) + '</p>' +
+        tagsHtml +
         '<div class="flex items-center justify-between text-xs" style="color:var(--text-secondary)">' +
           '<span>' + skill.fileCount + ' file' + (skill.fileCount === 1 ? '' : 's') + '</span>' +
           '<span>' + escapeHtml(relativeTime(updated) || updated.slice(0, 10)) + '</span>' +
@@ -59,12 +72,29 @@
     return -1;
   }
 
+  function hasSelectedTags() {
+    for (var k in selectedTags) {
+      if (selectedTags[k]) return true;
+    }
+    return false;
+  }
+
+  function matchesTags(s) {
+    if (!hasSelectedTags()) return true;
+    var skillTags = s.tags || [];
+    for (var i = 0; i < skillTags.length; i++) {
+      if (selectedTags[skillTags[i]]) return true;
+    }
+    return false;
+  }
+
   function render() {
     var q = currentSearch.toLowerCase();
 
     var visible = allSkills.filter(function (s) {
       var matchCat = currentCategory === 'All' || s.category === currentCategory;
       if (!matchCat) return false;
+      if (!matchesTags(s)) return false;
       if (!q) return true;
       return matchRank(s, q) !== -1;
     });
@@ -114,6 +144,40 @@
 
     var first = categoryFilters.querySelector('.category-pill[data-category="All"]');
     if (first) first.classList.add('active');
+  }
+
+  // -------------------------------------------------------------------------
+  // Tag pills (multi-select, OR-combined)
+  // -------------------------------------------------------------------------
+
+  function renderTags() {
+    if (!tagFilters || !tagFilterRow) return;
+    if (!allTags || allTags.length === 0) {
+      tagFilterRow.classList.add('hidden');
+      tagFilterRow.classList.remove('flex');
+      return;
+    }
+    tagFilterRow.classList.remove('hidden');
+    tagFilterRow.classList.add('flex');
+
+    tagFilters.innerHTML = allTags.map(function (t) {
+      return (
+        '<button class="tag-pill px-2 py-0.5 rounded-full text-xs border transition-colors"' +
+        ' data-tag="' + escapeHtml(t) + '"' +
+        ' style="border-color:var(--border);color:var(--text-secondary);background-color:var(--bg-secondary)">' +
+          escapeHtml(t) +
+        '</button>'
+      );
+    }).join('');
+
+    Array.prototype.forEach.call(tagFilters.querySelectorAll('.tag-pill'), function (pill) {
+      pill.addEventListener('click', function () {
+        var tag = pill.dataset.tag;
+        selectedTags[tag] = !selectedTags[tag];
+        pill.classList.toggle('active', !!selectedTags[tag]);
+        render();
+      });
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -183,9 +247,11 @@
     .then(function (data) {
       allSkills = data.skills || [];
       categories = data.categories && data.categories.length ? data.categories : ['All'];
+      allTags = data.tags || [];
       if (statSkills) statSkills.textContent = allSkills.length;
       if (statCategories) statCategories.textContent = Math.max(0, categories.length - 1);
       renderCategories();
+      renderTags();
       render();
     })
     .catch(function () {
