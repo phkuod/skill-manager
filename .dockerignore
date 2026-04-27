@@ -1,0 +1,26 @@
+.git
+.gitignore
+.idea
+.vscode
+
+# Per-host venvs — built fresh inside the image
+backend/venv
+backend/staticfiles
+**/__pycache__
+**/*.pyc
+
+# Local env (passed in via --env-file at runtime, not baked in)
+.env
+.env.development
+.env.production
+
+# Stale Node leftovers
+client/node_modules
+node_modules
+
+# Tests / docs not needed at runtime
+backend/e2e
+docs
+
+Dockerfile
+.dockerignore

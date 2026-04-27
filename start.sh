@@ -23,9 +23,18 @@ if [ -f "$ENV_FILE" ]; then
   set +a
 fi
 
+# ── Pick a Python interpreter ─────────────────────────────────────────────────
+# Prefer the project venv; fall back to system python3 (e.g. inside Docker
+# where deps are installed system-wide).
+if [ -x "$BACKEND/venv/bin/python" ]; then
+  PY="$BACKEND/venv/bin/python"
+else
+  PY=python3
+fi
+
 # ── Collect static files (idempotent) ─────────────────────────────────────────
 echo "[start] Collecting static files..."
-python3 "$BACKEND/manage.py" collectstatic --noinput -v 0
+"$PY" "$BACKEND/manage.py" collectstatic --noinput -v 0
 
 # ── Launch ────────────────────────────────────────────────────────────────────
 PORT="${PORT:-3000}"
@@ -43,5 +52,5 @@ if [ "$MODE" = "production" ]; then
 else
   echo "[start] Starting Django dev server on :$PORT ..."
   export SKILL_REPO_PATH="${SKILL_REPO_PATH:-$REPO_ROOT/skill_repo}"
-  exec python3 "$BACKEND/manage.py" runserver "0.0.0.0:$PORT"
+  exec "$PY" "$BACKEND/manage.py" runserver "0.0.0.0:$PORT"
 fi
