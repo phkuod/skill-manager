@@ -33,7 +33,7 @@ DATABASES = {
 
 APPEND_SLASH = False
 
-FRONTEND_DIR = BASE_DIR.parent / 'frontend'
+FRONTEND_DIR = Path(os.environ.get('FRONTEND_DIR', str(BASE_DIR.parent / 'frontend')))
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'

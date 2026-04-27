@@ -337,8 +337,9 @@ def test_version_files_404(client, version_fixture):
 # ---------------------------------------------------------------------------
 # HTML shells
 # ---------------------------------------------------------------------------
-# These routes return a static HTML shell; the frontend JS fetches /api/*
-# and handles "skill not found" in the browser, so /skill/<unknown> is 200.
+# These routes return a static HTML shell; the frontend JS reads the skill
+# name from the URL hash and fetches /api/* — so /skill.html is served the
+# same regardless of which skill (or none) the user is looking at.
 
 def test_home_page_renders(client, version_fixture):
     res = client.get('/')
@@ -348,14 +349,8 @@ def test_home_page_renders(client, version_fixture):
 
 
 def test_detail_page_renders(client, version_fixture):
-    res = client.get('/skill/pdf')
+    res = client.get('/skill.html')
     assert res.status_code == 200
     assert res['Content-Type'].startswith('text/html')
     # The shell is static — skill name is populated client-side, not in HTML
     assert b'skill-root' in res.content
-
-
-def test_detail_shell_served_for_unknown_skill(client, version_fixture):
-    res = client.get('/skill/nonexistent')
-    assert res.status_code == 200
-    assert res['Content-Type'].startswith('text/html')

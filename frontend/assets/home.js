@@ -27,7 +27,7 @@
   function cardHtml(skill) {
     var updated = skill.lastUpdated || '';
     return (
-      '<a href="/skill/' + encodeURIComponent(skill.name) + '"' +
+      '<a href="skill.html#' + encodeURIComponent(skill.name) + '"' +
       ' class="skill-card block rounded-xl border p-5 transition-all hover:shadow-lg"' +
       ' style="background-color:var(--bg-card);border-color:var(--border);text-decoration:none">' +
         '<div class="flex items-start justify-between mb-3">' +

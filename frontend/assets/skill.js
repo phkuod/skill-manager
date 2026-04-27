@@ -6,13 +6,24 @@
   var root = document.getElementById('skill-root');
   var loadState = document.getElementById('load-state');
 
-  // Parse /skill/<name> and optional ?version=<v>
-  var pathParts = window.location.pathname.split('/').filter(Boolean);
-  var skillName = pathParts.length >= 2 && pathParts[0] === 'skill' ? decodeURIComponent(pathParts[1]) : null;
+  // Hash format: #<name>  or  #<name>?version=<v>
+  // Hash-based routing keeps the page deployable on any plain static host
+  // (no per-path rewrite rules needed for /skill/<name>).
+  function parseHash() {
+    var raw = window.location.hash.slice(1);
+    var qIdx = raw.indexOf('?');
+    var name = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+    var query = qIdx >= 0 ? raw.slice(qIdx + 1) : '';
+    return {
+      name: name ? decodeURIComponent(name) : null,
+      version: new URLSearchParams(query).get('version') || '',
+    };
+  }
+
+  var skillName = null;
 
   function getVersion() {
-    var params = new URLSearchParams(window.location.search);
-    return params.get('version') || '';
+    return parseHash().version;
   }
 
   function apiBase(name, version) {
@@ -108,9 +119,9 @@
 
     select.onchange = function () {
       var v = select.value;
-      var next = '/skill/' + encodeURIComponent(skillName) + (v ? '?version=' + encodeURIComponent(v) : '');
-      history.pushState({}, '', next);
-      load();
+      var encoded = encodeURIComponent(skillName);
+      window.location.hash = encoded + (v ? '?version=' + encodeURIComponent(v) : '');
+      // hashchange listener (below) reruns load()
     };
   }
 
@@ -175,6 +186,7 @@
   // ---------------------------------------------------------------------------
 
   function load() {
+    skillName = parseHash().name;
     if (!skillName) {
       showError('Skill not found.');
       return;
@@ -214,7 +226,7 @@
     });
   }
 
-  window.addEventListener('popstate', load);
+  window.addEventListener('hashchange', load);
 
   // -------------------------------------------------------------------------
   // Keyboard shortcuts
@@ -228,7 +240,7 @@
 
     if (e.key === 'Escape') {
       e.preventDefault();
-      window.location.href = '/';
+      window.location.href = 'index.html';
       return;
     }
 

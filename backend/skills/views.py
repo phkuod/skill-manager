@@ -66,9 +66,10 @@ def index_shell(request):
 
 
 @require_GET
-def skill_shell(request, name):
-    # The shell is served regardless of whether <name> exists; the frontend
-    # calls /api/skills/<name> and shows an inline "not found" state on 404.
+def skill_shell(request):
+    # Skill name is read client-side from the URL hash (#<name>). The shell
+    # is served unconditionally; the frontend calls /api/skills/<name> and
+    # shows an inline "not found" state on 404.
     return _read_shell('skill.html')
 
 

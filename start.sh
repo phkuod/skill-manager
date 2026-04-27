@@ -1,52 +1,47 @@
 #!/usr/bin/env bash
 # start.sh — Start the Skill Market service
-# Usage: ./start.sh [dev|prod]  (default: dev)
+# Usage: ./start.sh [dev|development|prod|production]  (default: development)
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND="$REPO_ROOT/backend"
-VENV="$BACKEND/venv"
-MODE="${1:-dev}"
+MODE="${1:-development}"
 
-# ── Checks ────────────────────────────────────────────────────────────────────
-# ── Select requirements file based on Python version ──────────────────────────
-PY_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "unknown")
-PY_MINOR=$(python3 -c "import sys; print(sys.version_info.minor)" 2>/dev/null || echo "0")
-PY_MAJOR=$(python3 -c "import sys; print(sys.version_info.major)" 2>/dev/null || echo "0")
+# Normalize short aliases: dev → development, prod → production
+case "$MODE" in
+  dev)  MODE="development" ;;
+  prod) MODE="production"  ;;
+esac
 
-if [ "$PY_MAJOR" = "3" ] && [ "$PY_MINOR" -ge 12 ]; then
-  REQUIREMENTS="$BACKEND/requirements_py3.12.txt"
-elif [ "$PY_MAJOR" = "3" ] && [ "$PY_MINOR" -ge 10 ]; then
-  REQUIREMENTS="$BACKEND/requirements_py3.10_plus.txt"
-else
-  REQUIREMENTS="$BACKEND/requirements_py3.8_3.9.txt"
+# ── Load env file for the selected mode ───────────────────────────────────────
+ENV_FILE="$REPO_ROOT/.env.$MODE"
+if [ -f "$ENV_FILE" ]; then
+  echo "[start] Loading $ENV_FILE"
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
 fi
-
-if [ ! -d "$VENV" ]; then
-  echo "ERROR: virtualenv not found at $VENV"
-  echo "       Run:  python3 -m venv $VENV && $VENV/bin/pip install -r $REQUIREMENTS"
-  exit 1
-fi
-
-source "$VENV/bin/activate"
 
 # ── Collect static files (idempotent) ─────────────────────────────────────────
 echo "[start] Collecting static files..."
-python "$BACKEND/manage.py" collectstatic --noinput -v 0
+python3 "$BACKEND/manage.py" collectstatic --noinput -v 0
 
 # ── Launch ────────────────────────────────────────────────────────────────────
-if [ "$MODE" = "prod" ]; then
-  echo "[start] Starting gunicorn (production) on :3000 ..."
+PORT="${PORT:-3000}"
+
+if [ "$MODE" = "production" ]; then
+  echo "[start] Starting gunicorn (production) on :$PORT ..."
   export DJANGO_SETTINGS_MODULE=skill_market.settings
   export SKILL_REPO_PATH="${SKILL_REPO_PATH:-$REPO_ROOT/skill_repo}"
-  export DEBUG=False
+  export DEBUG="${DEBUG:-False}"
   export ALLOWED_HOSTS="${ALLOWED_HOSTS:-localhost,127.0.0.1}"
   exec gunicorn skill_market.wsgi \
-    --bind 0.0.0.0:3000 \
+    --bind "0.0.0.0:$PORT" \
     --workers 2 \
     --chdir "$BACKEND"
 else
-  echo "[start] Starting Django dev server on :3000 ..."
+  echo "[start] Starting Django dev server on :$PORT ..."
   export SKILL_REPO_PATH="${SKILL_REPO_PATH:-$REPO_ROOT/skill_repo}"
-  exec python "$BACKEND/manage.py" runserver 0.0.0.0:3000
+  exec python3 "$BACKEND/manage.py" runserver "0.0.0.0:$PORT"
 fi
