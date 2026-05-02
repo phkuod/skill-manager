@@ -176,3 +176,269 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ===========================================================================
+ * Install modal — fully self-contained styles. Doesn't rely on Tailwind
+ * utility classes (vendor bundle is JIT-purged; many utilities are absent).
+ * Theme-aware via the existing CSS variables.
+ * =========================================================================== */
+
+.install-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.dark .install-modal { background-color: rgba(0, 0, 0, 0.65); }
+.install-modal.is-open { opacity: 1; }
+
+.install-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 26px 26px 22px;
+  box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.45);
+  transform: scale(0.96) translateY(10px);
+  opacity: 0;
+  transition: transform 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.15), opacity 0.22s ease;
+}
+.install-modal.is-open .install-modal-card {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+.install-modal-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.install-modal-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 30px; height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+  font-family: inherit;
+}
+.install-modal-close:hover {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.install-modal-kicker {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.install-modal-title {
+  margin: 0 0 16px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.install-modal-userline {
+  margin: 0 0 16px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.install-modal-userchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background-color: var(--badge-content-bg);
+  color: var(--badge-content-text);
+  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.install-modal-userchip::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.install-modal-warning {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background-color: var(--result-err-bg);
+  color: var(--result-err-text);
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.install-modal-section {
+  margin: 18px 0 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.install-modal-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Each target is a clickable row that triggers install for that target. */
+.install-target-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, transform 0.1s;
+}
+.install-target-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background-color: var(--bg-secondary);
+}
+.install-target-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.install-target-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.install-target-name {
+  flex-shrink: 0;
+  min-width: 36px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+.install-target-path {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.install-target-go {
+  flex-shrink: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  transition: color 0.15s, transform 0.15s;
+}
+.install-target-btn:hover:not(:disabled) .install-target-go {
+  color: var(--accent);
+  transform: translateX(2px);
+}
+.install-target-btn[data-state="busy"] .install-target-go {
+  color: var(--accent);
+  animation: install-spin 0.9s linear infinite;
+}
+.install-target-btn[data-state="ok"] .install-target-go {
+  color: var(--result-ok-text);
+}
+.install-target-btn[data-state="err"] .install-target-go {
+  color: var(--result-err-text);
+}
+
+@keyframes install-spin {
+  to { transform: rotate(360deg); }
+}
+
+.install-modal-result {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  word-break: break-all;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.install-modal-result.is-ok {
+  background-color: var(--result-ok-bg);
+  color: var(--result-ok-text);
+}
+.install-modal-result.is-err {
+  background-color: var(--result-err-bg);
+  color: var(--result-err-text);
+}
+
+.install-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+.install-modal-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+}
+.install-modal-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+}
+
+@media (max-width: 480px) {
+  .install-modal { padding: 12px; }
+  .install-modal-card { padding: 22px 20px 18px; }
+  .install-modal-title { font-size: 1.15rem; }
+}

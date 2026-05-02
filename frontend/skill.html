@@ -167,41 +167,32 @@
   </div>
 </div>
 
-<!-- Inline styles for any layout property where the corresponding Tailwind
-     utility may not be in the JIT-purged vendor bundle. Audited via
-     getComputedStyle: .fixed, .inset-0, .p-6, .max-w-md, .mx-4, .ml-1,
-     .space-y-1, .justify-end, .p-3 are all ABSENT (no other element on the
-     site used them before this modal was added). Their classes are kept off
-     the elements entirely; equivalent styles are inlined below. Utilities
-     that ARE in the bundle (.flex, .items-center, .justify-center, .z-50,
-     .hidden, .rounded-xl, .rounded-lg, .w-full, .text-lg, .text-sm,
-     .font-semibold, .font-medium, .font-mono, .mb-1, .mb-3, .mb-4, .gap-2,
-     .border, .px-3, .py-2, .text-white) are kept as classes. -->
-<div id="install-modal" class="hidden z-50 flex items-center justify-center"
-     style="position:fixed;top:0;right:0;bottom:0;left:0;background-color:rgba(0,0,0,0.5)">
-  <div class="rounded-xl w-full"
-       style="background-color:var(--bg-card);border:1px solid var(--border);padding:1.5rem;max-width:28rem;margin-left:1rem;margin-right:1rem">
-    <h3 id="install-modal-title" class="text-lg font-semibold mb-4" style="color:var(--text-primary)"></h3>
+<!-- Install modal — styled fully via app.css (.install-modal-* classes).
+     Does not depend on Tailwind utilities except .hidden. -->
+<div id="install-modal" class="install-modal hidden" role="dialog"
+     aria-modal="true" aria-labelledby="install-modal-title">
+  <div class="install-modal-card">
+    <button id="install-modal-close" class="install-modal-close" type="button" aria-label="Close">×</button>
 
-    <div class="mb-3 text-sm">
-      <span style="color:var(--text-secondary)">User:</span>
-      <span id="install-modal-user" class="font-mono" style="color:var(--text-primary);margin-left:0.25rem"></span>
-    </div>
+    <p class="install-modal-kicker">Install</p>
+    <h3 id="install-modal-title" class="install-modal-title"></h3>
 
-    <div class="mb-4 text-sm">
-      <p class="mb-1" style="color:var(--text-secondary)">Target preview:</p>
-      <ul id="install-modal-targets" style="display:flex;flex-direction:column;gap:0.25rem"></ul>
-    </div>
-
-    <p id="install-modal-no-cookie" class="hidden mb-4 text-sm" style="color:var(--accent-error,#dc2626)">
-      No CURRENT_USER_NAME cookie — cannot install.
+    <p class="install-modal-userline">
+      <span>Deploying as</span>
+      <span id="install-modal-user" class="install-modal-userchip">—</span>
     </p>
 
-    <div id="install-modal-result" class="hidden mb-4 text-sm rounded-lg" style="padding:0.75rem"></div>
+    <p id="install-modal-no-cookie" class="install-modal-warning hidden">
+      No <code style="font-family:inherit;font-weight:700">CURRENT_USER_NAME</code> cookie — install requires a logged-in session.
+    </p>
 
-    <div id="install-modal-actions" class="flex gap-2" style="justify-content:flex-end">
-      <button id="install-modal-cancel" class="text-sm rounded-lg border"
-              style="border-color:var(--border);color:var(--text-primary);padding:0.5rem 0.75rem">Cancel</button>
+    <p class="install-modal-section">Choose target</p>
+    <div id="install-modal-targets" class="install-modal-targets"></div>
+
+    <div id="install-modal-result" class="install-modal-result hidden"></div>
+
+    <div class="install-modal-actions">
+      <button id="install-modal-cancel" class="install-modal-btn" type="button">Cancel</button>
     </div>
   </div>
 </div>

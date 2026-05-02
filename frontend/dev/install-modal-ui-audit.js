@@ -104,26 +104,36 @@
 
   // ---------------------------------------------------------- 4. Modal contents
   const title = document.getElementById('install-modal-title').textContent;
-  assert(/^Install ".+"/.test(title), 'title formatted Install "<name>" (got: ' + title + ')');
+  assert(title && title.length > 0, 'title rendered (got: ' + JSON.stringify(title) + ')');
   assert(document.getElementById('install-modal-user').textContent === 'jdoe',
     'user shows cookie value');
   assert(document.getElementById('install-modal-no-cookie').classList.contains('hidden'),
     'no-cookie warning hidden when cookie present');
+  assert(!!document.querySelector('.install-modal-kicker'),
+    'kicker label "INSTALL" is present');
+  assert(!!document.getElementById('install-modal-close'),
+    'close (×) button present in upper-right');
+
   await sleep(250);
-  const previewItems = document.querySelectorAll('#install-modal-targets li');
-  assert(previewItems.length >= 1, 'at least one target preview line rendered');
-  assert(Array.from(previewItems).every(li => li.textContent.includes('jdoe')),
-    'every preview line shows expanded user_name');
-  if (previewItems.length >= 2) {
-    const gap = previewItems[1].getBoundingClientRect().top - previewItems[0].getBoundingClientRect().bottom;
-    assert(gap >= 2 && gap <= 12,
-      'preview lines have visible gap 2-12px (got ' + Math.round(gap) + ')');
-  }
   const targetBtns = document.querySelectorAll('.install-target-btn');
-  assert(targetBtns.length === previewItems.length,
-    'install button count matches preview line count');
+  assert(targetBtns.length >= 1,
+    'at least one target row rendered (got ' + targetBtns.length + ')');
+  assert(Array.from(targetBtns).every(b => /jdoe/.test(b.querySelector('.install-target-path').textContent)),
+    'every target row path shows expanded user_name');
   assert(Array.from(targetBtns).every(b => !b.disabled),
-    'install buttons enabled when cookie present');
+    'target rows enabled when cookie present');
+  assert(Array.from(targetBtns).every(b =>
+    b.querySelector('.install-target-name') &&
+    b.querySelector('.install-target-path') &&
+    b.querySelector('.install-target-go')),
+    'each target row has name + path + go-arrow children');
+
+  if (targetBtns.length >= 2) {
+    const gap = targetBtns[1].getBoundingClientRect().top - targetBtns[0].getBoundingClientRect().bottom;
+    assert(gap >= 4 && gap <= 16,
+      'target rows have visible gap 4-16px (got ' + Math.round(gap) + ')');
+  }
+
   const cancelBtn = document.getElementById('install-modal-cancel');
   const cancelRight = cancelBtn.getBoundingClientRect().right;
   const cardRight = cb.right - parseInt(cardCs.paddingRight);
