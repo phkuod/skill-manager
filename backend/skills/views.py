@@ -1,11 +1,13 @@
+import json
 import os
 
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 
 from .classifier import get_categories
 from .file_reader import read_skill_files
+from .installer import install_skill, InstallError
 from .zipper import create_zip_response
 from .watcher import get_skills
 from .parser import parse_skill
@@ -211,6 +213,40 @@ def api_install_targets(request):
         for name, cfg in settings.INSTALL_TARGETS.items()
     ]
     return JsonResponse({'targets': targets})
+
+
+def _do_install(request, src_dir):
+    """Shared body for both install endpoints. Returns JsonResponse."""
+    user_name = (request.COOKIES.get('CURRENT_USER_NAME') or '').strip()
+    if not user_name:
+        return JsonResponse(
+            {'error': 'Missing or invalid CURRENT_USER_NAME cookie'},
+            status=400,
+        )
+
+    try:
+        payload = json.loads(request.body or b'{}')
+    except ValueError:
+        return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+
+    target = (payload.get('target') or '').strip() if isinstance(payload, dict) else ''
+    if not target:
+        return JsonResponse({'error': "Missing 'target' in body"}, status=400)
+
+    try:
+        result = install_skill(src_dir, target, user_name)
+    except InstallError as e:
+        return JsonResponse({'error': str(e)}, status=e.http_status)
+
+    return JsonResponse({'status': 'ok', **result})
+
+
+@require_POST
+def api_skill_install(request, name):
+    skill = get_skills().get(name)
+    if skill is None:
+        return JsonResponse({'error': f"Skill '{name}' not found"}, status=404)
+    return _do_install(request, _skill_dir(name))
 
 
 # ---------------------------------------------------------------------------

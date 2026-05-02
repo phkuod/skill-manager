@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/skills/<str:name>', views.api_skill_detail, name='api_skill_detail'),
     path('api/skills/<str:name>/zip', views.api_skill_zip, name='api_skill_zip'),
     path('api/skills/<str:name>/files', views.api_skill_files, name='api_skill_files'),
+    path('api/skills/<str:name>/install', views.api_skill_install, name='api_skill_install'),
     path('api/skills/<str:name>/versions', views.api_versions, name='api_versions'),
     path('api/skills/<str:name>/versions/<str:version>', views.api_version_detail, name='api_version_detail'),
     path('api/skills/<str:name>/versions/<str:version>/zip', views.api_version_zip, name='api_version_zip'),
