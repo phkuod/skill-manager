@@ -20,6 +20,10 @@
   --badge-testing-text: #991b1b;
   --badge-other-bg: #f1f5f9;
   --badge-other-text: #475569;
+  --result-ok-bg: #dcfce7;
+  --result-ok-text: #166534;
+  --result-err-bg: #fee2e2;
+  --result-err-text: #991b1b;
 }
 
 /* Dark mode */
@@ -44,6 +48,10 @@
   --badge-testing-text: #fca5a5;
   --badge-other-bg: #1e293b;
   --badge-other-text: #94a3b8;
+  --result-ok-bg: #14532d;
+  --result-ok-text: #86efac;
+  --result-err-bg: #7f1d1d;
+  --result-err-text: #fca5a5;
 }
 
 body {

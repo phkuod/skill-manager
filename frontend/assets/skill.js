@@ -161,19 +161,19 @@
       .then(function (out) {
         resultEl.classList.remove('hidden');
         if (out.ok) {
-          resultEl.style.backgroundColor = 'rgba(34,197,94,0.15)';
-          resultEl.style.color = 'rgb(22,101,52)';
+          resultEl.style.backgroundColor = 'var(--result-ok-bg)';
+          resultEl.style.color = 'var(--result-ok-text)';
           resultEl.textContent = '✓ Installed to ' + out.body.target + ': ' + out.body.path;
         } else {
-          resultEl.style.backgroundColor = 'rgba(220,38,38,0.15)';
-          resultEl.style.color = 'rgb(153,27,27)';
+          resultEl.style.backgroundColor = 'var(--result-err-bg)';
+          resultEl.style.color = 'var(--result-err-text)';
           resultEl.textContent = '✗ ' + (out.body.error || 'Install failed');
         }
       })
       .catch(function (err) {
         resultEl.classList.remove('hidden');
-        resultEl.style.backgroundColor = 'rgba(220,38,38,0.15)';
-        resultEl.style.color = 'rgb(153,27,27)';
+        resultEl.style.backgroundColor = 'var(--result-err-bg)';
+        resultEl.style.color = 'var(--result-err-text)';
         resultEl.textContent = '✗ Network error: ' + err.message;
       })
       .finally(function () {
