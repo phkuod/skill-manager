@@ -40,8 +40,15 @@ def _resolve_target(target_name):
     return cfg
 
 
-def install_skill(src_dir, target_name, user_name):
+def install_skill(src_dir, target_name, user_name, skill_name=None):
     """Install a skill directory to a configured target.
+
+    skill_name controls the destination directory name. When installing a
+    versioned skill, src_dir points at the dated subdir (e.g.
+    `.../algorithmic-art/20260501-foo`) but the install must still land at
+    `<base>/algorithmic-art` so downstream tools resolve it by canonical name.
+    Pass skill_name explicitly in that case. When omitted, the basename of
+    src_dir is used.
 
     Returns: {'target': str, 'path': str}
     Raises: InstallError(..., http_status=...)
@@ -49,7 +56,8 @@ def install_skill(src_dir, target_name, user_name):
     _validate_user_name(user_name)
     cfg = _resolve_target(target_name)
 
-    skill_name = os.path.basename(os.path.normpath(src_dir))
+    if skill_name is None:
+        skill_name = os.path.basename(os.path.normpath(src_dir))
     if not skill_name:
         raise InstallError(f'Cannot derive skill name from src_dir: {src_dir!r}')
 

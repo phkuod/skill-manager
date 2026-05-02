@@ -215,8 +215,13 @@ def api_install_targets(request):
     return JsonResponse({'targets': targets})
 
 
-def _do_install(request, src_dir):
-    """Shared body for both install endpoints. Returns JsonResponse."""
+def _do_install(request, src_dir, skill_name):
+    """Shared body for both install endpoints. Returns JsonResponse.
+
+    skill_name is the canonical skill identifier from the URL — passed through
+    to install_skill so versioned installs land at /<base>/<skill_name>/
+    rather than /<base>/<dated-subdir>/.
+    """
     user_name = (request.COOKIES.get('CURRENT_USER_NAME') or '').strip()
     if not user_name:
         return JsonResponse(
@@ -234,7 +239,7 @@ def _do_install(request, src_dir):
         return JsonResponse({'error': "Missing 'target' in body"}, status=400)
 
     try:
-        result = install_skill(src_dir, target, user_name)
+        result = install_skill(src_dir, target, user_name, skill_name=skill_name)
     except InstallError as e:
         return JsonResponse({'error': str(e)}, status=e.http_status)
 
@@ -246,7 +251,7 @@ def api_skill_install(request, name):
     skill = get_skills().get(name)
     if skill is None:
         return JsonResponse({'error': f"Skill '{name}' not found"}, status=404)
-    return _do_install(request, _skill_dir(name))
+    return _do_install(request, _skill_dir(name), name)
 
 
 @require_POST
@@ -257,7 +262,7 @@ def api_version_install(request, name, version):
     ver_dir = _version_dir(name, version)
     if ver_dir is None:
         return JsonResponse({'error': f"Version '{version}' not found"}, status=404)
-    return _do_install(request, ver_dir)
+    return _do_install(request, ver_dir, name)
 
 
 # ---------------------------------------------------------------------------

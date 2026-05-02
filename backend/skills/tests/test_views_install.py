@@ -168,3 +168,67 @@ def test_version_install_unknown_skill_returns_404(settings, tmp_path):
         content_type='application/json',
     )
     assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_version_install_uses_skill_name_not_version_for_destination(settings, tmp_path):
+    """Versioned install must land at <base>/<skill_name>/, not <base>/<version>/.
+
+    Regression for a bug where install_skill derived the destination dir name
+    from os.path.basename(src_dir), which on a versioned install pointed at the
+    dated subdir (e.g. '20260501-foo') instead of the canonical skill name.
+    Downstream tools resolve skills by name (~/.claude/skills/<name>) so the
+    dated dir name would have made the install effectively unfindable.
+    """
+    base = tmp_path / 'dst' / '{user_name}' / 'skills'
+    settings.INSTALL_TARGETS = {'LOCAL': {'type': 'local', 'base': str(base)}}
+
+    from skills.watcher import get_skills
+    from django.conf import settings as dj_settings
+    skills = get_skills()
+    versioned = next(
+        ((n, s) for n, s in skills.items() if s.get('versions')),
+        None,
+    )
+    if versioned is None:
+        # No naturally versioned skill in the repo — synthesize one in the
+        # real skill_repo so the watcher and view layer pick it up.
+        skill_name = next(iter(skills.keys()), None)
+        if skill_name is None:
+            pytest.skip('skill_repo empty')
+        ver_path = (
+            __import__('pathlib').Path(dj_settings.SKILL_REPO_PATH)
+            / skill_name / '20260501-regression-test'
+        )
+        ver_path.mkdir(parents=True, exist_ok=True)
+        (ver_path / 'SKILL.md').write_text(
+            '---\nname: ' + skill_name + '\nlicense: MIT\n---\nv', encoding='utf-8')
+        try:
+            resp = _client_with_cookie('jane').post(
+                f'/api/skills/{skill_name}/versions/20260501-regression-test/install',
+                data=json.dumps({'target': 'LOCAL'}),
+                content_type='application/json',
+            )
+            assert resp.status_code == 200, resp.content
+            body = resp.json()
+            expected = tmp_path / 'dst' / 'jane' / 'skills' / skill_name
+            assert body['path'] == str(expected), (
+                f"versioned install landed at {body['path']!r}, "
+                f"should be at {str(expected)!r}"
+            )
+            assert expected.is_dir()
+        finally:
+            __import__('shutil').rmtree(ver_path, ignore_errors=True)
+    else:
+        skill_name, skill = versioned
+        version = skill['versions'][0]['version']
+        resp = _client_with_cookie('jane').post(
+            f'/api/skills/{skill_name}/versions/{version}/install',
+            data=json.dumps({'target': 'LOCAL'}),
+            content_type='application/json',
+        )
+        assert resp.status_code == 200, resp.content
+        body = resp.json()
+        expected = tmp_path / 'dst' / 'jane' / 'skills' / skill_name
+        assert body['path'] == str(expected)
+        assert expected.is_dir()
