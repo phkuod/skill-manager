@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -41,5 +42,15 @@ STATICFILES_DIRS = [FRONTEND_DIR]
 WHITENOISE_MANIFEST_STRICT = False
 
 SKILL_REPO_PATH = os.environ.get('SKILL_REPO_PATH', str(BASE_DIR.parent / 'skill_repo'))
+
+INSTALL_TARGETS = {}
+_install_target_re = re.compile(r'^INSTALL_TARGET_([A-Z0-9]+)_(.+)$')
+for _k, _v in os.environ.items():
+    _m = _install_target_re.match(_k)
+    if _m:
+        _name, _field = _m.group(1), _m.group(2).lower()
+        INSTALL_TARGETS.setdefault(_name, {})[_field] = _v
+
+INSTALL_TIMEOUT_SECONDS = int(os.environ.get('INSTALL_TIMEOUT_SECONDS', '60'))
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
