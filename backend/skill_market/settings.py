@@ -43,6 +43,8 @@ WHITENOISE_MANIFEST_STRICT = False
 
 SKILL_REPO_PATH = os.environ.get('SKILL_REPO_PATH', str(BASE_DIR.parent / 'skill_repo'))
 
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '*')
+
 INSTALL_TARGETS = {}
 _install_target_re = re.compile(r'^INSTALL_TARGET_([A-Z0-9]+)_(.+)$')
 for _k, _v in os.environ.items():
