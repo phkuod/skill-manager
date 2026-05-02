@@ -167,8 +167,13 @@
   </div>
 </div>
 
-<div id="install-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center"
-     style="background-color:rgba(0,0,0,0.5)">
+<!-- Positioning via inline style: vendored Tailwind is JIT-purged and does
+     not include .fixed or .inset-0 utilities (no other element used them
+     before this modal was added). Without these, the modal renders as
+     position:static — pushed off-screen below page content and invisible
+     when "opened". Inline style avoids the dependency entirely. -->
+<div id="install-modal" class="hidden z-50 flex items-center justify-center"
+     style="position:fixed;top:0;right:0;bottom:0;left:0;background-color:rgba(0,0,0,0.5)">
   <div class="rounded-xl p-6 w-full max-w-md mx-4"
        style="background-color:var(--bg-card);border:1px solid var(--border)">
     <h3 id="install-modal-title" class="text-lg font-semibold mb-4" style="color:var(--text-primary)"></h3>
