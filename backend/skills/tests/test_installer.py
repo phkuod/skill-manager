@@ -98,3 +98,98 @@ def test_install_local_rejects_bad_user_name(tmp_path, settings):
     with pytest.raises(InstallError) as exc:
         install_skill(src, 'LOCAL', '../etc')
     assert exc.value.http_status == 400
+
+
+import subprocess
+from unittest.mock import MagicMock
+
+
+def test_install_ssh_invokes_rsync_with_expected_args(tmp_path, settings, monkeypatch):
+    src = _make_src(tmp_path)
+    settings.INSTALL_TARGETS = {
+        'F15': {
+            'type': 'ssh',
+            'base': '/AAA/{user_name}/skills',
+            'host': 'f15.example',
+            'user': 'svc',
+            'ssh_key': '/etc/ssh/k',
+        },
+    }
+    settings.INSTALL_TIMEOUT_SECONDS = 60
+
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured['cmd'] = cmd
+        captured['kwargs'] = kwargs
+        return MagicMock(returncode=0, stderr=b'', stdout=b'')
+
+    monkeypatch.setattr('skills.installer.subprocess.run', fake_run)
+
+    result = install_skill(src, 'F15', 'jdoe')
+
+    cmd = captured['cmd']
+    assert cmd[0] == 'rsync'
+    assert '-a' in cmd
+    assert '--delete' in cmd
+    assert '-e' in cmd
+    e_idx = cmd.index('-e')
+    ssh_str = cmd[e_idx + 1]
+    assert 'ssh' in ssh_str
+    assert '-i /etc/ssh/k' in ssh_str
+    assert 'BatchMode=yes' in ssh_str
+
+    # Source must end with trailing slash so contents (not the dir itself) go into dst.
+    assert cmd[-2].rstrip('/').endswith('git-workflow')
+    assert cmd[-2].endswith('/')
+    # Dest is user@host:/path/skill_name/
+    assert cmd[-1] == 'svc@f15.example:/AAA/jdoe/skills/git-workflow/'
+
+    assert captured['kwargs']['timeout'] == 60
+    assert captured['kwargs']['check'] is True
+    assert captured['kwargs']['capture_output'] is True
+
+    assert result == {'target': 'F15', 'path': '/AAA/jdoe/skills/git-workflow'}
+
+
+def test_install_ssh_propagates_rsync_failure(tmp_path, settings, monkeypatch):
+    src = _make_src(tmp_path)
+    settings.INSTALL_TARGETS = {
+        'F15': {
+            'type': 'ssh', 'base': '/AAA/{user_name}/skills',
+            'host': 'h', 'user': 'u', 'ssh_key': '/k',
+        },
+    }
+    settings.INSTALL_TIMEOUT_SECONDS = 60
+
+    def fake_run(cmd, **kwargs):
+        raise subprocess.CalledProcessError(
+            returncode=23, cmd=cmd, output=b'', stderr=b'rsync: connection refused')
+
+    monkeypatch.setattr('skills.installer.subprocess.run', fake_run)
+
+    with pytest.raises(InstallError) as exc:
+        install_skill(src, 'F15', 'jdoe')
+    assert exc.value.http_status == 502
+    assert 'connection refused' in str(exc.value)
+
+
+def test_install_ssh_timeout_raises_504(tmp_path, settings, monkeypatch):
+    src = _make_src(tmp_path)
+    settings.INSTALL_TARGETS = {
+        'F15': {
+            'type': 'ssh', 'base': '/AAA/{user_name}/skills',
+            'host': 'h', 'user': 'u', 'ssh_key': '/k',
+        },
+    }
+    settings.INSTALL_TIMEOUT_SECONDS = 5
+
+    def fake_run(cmd, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=cmd, timeout=5)
+
+    monkeypatch.setattr('skills.installer.subprocess.run', fake_run)
+
+    with pytest.raises(InstallError) as exc:
+        install_skill(src, 'F15', 'jdoe')
+    assert exc.value.http_status == 504
+    assert 'timed out' in str(exc.value).lower()

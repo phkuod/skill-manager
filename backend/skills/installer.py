@@ -59,10 +59,14 @@ def install_skill(src_dir, target_name, user_name):
             f"Target {target_name!r} missing 'base' config",
             http_status=500,
         )
-    base = base_template.format(user_name=user_name).rstrip('/\\')
-    dst = os.path.join(base, skill_name)
-
     ttype = cfg.get('type')
+    base = base_template.format(user_name=user_name).rstrip('/\\')
+    if ttype == 'ssh':
+        # Remote paths always use POSIX separators regardless of local OS.
+        dst = base.replace('\\', '/') + '/' + skill_name
+    else:
+        dst = os.path.join(base, skill_name)
+
     if ttype == 'local':
         _install_local(src_dir, dst)
     elif ttype == 'ssh':
