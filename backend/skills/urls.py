@@ -22,6 +22,7 @@ urlpatterns = [
 
     # JSON API
     path('api/health', views.api_health, name='api_health'),
+    path('api/install/targets', views.api_install_targets, name='api_install_targets'),
     path('api/skills', views.api_skill_list, name='api_skill_list'),
     path('api/skills/<str:name>', views.api_skill_detail, name='api_skill_detail'),
     path('api/skills/<str:name>/zip', views.api_skill_zip, name='api_skill_zip'),

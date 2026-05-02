@@ -204,6 +204,15 @@ def api_version_files(request, name, version):
     return JsonResponse(files, safe=False)
 
 
+@require_GET
+def api_install_targets(request):
+    targets = [
+        {'name': name, 'base': cfg.get('base', '')}
+        for name, cfg in settings.INSTALL_TARGETS.items()
+    ]
+    return JsonResponse({'targets': targets})
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
