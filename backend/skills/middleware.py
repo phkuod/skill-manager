@@ -29,7 +29,7 @@ class ApiCorsMiddleware:
 
         if is_api:
             response['Access-Control-Allow-Origin'] = self.allow_origin
-            response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
             response['Access-Control-Allow-Headers'] = 'Content-Type'
             response['Vary'] = 'Origin'
 
