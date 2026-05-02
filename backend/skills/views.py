@@ -249,6 +249,17 @@ def api_skill_install(request, name):
     return _do_install(request, _skill_dir(name))
 
 
+@require_POST
+def api_version_install(request, name, version):
+    skill = get_skills().get(name)
+    if skill is None:
+        return JsonResponse({'error': f"Skill '{name}' not found"}, status=404)
+    ver_dir = _version_dir(name, version)
+    if ver_dir is None:
+        return JsonResponse({'error': f"Version '{version}' not found"}, status=404)
+    return _do_install(request, ver_dir)
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------

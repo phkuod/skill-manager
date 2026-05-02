@@ -30,6 +30,8 @@ urlpatterns = [
     path('api/skills/<str:name>/install', views.api_skill_install, name='api_skill_install'),
     path('api/skills/<str:name>/versions', views.api_versions, name='api_versions'),
     path('api/skills/<str:name>/versions/<str:version>', views.api_version_detail, name='api_version_detail'),
+    path('api/skills/<str:name>/versions/<str:version>/install',
+         views.api_version_install, name='api_version_install'),
     path('api/skills/<str:name>/versions/<str:version>/zip', views.api_version_zip, name='api_version_zip'),
     path('api/skills/<str:name>/versions/<str:version>/files', views.api_version_files, name='api_version_files'),
 ]

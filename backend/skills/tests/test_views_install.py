@@ -140,3 +140,31 @@ def test_install_success_copies_skill(settings, tmp_path):
     assert body['path'] == str(expected_path)
     assert expected_path.is_dir()
     assert (expected_path / 'SKILL.md').is_file()
+
+
+@pytest.mark.django_db
+def test_version_install_unknown_version_returns_404(settings, tmp_path):
+    settings.INSTALL_TARGETS = {'LOCAL': {'type': 'local', 'base': str(tmp_path)}}
+    c = _client_with_cookie()
+    from skills.watcher import get_skills
+    skills = list(get_skills().keys())
+    if not skills:
+        pytest.skip('skill_repo empty')
+    resp = c.post(
+        f'/api/skills/{skills[0]}/versions/99999999-nope/install',
+        data=json.dumps({'target': 'LOCAL'}),
+        content_type='application/json',
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_version_install_unknown_skill_returns_404(settings, tmp_path):
+    settings.INSTALL_TARGETS = {'LOCAL': {'type': 'local', 'base': str(tmp_path)}}
+    c = _client_with_cookie()
+    resp = c.post(
+        '/api/skills/no-such/versions/original/install',
+        data=json.dumps({'target': 'LOCAL'}),
+        content_type='application/json',
+    )
+    assert resp.status_code == 404
