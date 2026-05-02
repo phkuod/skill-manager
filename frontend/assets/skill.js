@@ -51,6 +51,31 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Install — helpers
+  // ---------------------------------------------------------------------------
+
+  function getCookie(name) {
+    var prefix = name + '=';
+    var parts = document.cookie.split(';');
+    for (var i = 0; i < parts.length; i++) {
+      var c = parts[i].trim();
+      if (c.indexOf(prefix) === 0) return decodeURIComponent(c.slice(prefix.length));
+    }
+    return '';
+  }
+
+  function fetchInstallTargets() {
+    return fetch(API_BASE + '/api/install/targets')
+      .then(function (r) { return r.ok ? r.json() : { targets: [] }; })
+      .then(function (data) { return data.targets || []; })
+      .catch(function () { return []; });
+  }
+
+  function installUrl(name, version) {
+    return apiBase(name, version) + '/install';
+  }
+
+  // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
