@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Stack note (README is stale)
 
-`README.md` describes a Node/Express + React/Vite stack with `node manage.js` commands. That stack has been replaced. The running app is **Django 5.x** (4.x on Python 3.8/3.9) with server-rendered templates and vanilla JS. The `client/` directory contains only a leftover `node_modules/`; there is no frontend build step. Vendored Tailwind/highlight.js/marked live in `backend/skills/static/skills/vendor/`.
+`README.md` describes a Node/Express + React/Vite stack with `node manage.js` commands. That stack has been replaced. The running app is **Django 5.x** (4.x on Python 3.8/3.9) backed by static HTML + vanilla JS in `frontend/`. There is no frontend build step — vendored Tailwind/highlight.js/marked live in `frontend/vendor/`.
+
+The `frontend/` directory is **deployable on its own**: the same HTML works whether served by Django (via WhiteNoise + the URL routes below) or pushed to a plain static host that talks to the Django backend over `/api/*` (CORS is permissive by default — see middleware).
 
 ## Commands
 
@@ -17,8 +19,8 @@ backend/venv/bin/pip install -r backend/requirements-dev.txt   # dev (includes p
 # or backend/requirements.txt for prod-only
 
 # Run
-./start.sh            # dev — Django runserver on :3000
-./start.sh prod       # prod — gunicorn, DEBUG=False
+./start.sh            # dev — Django runserver; PORT defaults to 3000, overridden by .env.development (currently 8888)
+./start.sh prod       # prod — gunicorn, DEBUG=False (PORT from .env.production)
 
 # Tests (from backend/ with venv active)
 pytest                                       # all unit tests
@@ -27,7 +29,7 @@ pytest skills/tests/test_parser.py::test_x   # one test
 pytest e2e/                                  # Playwright E2E (see caveat below)
 ```
 
-PM2 is wired via `ecosystem.config.cjs` (`pm2 start ecosystem.config.cjs --env production`). It runs gunicorn out of `backend/`.
+`start.sh` sources `.env.<mode>` if present, then runs `collectstatic` before launching. Production is also wired via PM2 (`ecosystem.config.cjs`) and a Linux-only Dockerfile (`docker build -t skill-market . && docker run -p 9419:9419 skill-market`). **Docker is only for simulating prod locally — the real production deployment uses the gunicorn/PM2 path, not the container.**
 
 ## Architecture
 
@@ -36,21 +38,22 @@ PM2 is wired via `ecosystem.config.cjs` (`pm2 start ecosystem.config.cjs --env p
 **Single Django app: `skills`.** Module responsibilities:
 
 - `watcher.py` — owns the global `_skills` dict. `init_watcher()` runs a full `parse_all_skills()` on startup, then a `watchdog` observer re-parses with a 300ms debounce on any FS event under `SKILL_REPO_PATH`. `views.get_skills()` reads from this dict per request.
-- `apps.py::SkillsConfig.ready()` — boots the watcher. Guards against Django autoreloader double-init by checking `RUN_MAIN`: initializes only when `RUN_MAIN == 'true'` (autoreload child) or unset (gunicorn/`--noreload`). **If you add startup work, preserve this guard or you'll get two watchers in dev.**
+- `apps.py::SkillsConfig.ready()` — connects a `request_started` signal handler that lazy-inits the watcher on the first HTTP request (guarded by a module-level `_initialized` flag). This guarantees exactly one init regardless of launcher (runserver autoreload parent vs. child, `--noreload`, gunicorn worker) and skips management commands (`collectstatic`/`migrate`/`pytest`/`shell`). **Don't move init back into `ready()` directly — autoreload + `start.sh`'s pre-launch `collectstatic` would each trigger their own `parse_all_skills()`.** Trade-off: first request pays the parse cost synchronously. Note: with `gunicorn --workers 2` each worker keeps its own `_skills` dict and watchdog observer; that's a known limitation of the in-process design.
 - `parser.py` — reads `SKILL.md` frontmatter (`python-frontmatter`). Handles **versioning**: any subdirectory matching `^(\d{8})-.+` that contains a `SKILL.md` is a version. When present, the newest by date becomes the active content; the top-level skill dir becomes the synthetic `"original"` version.
 - `classifier.py` — `CATEGORY_MAP` is a **hardcoded** `skill_name → {category, icon}` table. Adding a new well-known skill requires an entry here; unknowns fall into `"Other" / 📦`.
 - `file_reader.py` — recursive text-file walk for the detail view. Skips binaries (null-byte probe in first 8 KB); files >500 KB return `{content: None, truncated: True}`. Sort order: `SKILL.md` first, then alphabetical.
 - `zipper.py` — builds the download ZIP in-memory (`io.BytesIO`); nothing is staged on disk.
-- `views.py` — two HTML routes (`/`, `/skill/<name>`) and the `/api/*` JSON surface (see `skills/urls.py`). Server-side search sorts name-matches ahead of description-only matches.
+- `middleware.py::ApiCorsMiddleware` — adds permissive CORS (`Access-Control-Allow-Origin: *` by default) and short-circuits OPTIONS preflights, **only on `/api/*`**. Lock down for shared-host deploys via `CORS_ALLOWED_ORIGINS` (single origin only — browsers don't accept comma lists).
+- `views.py` — three HTML shell routes (`/`, `/index.html`, `/skill.html`) that just `read()` and return the matching file from `FRONTEND_DIR` with no templating; the skill name on the detail page is read client-side from the URL hash. Plus the `/api/*` JSON surface (see `skills/urls.py`). Server-side search on `/api/skills` ranks name-matches > description-matches > content-matches.
 
 **URL conventions.** `APPEND_SLASH = False` in `settings.py` — endpoints are `/api/skills`, not `/api/skills/`. Keep that in mind when adding routes or tests.
 
-**Statics.** WhiteNoise serves collected assets; `./start.sh` runs `collectstatic --noinput` on every launch. Third-party CSS/JS are vendored under `backend/skills/static/skills/vendor/` — do not reintroduce a bundler.
+**Statics & frontend.** `STATICFILES_DIRS = [FRONTEND_DIR]` (default `<repo>/frontend`, override via the `FRONTEND_DIR` env var) — the same files end up in `staticfiles/` after `collectstatic` and are served by WhiteNoise. `urls.py` also wires `re_path(r'^(vendor|assets)/...|config\.js$')` to serve those paths directly out of `FRONTEND_DIR` so the HTML's relative paths (`vendor/tailwind.min.css`, `assets/app.css`, `config.js`) work whether Django or a plain static host serves them. **Do not reintroduce a bundler** — third-party CSS/JS are vendored under `frontend/vendor/`.
 
 ## Tests
 
 - Unit tests live in `backend/skills/tests/` (pytest-django, config in `backend/pytest.ini`). They read the real `skill_repo/` at the repo root; some (e.g. `test_views.py`) create and remove temporary version-subdirectory fixtures inside it.
-- `backend/e2e/` uses Playwright against a subprocess-launched `runserver` on port 8799. **`conftest.py` hard-codes a Linux Chromium binary path** (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`); E2E will not run on Windows/macOS without editing `CHROMIUM_EXEC`.
+- `backend/e2e/` uses Playwright against a subprocess-launched `runserver` on port 8799. By default it uses Playwright's bundled Chromium; set `CHROMIUM_EXEC=/abs/path/to/chrome` to point at a system browser (useful for sandboxed/Linux CI environments where Playwright's download didn't run). The venv detection is OS-aware (`Scripts/python.exe` on Windows, `bin/python` elsewhere) and falls back to `sys.executable`.
 
 ## Skill repository contract
 

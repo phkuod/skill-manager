@@ -1,6 +1,5 @@
-import os
-
 from django.apps import AppConfig
+from django.core.signals import request_started
 
 
 class SkillsConfig(AppConfig):
@@ -8,12 +7,21 @@ class SkillsConfig(AppConfig):
     name = 'skills'
 
     def ready(self):
-        from django.conf import settings
-        # RUN_MAIN is set to 'true' only in the child process of Django's autoreloader.
-        # When --noreload is used or running via gunicorn/WSGI, RUN_MAIN is absent.
-        # We init in both the child process and in non-autoreloader contexts,
-        # but skip the parent monitor process (where RUN_MAIN == unset AND autoreloader runs).
-        run_main = os.environ.get('RUN_MAIN')
-        if run_main == 'true' or run_main is None:
-            from . import watcher
-            watcher.init_watcher(settings.SKILL_REPO_PATH)
+        # Lazy-init on first HTTP request. This guarantees exactly one init
+        # regardless of launcher (runserver autoreload parent vs. child,
+        # --noreload, gunicorn) and skips management commands like
+        # collectstatic/migrate/pytest that never serve requests.
+        request_started.connect(_init_watcher_once, dispatch_uid='skills.init_watcher')
+
+
+_initialized = False
+
+
+def _init_watcher_once(**_):
+    global _initialized
+    if _initialized:
+        return
+    _initialized = True
+    from django.conf import settings
+    from . import watcher
+    watcher.init_watcher(settings.SKILL_REPO_PATH)
