@@ -197,6 +197,12 @@ body {
   opacity: 0;
   transition: opacity 0.2s ease;
 }
+/* When hidden, fully remove from layout — without this the fixed overlay
+ * stays at opacity:0 over the viewport and intercepts clicks (back link
+ * etc. become unreachable). The .hidden Tailwind utility sets display:none
+ * but its rule loses to .install-modal in the cascade because app.css
+ * loads later, so we override explicitly here. */
+.install-modal.hidden { display: none; }
 .dark .install-modal { background-color: rgba(0, 0, 0, 0.65); }
 .install-modal.is-open { opacity: 1; }
 
