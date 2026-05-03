@@ -22,11 +22,19 @@
 // merging. It's also embedded in the test plan for the install feature.
 
 (async () => {
-  await new Promise(r => setTimeout(r, 800));
   const fails = []; const passes = [];
   const assert = (cond, msg) => { (cond ? passes : fails).push(msg); };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const luma = c => { const m = c.match(/\d+/g); return m ? (0.299*+m[0]+0.587*+m[1]+0.114*+m[2]) : 0; };
+
+  // Wait until renderSkill has wired up the install button (it depends on
+  // /api/skills/<name> + /files fetches which can take a moment in a
+  // cross-origin or slow setup). Poll up to 5s.
+  for (let i = 0; i < 100; i++) {
+    const btn = document.getElementById('install-button');
+    if (btn && typeof btn.onclick === 'function') break;
+    await sleep(50);
+  }
 
   // Mock /install POST — keeps audit hermetic.
   const origFetch = window.fetch;
@@ -73,8 +81,18 @@
   assert(!!installBtn, 'install button exists in sidebar');
   assert(getComputedStyle(installBtn).display !== 'none', 'install button visible');
   assert(typeof installBtn.onclick === 'function', 'install button onclick wired');
-  assert(document.getElementById('install-modal').classList.contains('hidden'),
-    'modal starts hidden');
+  const initialModal = document.getElementById('install-modal');
+  assert(initialModal.classList.contains('hidden'), 'modal starts hidden');
+  assert(getComputedStyle(initialModal).display === 'none',
+    'hidden modal is display:none (otherwise overlay intercepts every click on the page — Back link, etc.)');
+  // Sanity: ensure the back link in the header IS clickable while modal is hidden.
+  const backLink = document.querySelector('header a[href$="index.html"]');
+  if (backLink) {
+    const br = backLink.getBoundingClientRect();
+    const elAt = document.elementFromPoint(br.left + br.width / 2, br.top + br.height / 2);
+    assert(backLink.contains(elAt),
+      'header Back link is reachable when modal hidden (got ' + (elAt ? elAt.tagName : 'null') + ' at click point)');
+  }
 
   // ---------------------------------------------------------- 3. Modal opens
   installBtn.click();
