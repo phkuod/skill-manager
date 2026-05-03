@@ -82,72 +82,73 @@
     var targetsEl = document.getElementById('install-modal-targets');
     var noCookieEl = document.getElementById('install-modal-no-cookie');
     var resultEl = document.getElementById('install-modal-result');
-    var actionsEl = document.getElementById('install-modal-actions');
     var cancelBtn = document.getElementById('install-modal-cancel');
+    var closeBtn = document.getElementById('install-modal-close');
 
     var version = getVersion();
-    var titleText = 'Install "' + skillName + '"' + (version ? ' (' + version + ')' : '');
-    title.textContent = titleText;
+    title.textContent = skillName + (version ? ' @ ' + version : '');
 
     var user = getCookie('CURRENT_USER_NAME');
-    userEl.textContent = user || '(none)';
+    userEl.textContent = user || 'no session';
 
-    // Reset modal state
+    // Reset modal state every open
     resultEl.classList.add('hidden');
+    resultEl.classList.remove('is-ok', 'is-err');
     resultEl.textContent = '';
-    resultEl.removeAttribute('style');
     cancelBtn.textContent = 'Cancel';
-
-    // Remove previously-injected install buttons (idempotent re-open)
-    Array.prototype.forEach.call(
-      actionsEl.querySelectorAll('.install-target-btn'),
-      function (b) { b.remove(); }
-    );
-
-    targetsEl.innerHTML = '';
+    cancelBtn.disabled = false;
     noCookieEl.classList.toggle('hidden', !!user);
+    targetsEl.innerHTML = '';
 
     fetchInstallTargets().then(function (targets) {
       if (!targets.length) {
-        targetsEl.innerHTML = '<li style="color:var(--text-secondary)">'
-          + '(no install targets configured — set INSTALL_TARGET_* env vars)</li>';
+        var empty = document.createElement('p');
+        empty.style.color = 'var(--text-secondary)';
+        empty.style.fontSize = '0.85rem';
+        empty.style.margin = '0';
+        empty.textContent = 'No install targets configured — set INSTALL_TARGET_* env vars on the backend.';
+        targetsEl.appendChild(empty);
         return;
       }
-      targetsEl.innerHTML = targets.map(function (t) {
-        var path = user
-          ? t.base.replace('{user_name}', user) + '/' + skillName
-          : t.base.replace('{user_name}', '<user>') + '/' + skillName;
-        return '<li class="font-mono text-xs" style="color:var(--text-primary)">'
-          + escapeHtml(t.name) + ' &rarr; ' + escapeHtml(path) + '</li>';
-      }).join('');
-
       targets.forEach(function (t) {
-        var btn = document.createElement('button');
-        btn.className = 'install-target-btn px-3 py-2 text-sm rounded-lg font-medium text-white';
-        btn.style.backgroundColor = 'var(--accent)';
-        btn.textContent = 'Install to ' + t.name;
-        btn.disabled = !user;
-        if (!user) btn.style.opacity = '0.5';
-        btn.onclick = function () { performInstall(t.name, btn); };
-        actionsEl.insertBefore(btn, cancelBtn);
+        var path = (user
+          ? t.base.replace('{user_name}', user)
+          : t.base.replace('{user_name}', '<user>')) + '/' + skillName;
+        var row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'install-target-btn';
+        row.disabled = !user;
+        row.innerHTML =
+          '<span class="install-target-name">' + escapeHtml(t.name) + '</span>' +
+          '<span class="install-target-path">' + escapeHtml(path) + '</span>' +
+          '<span class="install-target-go">&rarr;</span>';
+        row.onclick = function () { performInstall(t.name, row); };
+        targetsEl.appendChild(row);
       });
     });
 
     cancelBtn.onclick = closeInstallModal;
+    closeBtn.onclick = closeInstallModal;
     modal.classList.remove('hidden');
+    // Trigger entrance animation on next frame
+    requestAnimationFrame(function () { modal.classList.add('is-open'); });
   }
 
   function closeInstallModal() {
-    document.getElementById('install-modal').classList.add('hidden');
+    var modal = document.getElementById('install-modal');
+    modal.classList.remove('is-open');
+    // Hide after exit animation completes (matches CSS transition duration).
+    setTimeout(function () { modal.classList.add('hidden'); }, 220);
   }
 
-  function performInstall(targetName, clickedBtn) {
-    var actionsEl = document.getElementById('install-modal-actions');
+  function performInstall(targetName, row) {
     var resultEl = document.getElementById('install-modal-result');
     var cancelBtn = document.getElementById('install-modal-cancel');
-    var allBtns = actionsEl.querySelectorAll('button');
-    Array.prototype.forEach.call(allBtns, function (b) { b.disabled = true; });
-    clickedBtn.textContent = 'Installing…';
+    var allRows = document.querySelectorAll('.install-target-btn');
+
+    Array.prototype.forEach.call(allRows, function (r) { r.disabled = true; });
+    row.setAttribute('data-state', 'busy');
+    row.querySelector('.install-target-go').innerHTML = '&#8987;'; // hourglass
 
     fetch(installUrl(skillName, getVersion()), {
       method: 'POST',
@@ -161,27 +162,27 @@
       .then(function (out) {
         resultEl.classList.remove('hidden');
         if (out.ok) {
-          resultEl.style.backgroundColor = 'rgba(34,197,94,0.15)';
-          resultEl.style.color = 'rgb(22,101,52)';
-          resultEl.textContent = '✓ Installed to ' + out.body.target + ': ' + out.body.path;
+          resultEl.classList.remove('is-err');
+          resultEl.classList.add('is-ok');
+          resultEl.textContent = '✓ Installed to ' + out.body.target + ' — ' + out.body.path;
+          row.setAttribute('data-state', 'ok');
+          row.querySelector('.install-target-go').textContent = '✓';
         } else {
-          resultEl.style.backgroundColor = 'rgba(220,38,38,0.15)';
-          resultEl.style.color = 'rgb(153,27,27)';
+          resultEl.classList.remove('is-ok');
+          resultEl.classList.add('is-err');
           resultEl.textContent = '✗ ' + (out.body.error || 'Install failed');
+          row.setAttribute('data-state', 'err');
+          row.querySelector('.install-target-go').textContent = '✗';
         }
       })
       .catch(function (err) {
-        resultEl.classList.remove('hidden');
-        resultEl.style.backgroundColor = 'rgba(220,38,38,0.15)';
-        resultEl.style.color = 'rgb(153,27,27)';
-        resultEl.textContent = '✗ Network error: ' + err.message;
+        resultEl.classList.remove('hidden', 'is-ok');
+        resultEl.classList.add('is-err');
+        resultEl.textContent = '✗ Network error — ' + err.message;
+        row.setAttribute('data-state', 'err');
+        row.querySelector('.install-target-go').textContent = '✗';
       })
       .finally(function () {
-        // Hide install buttons; turn Cancel into Close.
-        Array.prototype.forEach.call(
-          actionsEl.querySelectorAll('.install-target-btn'),
-          function (b) { b.remove(); }
-        );
         cancelBtn.textContent = 'Close';
         cancelBtn.disabled = false;
       });
