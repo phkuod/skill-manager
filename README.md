@@ -33,17 +33,17 @@ deployment.
 git clone <repo-url>
 cd skill-manager
 
-# Create venv and install deps. start.sh picks the requirements file based
-# on your Python version (3.12+ / 3.10–3.11 / 3.8–3.9).
+# Create venv and install deps. backend/start.sh picks the requirements file
+# based on your Python version (3.12+ / 3.10–3.11 / 3.8–3.9).
 python3 -m venv backend/venv
 backend/venv/bin/pip install -r backend/requirements-dev.txt   # includes pytest
 # or backend/requirements.txt for prod-only
 
 # Run dev server (Django runserver on :3000)
-./start.sh
+./backend/start.sh
 
 # Run prod server (gunicorn, DEBUG=False)
-./start.sh prod
+./backend/start.sh prod
 ```
 
 Open <http://localhost:3000>.
@@ -97,13 +97,13 @@ skill_repo/
 | `SKILL_REPO_PATH`  | `<repo>/skill_repo`    | Source-of-truth catalog directory    |
 | `CHROMIUM_EXEC`    | (Playwright default)   | E2E Chromium binary override         |
 
-Templates live in `.env.example`, `.env.development.example`, and
-`.env.production.example`.
+Templates live in `backend/.env.example`, `backend/.env.development.example`,
+and `backend/.env.production.example`.
 
 ## Production with PM2
 
 ```bash
-pm2 start ecosystem.config.cjs --env production
+pm2 start backend/ecosystem.config.cjs --env production
 pm2 save       # persist the process list
 pm2 startup    # auto-start on system reboot
 
@@ -116,6 +116,11 @@ pm2 restart skill-market
 
 ```
 backend/
+  start.sh             # launcher (dev runserver / prod gunicorn)
+  ecosystem.config.cjs # PM2 spec (calls start.sh prod)
+  .env.example         # all-keys template
+  .env.development.example
+  .env.production.example
   manage.py
   skill_market/        # Django settings / urls
   skills/              # the only Django app
@@ -129,6 +134,7 @@ backend/
   e2e/                 # Playwright tests
 frontend/              # static HTML + vanilla JS, served by WhiteNoise
 skill_repo/            # the catalog (gitignored in production)
+Dockerfile             # bundles backend + frontend; for local prod simulation
 docs/
   archive/             # original Node/React-era plan.md and spec.md
 ```

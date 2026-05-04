@@ -5,8 +5,8 @@ from django.views.static import serve as static_serve
 from . import views
 
 urlpatterns = [
-    # HTML shells. Useful for local dev (./start.sh); in a split deployment
-    # the frontend is served from a static host and these are unused.
+    # HTML shells. Useful for local dev (./backend/start.sh); in a split
+    # deployment the frontend is served from a static host and these are unused.
     path('', views.index_shell, name='home'),
     path('index.html', views.index_shell),
     path('skill.html', views.skill_shell, name='skill_detail'),

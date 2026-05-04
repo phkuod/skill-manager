@@ -10,9 +10,9 @@ backend/staticfiles
 **/*.pyc
 
 # Local env (passed in via --env-file at runtime, not baked in)
-.env
-.env.development
-.env.production
+backend/.env
+backend/.env.development
+backend/.env.production
 
 # Stale Node leftovers
 client/node_modules

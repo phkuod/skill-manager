@@ -10,7 +10,7 @@ The `frontend/` directory is **deployable on its own**: the same HTML works whet
 
 ## Commands
 
-All day-to-day operation goes through `./start.sh`, which picks a requirements file based on `python3 --version` (3.12+ → `requirements_py3.12.txt`, 3.10–3.11 → `requirements_py3.10_plus.txt`, else `requirements_py3.8_3.9.txt`) and expects a venv at `backend/venv`.
+All day-to-day operation goes through `./backend/start.sh`, which picks a requirements file based on `python3 --version` (3.12+ → `requirements_py3.12.txt`, 3.10–3.11 → `requirements_py3.10_plus.txt`, else `requirements_py3.8_3.9.txt`) and expects a venv at `backend/venv`.
 
 ```bash
 # First-time setup
@@ -19,8 +19,8 @@ backend/venv/bin/pip install -r backend/requirements-dev.txt   # dev (includes p
 # or backend/requirements.txt for prod-only
 
 # Run
-./start.sh            # dev — Django runserver; PORT defaults to 3000, overridden by .env.development (currently 8888)
-./start.sh prod       # prod — gunicorn, DEBUG=False (PORT from .env.production)
+./backend/start.sh            # dev — Django runserver; PORT defaults to 3000, overridden by backend/.env.development (currently 8888)
+./backend/start.sh prod       # prod — gunicorn, DEBUG=False (PORT from backend/.env.production)
 
 # Tests (from backend/ with venv active)
 pytest                                       # all unit tests
@@ -29,7 +29,7 @@ pytest skills/tests/test_parser.py::test_x   # one test
 pytest e2e/                                  # Playwright E2E (see caveat below)
 ```
 
-`start.sh` sources `.env.<mode>` if present, then runs `collectstatic` before launching. Production is also wired via PM2 (`ecosystem.config.cjs`) and a Linux-only Dockerfile (`docker build -t skill-market . && docker run -p 9419:9419 skill-market`). **Docker is only for simulating prod locally — the real production deployment uses the gunicorn/PM2 path, not the container.**
+`backend/start.sh` sources `backend/.env.<mode>` if present, then runs `collectstatic` before launching. Production is also wired via PM2 (`backend/ecosystem.config.cjs`) and a Linux-only Dockerfile at the repo root (`docker build -t skill-market . && docker run -p 9419:9419 skill-market`). **Docker is only for simulating prod locally — the real production deployment uses the gunicorn/PM2 path, not the container.**
 
 ## Architecture
 
@@ -38,7 +38,7 @@ pytest e2e/                                  # Playwright E2E (see caveat below)
 **Single Django app: `skills`.** Module responsibilities:
 
 - `watcher.py` — owns the global `_skills` dict. `init_watcher()` runs a full `parse_all_skills()` on startup, then a `watchdog` observer re-parses with a 300ms debounce on any FS event under `SKILL_REPO_PATH`. `views.get_skills()` reads from this dict per request.
-- `apps.py::SkillsConfig.ready()` — connects a `request_started` signal handler that lazy-inits the watcher on the first HTTP request (guarded by a module-level `_initialized` flag). This guarantees exactly one init regardless of launcher (runserver autoreload parent vs. child, `--noreload`, gunicorn worker) and skips management commands (`collectstatic`/`migrate`/`pytest`/`shell`). **Don't move init back into `ready()` directly — autoreload + `start.sh`'s pre-launch `collectstatic` would each trigger their own `parse_all_skills()`.** Trade-off: first request pays the parse cost synchronously. Note: with `gunicorn --workers 2` each worker keeps its own `_skills` dict and watchdog observer; that's a known limitation of the in-process design.
+- `apps.py::SkillsConfig.ready()` — connects a `request_started` signal handler that lazy-inits the watcher on the first HTTP request (guarded by a module-level `_initialized` flag). This guarantees exactly one init regardless of launcher (runserver autoreload parent vs. child, `--noreload`, gunicorn worker) and skips management commands (`collectstatic`/`migrate`/`pytest`/`shell`). **Don't move init back into `ready()` directly — autoreload + `backend/start.sh`'s pre-launch `collectstatic` would each trigger their own `parse_all_skills()`.** Trade-off: first request pays the parse cost synchronously. Note: with `gunicorn --workers 2` each worker keeps its own `_skills` dict and watchdog observer; that's a known limitation of the in-process design.
 - `parser.py` — reads `SKILL.md` frontmatter (`python-frontmatter`). Handles **versioning**: any subdirectory matching `^(\d{8})-.+` that contains a `SKILL.md` is a version. When present, the newest by date becomes the active content; the top-level skill dir becomes the synthetic `"original"` version.
 - `classifier.py` — `CATEGORY_MAP` is a **hardcoded** `skill_name → {category, icon}` table. Adding a new well-known skill requires an entry here; unknowns fall into `"Other" / 📦`.
 - `file_reader.py` — recursive text-file walk for the detail view. Skips binaries (null-byte probe in first 8 KB); files >500 KB return `{content: None, truncated: True}`. Sort order: `SKILL.md` first, then alphabetical.
@@ -46,7 +46,7 @@ pytest e2e/                                  # Playwright E2E (see caveat below)
 - `middleware.py::ApiCorsMiddleware` — adds permissive CORS (`Access-Control-Allow-Origin: *` by default) and short-circuits OPTIONS preflights, **only on `/api/*`**. Lock down for shared-host deploys via `CORS_ALLOWED_ORIGINS` (single origin only — browsers don't accept comma lists).
 - `views.py` — three HTML shell routes (`/`, `/index.html`, `/skill.html`) that just `read()` and return the matching file from `FRONTEND_DIR` with no templating; the skill name on the detail page is read client-side from the URL hash. Plus the `/api/*` JSON surface (see `skills/urls.py`). Server-side search on `/api/skills` ranks name-matches > description-matches > content-matches.
 
-**Env loading.** `settings.py:7` calls `load_dotenv(backend/.env)` *before* any `os.environ.get(...)`. `backend/.env` is gitignored, so its existence isn't obvious from a clean checkout — but if present, it silently overrides `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and `INSTALL_TARGET_*`. If a split-deploy mysteriously gets blocked by CORS even though `.env.development` looks right, check `backend/.env` first.
+**Env loading.** `settings.py:7` calls `load_dotenv(backend/.env)` *before* any `os.environ.get(...)`. `backend/.env` is gitignored, so its existence isn't obvious from a clean checkout — but if present, it silently overrides `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and `INSTALL_TARGET_*`. Note this is **separate** from `backend/.env.development` / `backend/.env.production`, which are sourced by `backend/start.sh` *before* Django boots. If a split-deploy mysteriously gets blocked by CORS even though `backend/.env.development` looks right, check `backend/.env` first.
 
 **URL conventions.** `APPEND_SLASH = False` in `settings.py` — endpoints are `/api/skills`, not `/api/skills/`. Keep that in mind when adding routes or tests.
 

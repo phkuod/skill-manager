@@ -20,10 +20,10 @@ COPY . /app
 
 # Strip CRLF that may sneak in when the repo is checked out on Windows —
 # Linux `env` chokes on `bash\r` in shebangs.
-RUN sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh
+RUN sed -i 's/\r$//' /app/backend/start.sh && chmod +x /app/backend/start.sh
 
 # Port baked in for EXPOSE only; the actual bind port is read from $PORT
-# at runtime (see start.sh).
+# at runtime (see backend/start.sh).
 EXPOSE 9419
 
-CMD ["./start.sh", "prod"]
+CMD ["./backend/start.sh", "prod"]

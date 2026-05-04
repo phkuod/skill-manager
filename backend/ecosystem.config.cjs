@@ -4,7 +4,7 @@ module.exports = {
       name: 'skill-market',
       script: './start.sh',
       args: 'production',
-      cwd: '.',
+      cwd: __dirname,
       interpreter: 'bash',
       instances: 1,
       autorestart: true,

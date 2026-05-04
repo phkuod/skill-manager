@@ -3,8 +3,8 @@
 # Usage: ./start.sh [dev|development|prod|production]  (default: development)
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND="$REPO_ROOT/backend"
+BACKEND="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$BACKEND/.." && pwd)"
 MODE="${1:-development}"
 
 # Normalize short aliases: dev → development, prod → production
@@ -14,7 +14,7 @@ case "$MODE" in
 esac
 
 # ── Load env file for the selected mode ───────────────────────────────────────
-ENV_FILE="$REPO_ROOT/.env.$MODE"
+ENV_FILE="$BACKEND/.env.$MODE"
 if [ -f "$ENV_FILE" ]; then
   echo "[start] Loading $ENV_FILE"
   set -a
