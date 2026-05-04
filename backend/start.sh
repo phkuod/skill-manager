@@ -28,6 +28,8 @@ fi
 # where deps are installed system-wide).
 if [ -x "$BACKEND/venv/bin/python" ]; then
   PY="$BACKEND/venv/bin/python"
+elif [ -x "$BACKEND/venv/Scripts/python.exe" ]; then
+  PY="$BACKEND/venv/Scripts/python.exe"
 else
   PY=python3
 fi
