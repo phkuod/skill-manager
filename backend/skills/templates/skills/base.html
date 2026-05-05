@@ -1,0 +1,36 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Skill Market{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'skills/vendor/tailwind.min.css' %}">
+  <link rel="stylesheet" href="{% static 'skills/vendor/github-dark.min.css' %}">
+  <link rel="stylesheet" href="{% static 'skills/css/app.css' %}">
+  <script>
+    // Apply theme before first paint to avoid flash
+    (function () {
+      var stored = localStorage.getItem('theme');
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (stored === 'dark' || (!stored && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+  </script>
+</head>
+<body class="min-h-screen"
+      style="background-color:var(--bg-primary);color:var(--text-primary)"
+      {% block body_attrs %}{% endblock %}>
+
+{% block header %}{% endblock %}
+
+{% block content %}{% endblock %}
+
+<footer class="text-center py-4 text-sm border-t" style="color:var(--text-secondary);border-color:var(--border)">
+  {% block footer %}<span id="footer-count">—</span> skills available{% endblock %}
+</footer>
+
+<script src="{% static 'skills/js/common.js' %}"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>
