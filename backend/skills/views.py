@@ -3,6 +3,7 @@ import os
 
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
 
 from .classifier import get_categories
@@ -73,6 +74,16 @@ def skill_shell(request):
     # is served unconditionally; the frontend calls /api/skills/<name> and
     # shows an inline "not found" state on 404.
     return _read_shell('skill.html')
+
+
+@require_GET
+def home(request):
+    skills_dict = get_skills()
+    skills = list(skills_dict.values())
+    return render(request, 'skills/home.html', {
+        'skills': skills,
+        'categories': get_categories(skills_dict),
+    })
 
 
 # ---------------------------------------------------------------------------

@@ -335,6 +335,24 @@ def test_version_files_404(client, version_fixture):
 
 
 # ---------------------------------------------------------------------------
+# HTML views (Django templates)
+# ---------------------------------------------------------------------------
+
+def test_home_renders_html(client, version_fixture):
+    res = client.get('/')
+    assert res.status_code == 200
+    assert res['Content-Type'].startswith('text/html')
+
+
+def test_home_contains_skill_name_in_initial_html(client, version_fixture):
+    # Server-rendering contract: skill card links must be present in the raw
+    # HTML response, not injected by JS after page load.
+    res = client.get('/')
+    body = res.content.decode('utf-8')
+    assert 'href="/skills/pdf/"' in body or 'href="/skills/claude-api/"' in body
+
+
+# ---------------------------------------------------------------------------
 # HTML shells
 # ---------------------------------------------------------------------------
 # These routes return a static HTML shell; the frontend JS reads the skill

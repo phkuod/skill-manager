@@ -1,0 +1,12 @@
+{% extends "skills/base.html" %}
+
+{% block content %}
+<main class="px-6 py-8">
+  <h1 style="color:var(--text-primary)">Skill Market</h1>
+  <ul>
+  {% for skill in skills %}
+    <li><a href="/skills/{{ skill.name }}/">{{ skill.name }}</a> — {{ skill.description }}</li>
+  {% endfor %}
+  </ul>
+</main>
+{% endblock %}
