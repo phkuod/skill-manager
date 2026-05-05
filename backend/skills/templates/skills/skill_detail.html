@@ -1,12 +1,163 @@
 {% extends "skills/base.html" %}
+{% load static %}
 
 {% block title %}{{ skill.name }} — Skill Market{% endblock %}
 
 {% block body_attrs %}data-skill-name="{{ skill_name }}" data-version="{{ version|default_if_none:'' }}"{% endblock %}
 
+{% block header %}
+<header class="sticky top-0 z-50 border-b px-6 py-4 flex items-center justify-between" style="background-color:var(--bg-secondary);border-color:var(--border)">
+  <a href="/" title="Back to catalog (Esc)" class="flex items-center gap-2 text-sm font-medium" style="color:var(--text-secondary);text-decoration:none">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back
+    <kbd class="text-xs px-1.5 py-0.5 rounded border ml-1" style="border-color:var(--border);font-family:inherit">Esc</kbd>
+  </a>
+  <button id="theme-toggle" class="p-2 rounded-lg border" style="border-color:var(--border)" aria-label="Toggle theme">
+    <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 5a7 7 0 100 14 7 7 0 000-14z"/>
+    </svg>
+    <svg id="icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+    </svg>
+  </button>
+</header>
+{% endblock %}
+
 {% block content %}
-<main class="max-w-6xl mx-auto px-6 py-8">
-  <h1 style="color:var(--text-primary)">{{ skill.name }}</h1>
-  <p style="color:var(--text-secondary)">{{ skill.description }}</p>
-</main>
+<div class="max-w-6xl mx-auto px-6 py-8">
+  <div class="mb-8">
+    <div class="flex items-start gap-4 mb-4">
+      <span class="text-5xl">{{ skill.icon }}</span>
+      <div class="flex-1">
+        <div class="flex flex-wrap items-center gap-2 mb-1">
+          <h1 class="text-2xl font-bold" style="color:var(--text-primary)">{{ skill.name }}</h1>
+          <span class="text-sm px-2 py-0.5 rounded-full category-badge" data-category="{{ skill.category }}">{{ skill.category }}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full border" style="color:var(--text-secondary);border-color:var(--border)">{{ skill.license }}</span>
+        </div>
+        <p style="color:var(--text-secondary)">{{ skill.description }}</p>
+      </div>
+    </div>
+
+    {% if skill.versions %}
+    <div class="flex items-center gap-2">
+      <label for="version-select" class="text-sm" style="color:var(--text-secondary)">Version:</label>
+      <select id="version-select" class="text-sm rounded-lg border px-2 py-1"
+        style="background-color:var(--bg-secondary);color:var(--text-primary);border-color:var(--border)">
+        {% for v in skill.versions %}
+          <option value="{{ v.version }}"{% if v.version == skill.currentVersion and not version %} selected{% endif %}{% if v.version == version %} selected{% endif %}>{{ v.version }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="flex flex-col lg:flex-row gap-8">
+    <div class="flex-1 min-w-0">
+
+      <section class="rounded-xl border mb-6" style="border-color:var(--border)">
+        <div class="px-5 py-4 border-b" style="border-color:var(--border)">
+          <h2 class="font-semibold" style="color:var(--text-primary)">Install</h2>
+        </div>
+        <div class="p-5">
+          <div class="flex gap-2 mb-4">
+            <button class="install-tab active px-3 py-1 text-sm rounded-lg font-medium" data-tab="claude">Claude Code</button>
+            <button class="install-tab px-3 py-1 text-sm rounded-lg font-medium" data-tab="opencode">Opencode CLI</button>
+          </div>
+          <div id="tab-claude" class="install-tab-content">
+            <div class="rounded-lg p-3" style="background-color:var(--bg-secondary)">
+              <code class="block text-sm break-all" style="color:var(--text-primary)">cp -r &lt;repo&gt;/{{ skill.name }} {{ install_paths.claudeCode }}</code>
+            </div>
+          </div>
+          <div id="tab-opencode" class="install-tab-content hidden">
+            <div class="rounded-lg p-3" style="background-color:var(--bg-secondary)">
+              <code class="block text-sm break-all" style="color:var(--text-primary)">cp -r &lt;repo&gt;/{{ skill.name }} {{ install_paths.opencode }}</code>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="rounded-xl border mb-6" style="border-color:var(--border)">
+        <div class="px-5 py-4 border-b" style="border-color:var(--border)">
+          <h2 class="font-semibold" style="color:var(--text-primary)">Documentation</h2>
+        </div>
+        <div class="p-5 skill-markdown">{{ skill.contentHtml|safe }}</div>
+      </section>
+
+      <section id="files-section" class="rounded-xl border hidden" style="border-color:var(--border)">
+        <div class="px-5 py-4 border-b" style="border-color:var(--border)">
+          <h2 class="font-semibold" style="color:var(--text-primary)">Files</h2>
+        </div>
+        <div id="files-list" class="divide-y" style="border-color:var(--border)"></div>
+      </section>
+
+    </div>
+
+    <div class="lg:w-72 flex-shrink-0 space-y-4">
+      <div class="rounded-xl border p-5" style="border-color:var(--border);background-color:var(--bg-card)">
+        <h3 class="font-semibold mb-4" style="color:var(--text-primary)">Details</h3>
+        <dl class="space-y-3 text-sm">
+          <div class="flex justify-between"><dt style="color:var(--text-secondary)">Files</dt><dd style="color:var(--text-primary)">{{ skill.fileCount }}</dd></div>
+          <div class="flex justify-between gap-4"><dt class="shrink-0" style="color:var(--text-secondary)">License</dt><dd class="text-right" style="color:var(--text-primary)">{{ skill.license }}</dd></div>
+          <div class="flex justify-between"><dt style="color:var(--text-secondary)">Updated</dt><dd style="color:var(--text-primary)">{{ skill.lastUpdated|slice:":10" }}</dd></div>
+          <div class="flex justify-between"><dt style="color:var(--text-secondary)">Category</dt><dd style="color:var(--text-primary)">{{ skill.category }}</dd></div>
+        </dl>
+      </div>
+
+      <div class="rounded-xl border p-5" style="border-color:var(--border);background-color:var(--bg-card)">
+        <h3 class="font-semibold mb-4" style="color:var(--text-primary)">Install Paths</h3>
+        <div class="space-y-3 text-sm">
+          <div><p class="mb-1" style="color:var(--text-secondary)">Claude Code</p><code class="text-xs break-all" style="color:var(--text-primary)">{{ install_paths.claudeCode }}</code></div>
+          <div><p class="mb-1" style="color:var(--text-secondary)">Opencode CLI</p><code class="text-xs break-all" style="color:var(--text-primary)">{{ install_paths.opencode }}</code></div>
+        </div>
+      </div>
+
+      <button id="install-button"
+        class="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-medium text-sm text-white"
+        style="background-color:var(--accent)" title="Install to /AAA/<user>/skills/">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+        Install
+      </button>
+
+      <a id="download-link"
+        href="{% if version %}/api/skills/{{ skill_name }}/versions/{{ version }}/zip{% else %}/api/skills/{{ skill_name }}/zip{% endif %}"
+        title="Download ZIP (D)"
+        class="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-medium text-sm text-white"
+        style="background-color:var(--accent)">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Download ZIP
+        <kbd class="text-xs px-1.5 py-0.5 rounded border ml-1" style="border-color:rgba(255,255,255,0.4);font-family:inherit">D</kbd>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Install modal — styled fully via app.css (.install-modal-* classes). -->
+<div id="install-modal" class="install-modal hidden" role="dialog"
+     aria-modal="true" aria-labelledby="install-modal-title">
+  <div class="install-modal-card">
+    <button id="install-modal-close" class="install-modal-close" type="button" aria-label="Close">×</button>
+    <p class="install-modal-kicker">Install</p>
+    <h3 id="install-modal-title" class="install-modal-title">{{ skill.name }}</h3>
+    <p class="install-modal-userline">
+      <span>Deploying as</span>
+      <span id="install-modal-user" class="install-modal-userchip">—</span>
+    </p>
+    <p id="install-modal-no-cookie" class="install-modal-warning hidden">
+      No <code style="font-family:inherit;font-weight:700">CURRENT_USER_NAME</code> cookie — install requires a logged-in session.
+    </p>
+    <p class="install-modal-section">Choose target</p>
+    <div id="install-modal-targets" class="install-modal-targets"></div>
+    <div id="install-modal-result" class="install-modal-result hidden"></div>
+    <div class="install-modal-actions">
+      <button id="install-modal-cancel" class="install-modal-btn" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'skills/vendor/highlight.min.js' %}"></script>
+<script src="{% static 'skills/js/skill.js' %}"></script>
 {% endblock %}
