@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import frontmatter
+import markdown
 
 from .classifier import classify
 
@@ -79,6 +80,12 @@ def parse_skill_from_dir(dir_path, skill_name):
     meta = post.metadata
     classification = classify(skill_name, meta)
 
+    # Pre-render markdown once per parse. SKILL.md is curated repo content,
+    # not user input, so HTML sanitization is not needed.
+    content_html = markdown.markdown(
+        post.content,
+        extensions=['fenced_code', 'tables'],
+    )
     return {
         'name': meta.get('name') or skill_name,
         'description': meta.get('description') or '',
@@ -88,6 +95,7 @@ def parse_skill_from_dir(dir_path, skill_name):
         'fileCount': _count_files(dir_path),
         'lastUpdated': _last_modified(dir_path),
         'content': post.content,
+        'contentHtml': content_html,
     }
 
 

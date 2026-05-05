@@ -170,6 +170,30 @@ def test_parse_unversioned_null_version(fixtures_dir):
     assert skill['versions'] == []
 
 
+def test_parse_content_html_renders_markdown(fixtures_dir):
+    skill = parse_skill(os.path.join(fixtures_dir, 'valid-skill'), 'valid-skill')
+    assert '<h1>Valid Skill</h1>' in skill['contentHtml']
+    assert '<h2>Usage</h2>' in skill['contentHtml']
+
+
+def test_parse_content_html_supports_fenced_code(fixtures_dir):
+    # Add a fenced code block to a temp skill and verify it renders.
+    import tempfile, os
+    tmp = tempfile.mkdtemp(prefix='skill-fenced-')
+    skill_dir = os.path.join(tmp, 'fenced')
+    os.makedirs(skill_dir)
+    with open(os.path.join(skill_dir, 'SKILL.md'), 'w') as f:
+        f.write(
+            '---\nname: fenced\ndescription: x\nlicense: MIT\n---\n\n'
+            '```python\nprint("hi")\n```\n'
+        )
+    skill = parse_skill(skill_dir, 'fenced')
+    assert '<pre><code class="language-python">' in skill['contentHtml'] or \
+           '<code class="language-python">' in skill['contentHtml']
+    import shutil
+    shutil.rmtree(tmp, ignore_errors=True)
+
+
 # --- parse_all_skills tests ---
 
 def test_parse_all_returns_dict(fixtures_dir):
