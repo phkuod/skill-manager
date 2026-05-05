@@ -8,8 +8,9 @@ urlpatterns = [
     # HTML shells. Useful for local dev (./backend/start.sh); in a split
     # deployment the frontend is served from a static host and these are unused.
     path('', views.home, name='home'),
+    path('skills/<str:name>/', views.skill_detail, name='skill_detail'),
     path('index.html', views.index_shell),
-    path('skill.html', views.skill_shell, name='skill_detail'),
+    path('skill.html', views.skill_shell, name='skill_shell'),
 
     # Frontend static assets at root URLs so HTML files can use relative
     # paths (vendor/x.css, assets/x.js, config.js). Same URLs work whether

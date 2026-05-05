@@ -372,3 +372,20 @@ def test_detail_page_renders(client, version_fixture):
     assert res['Content-Type'].startswith('text/html')
     # The shell is static — skill name is populated client-side, not in HTML
     assert b'skill-root' in res.content
+
+
+def test_skill_detail_renders_html(client, version_fixture):
+    res = client.get('/skills/pdf/')
+    assert res.status_code == 200
+    assert res['Content-Type'].startswith('text/html')
+
+
+def test_skill_detail_contains_skill_name(client, version_fixture):
+    res = client.get('/skills/pdf/')
+    body = res.content.decode('utf-8')
+    assert 'pdf' in body  # name appears in the rendered HTML
+
+
+def test_skill_detail_404_for_missing_skill(client, version_fixture):
+    res = client.get('/skills/does-not-exist/')
+    assert res.status_code == 404

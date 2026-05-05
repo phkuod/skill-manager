@@ -1,0 +1,12 @@
+{% extends "skills/base.html" %}
+
+{% block title %}{{ skill.name }} — Skill Market{% endblock %}
+
+{% block body_attrs %}data-skill-name="{{ skill_name }}" data-version="{{ version|default_if_none:'' }}"{% endblock %}
+
+{% block content %}
+<main class="max-w-6xl mx-auto px-6 py-8">
+  <h1 style="color:var(--text-primary)">{{ skill.name }}</h1>
+  <p style="color:var(--text-secondary)">{{ skill.description }}</p>
+</main>
+{% endblock %}

@@ -86,6 +86,20 @@ def home(request):
     })
 
 
+@require_GET
+def skill_detail(request, name):
+    skill = get_skills().get(name)
+    if skill is None:
+        from django.http import Http404
+        raise Http404(f"Skill '{name}' not found")
+    return render(request, 'skills/skill_detail.html', {
+        'skill': skill,
+        'skill_name': name,
+        'install_paths': _install_paths(name),
+        'version': None,
+    })
+
+
 # ---------------------------------------------------------------------------
 # JSON API views
 # ---------------------------------------------------------------------------
