@@ -22,6 +22,16 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
 ]
 
+TEMPLATES = [{
+    'BACKEND': 'django.template.backends.django.DjangoTemplates',
+    'APP_DIRS': True,
+    'OPTIONS': {
+        'context_processors': [
+            'django.template.context_processors.request',
+        ],
+    },
+}]
+
 ROOT_URLCONF = 'skill_market.urls'
 WSGI_APPLICATION = 'skill_market.wsgi.application'
 
