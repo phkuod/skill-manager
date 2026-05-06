@@ -193,3 +193,58 @@ def test_install_ssh_timeout_raises_504(tmp_path, settings, monkeypatch):
         install_skill(src, 'F15', 'jdoe')
     assert exc.value.http_status == 504
     assert 'timed out' in str(exc.value).lower()
+
+
+def test_install_local_logs_request_and_success(tmp_path, caplog):
+    import logging
+    from unittest.mock import patch
+    src = tmp_path / 'myskill'
+    src.mkdir()
+    (src / 'SKILL.md').write_text('---\nname: myskill\n---\n')
+    dst_base = tmp_path / 'dest'
+
+    targets = {'LOCAL': {'type': 'local', 'base': str(dst_base / '{user_name}')}}
+    with patch.object(__import__('django.conf', fromlist=['settings']).settings, 'INSTALL_TARGETS', targets):
+        # Enable propagation on the 'skills' parent so caplog (which hooks the
+        # root logger) can capture records even though settings.py sets
+        # propagate=False on the skills logger.
+        import logging as _logging
+        skills_logger = _logging.getLogger('skills')
+        orig_propagate = skills_logger.propagate
+        skills_logger.propagate = True
+        try:
+            with caplog.at_level(logging.INFO, logger='skills.installer'):
+                install_skill(str(src), 'LOCAL', 'alice')
+        finally:
+            skills_logger.propagate = orig_propagate
+
+    assert 'install requested' in caplog.text
+    assert 'install success' in caplog.text
+    assert 'myskill' in caplog.text
+
+
+def test_install_local_logs_error_on_failure(tmp_path, caplog):
+    import logging
+    import pytest
+    from unittest.mock import patch
+    src = tmp_path / 'myskill'
+    # intentionally NOT creating src — triggers InstallError (source not found)
+    dst_base = tmp_path / 'dest'
+
+    targets = {'LOCAL': {'type': 'local', 'base': str(dst_base / '{user_name}')}}
+    with patch.object(__import__('django.conf', fromlist=['settings']).settings, 'INSTALL_TARGETS', targets):
+        # Enable propagation on the 'skills' parent so caplog (which hooks the
+        # root logger) can capture records even though settings.py sets
+        # propagate=False on the skills logger.
+        import logging as _logging
+        skills_logger = _logging.getLogger('skills')
+        orig_propagate = skills_logger.propagate
+        skills_logger.propagate = True
+        try:
+            with caplog.at_level(logging.ERROR, logger='skills.installer'):
+                with pytest.raises(InstallError):
+                    install_skill(str(src), 'LOCAL', 'alice')
+        finally:
+            skills_logger.propagate = orig_propagate
+
+    assert 'install failed' in caplog.text

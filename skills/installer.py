@@ -4,12 +4,16 @@ Single entry point: install_skill(src_dir, target_name, user_name).
 Raises InstallError(message, http_status) on any failure; views.py maps
 the http_status straight onto the JSON response.
 """
+import logging
 import os
 import re
 import shutil
 import subprocess
+import time
 
 from django.conf import settings
+
+logger = logging.getLogger('skills.installer')
 
 
 class InstallError(Exception):
@@ -70,21 +74,29 @@ def install_skill(src_dir, target_name, user_name, skill_name=None):
     ttype = cfg.get('type')
     base = base_template.format(user_name=user_name).rstrip('/\\')
     if ttype == 'ssh':
-        # Remote paths always use POSIX separators regardless of local OS.
         dst = base.replace('\\', '/') + '/' + skill_name
     else:
         dst = os.path.join(base, skill_name)
 
-    if ttype == 'local':
-        _install_local(src_dir, dst)
-    elif ttype == 'ssh':
-        _install_ssh(src_dir, dst, cfg)
-    else:
-        raise InstallError(
-            f"Target {target_name!r} has unsupported type {ttype!r}",
-            http_status=500,
-        )
+    logger.info('install requested: skill=%s user=%s target=%s', skill_name, user_name, target_name)
+    t0 = time.monotonic()
 
+    try:
+        if ttype == 'local':
+            _install_local(src_dir, dst)
+        elif ttype == 'ssh':
+            _install_ssh(src_dir, dst, cfg)
+        else:
+            raise InstallError(
+                f"Target {target_name!r} has unsupported type {ttype!r}",
+                http_status=500,
+            )
+    except InstallError as exc:
+        logger.error('install failed: skill=%s user=%s target=%s — %s', skill_name, user_name, target_name, exc)
+        raise
+
+    elapsed = int((time.monotonic() - t0) * 1000)
+    logger.info('install success: skill=%s → %s (%dms)', skill_name, dst, elapsed)
     return {'target': target_name, 'path': dst}
 
 
