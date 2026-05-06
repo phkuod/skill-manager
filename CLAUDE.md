@@ -11,10 +11,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All day-to-day operation goes through `./start.sh`, which picks a requirements file based on `python3 --version` (3.12+ → `requirements_py3.12.txt`, 3.10–3.11 → `requirements_py3.10_plus.txt`, else `requirements_py3.8_3.9.txt`) and expects a venv at `venv/`.
 
 ```bash
-# First-time setup
+# First-time setup (start.sh picks the right requirements file automatically)
 python3 -m venv venv
-venv/bin/pip install -r requirements-dev.txt   # dev (includes pytest)
-# or requirements.txt for prod-only
+./start.sh   # sources .env.development and runs collectstatic on first run
+
+# Or install manually — pick the file matching your Python version:
+#   Python 3.12+:      pip install -r requirements_py3.12.txt
+#   Python 3.10–3.11:  pip install -r requirements_py3.10_plus.txt
+#   Python 3.8–3.9:    pip install -r requirements_py3.8_3.9.txt
+# For dev (adds pytest):  also pip install pytest pytest-django
 
 # Run
 ./start.sh            # dev — Django runserver; PORT defaults to 3000, overridden by .env.development (currently 8888)
