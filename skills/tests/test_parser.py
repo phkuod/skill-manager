@@ -194,6 +194,51 @@ def test_parse_content_html_supports_fenced_code(fixtures_dir):
     shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_parse_logs_warning_on_frontmatter_error(tmp_path, caplog):
+    import unittest.mock as mock
+    import logging
+    skill_dir = tmp_path / 'bad-frontmatter'
+    skill_dir.mkdir()
+    (skill_dir / 'SKILL.md').write_text('---\nname: bad\n---\ncontent')
+    # Enable propagation so caplog (which hooks the root logger) can capture
+    # records even though settings.py sets propagate=False on the skills logger.
+    skills_logger = logging.getLogger('skills')
+    orig_propagate = skills_logger.propagate
+    skills_logger.propagate = True
+    try:
+        with mock.patch('skills.parser.frontmatter.load', side_effect=Exception('parse boom')):
+            with caplog.at_level(logging.WARNING, logger='skills.parser'):
+                result = parse_skill(str(skill_dir), 'bad-frontmatter')
+    finally:
+        skills_logger.propagate = orig_propagate
+    assert result is None
+    assert 'failed to parse' in caplog.text
+
+
+def test_parse_content_html_falls_back_on_markdown_error(tmp_path, caplog):
+    import unittest.mock as mock
+    import logging
+    skill_dir = tmp_path / 'bad-md'
+    skill_dir.mkdir()
+    (skill_dir / 'SKILL.md').write_text(
+        '---\nname: bad-md\ndescription: x\nlicense: MIT\n---\n\ncontent\n'
+    )
+    # Enable propagation so caplog (which hooks the root logger) can capture
+    # records even though settings.py sets propagate=False on the skills logger.
+    skills_logger = logging.getLogger('skills')
+    orig_propagate = skills_logger.propagate
+    skills_logger.propagate = True
+    try:
+        with mock.patch('skills.parser.markdown.markdown', side_effect=Exception('md boom')):
+            with caplog.at_level(logging.WARNING, logger='skills.parser'):
+                result = parse_skill(str(skill_dir), 'bad-md')
+    finally:
+        skills_logger.propagate = orig_propagate
+    assert result is not None
+    assert result['contentHtml'] == ''
+    assert 'markdown render failed' in caplog.text
+
+
 # --- parse_all_skills tests ---
 
 def test_parse_all_returns_dict(fixtures_dir):

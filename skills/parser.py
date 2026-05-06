@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from datetime import datetime, timezone
@@ -7,6 +8,8 @@ import frontmatter
 import markdown
 
 from .classifier import classify
+
+logger = logging.getLogger('skills.parser')
 
 
 def _count_files(dir_path):
@@ -74,18 +77,22 @@ def parse_skill_from_dir(dir_path, skill_name):
 
     try:
         post = frontmatter.load(skill_md)
-    except Exception:
+    except Exception as exc:
+        logger.warning('failed to parse %s/SKILL.md: %s', dir_path, exc)
         return None
 
     meta = post.metadata
     classification = classify(skill_name, meta)
 
-    # Pre-render markdown once per parse. SKILL.md is curated repo content,
-    # not user input, so HTML sanitization is not needed.
-    content_html = markdown.markdown(
-        post.content,
-        extensions=['fenced_code', 'tables'],
-    )
+    try:
+        content_html = markdown.markdown(
+            post.content,
+            extensions=['fenced_code', 'tables'],
+        )
+    except Exception as exc:
+        logger.warning('markdown render failed for %s, falling back to empty string: %s', skill_name, exc)
+        content_html = ''
+
     return {
         'name': meta.get('name') or skill_name,
         'description': meta.get('description') or '',
