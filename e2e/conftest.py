@@ -20,7 +20,7 @@ def _venv_python():
     isn't picked up inside a Linux container — the .exe exists as a file but
     isn't executable. sys.executable fallback covers CI / Docker / fresh
     checkouts that have no checked-in venv."""
-    base = os.path.join(os.path.dirname(__file__), "../backend/venv")
+    base = os.path.join(os.path.dirname(__file__), "../venv")
     candidate = (
         os.path.join(base, "Scripts", "python.exe")
         if sys.platform == "win32"
