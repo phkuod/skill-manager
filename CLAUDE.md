@@ -4,9 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Stack note (README is stale)
 
-`README.md` describes a Node/Express + React/Vite stack with `node manage.js` commands. That stack has been replaced. The running app is **Django 5.x** (4.x on Python 3.8/3.9) backed by static HTML + vanilla JS in `frontend/`. There is no frontend build step — vendored Tailwind/highlight.js/marked live in `frontend/vendor/`.
-
-The `frontend/` directory is **deployable on its own**: the same HTML works whether served by Django (via WhiteNoise + the URL routes below) or pushed to a plain static host that talks to the Django backend over `/api/*` (CORS is permissive by default — see middleware).
+`README.md` describes a Node/Express + React/Vite stack with `node manage.js` commands. That stack has been replaced. The running app is **Django 5.x** with frontend served via Django templates from the `skills` app (`backend/skills/templates/skills/{base,home,skill_detail,404}.html`). Static assets live under `backend/skills/static/skills/...` and are picked up by Django's `APP_DIRS=True` static finder, then served by WhiteNoise. There is no frontend build step — vendored Tailwind and highlight.js live in `backend/skills/static/skills/vendor/`. SKILL.md markdown is pre-rendered to HTML in `parser.py` (the `contentHtml` field) and emitted in templates via `{{ skill.contentHtml|safe }}`.
 
 ## Commands
 
@@ -46,13 +44,13 @@ pytest e2e/                                  # Playwright E2E (see caveat below)
 - `middleware.py::ApiCorsMiddleware` — adds permissive CORS (`Access-Control-Allow-Origin: *` by default) and short-circuits OPTIONS preflights, **only on `/api/*`**. Lock down for shared-host deploys via `CORS_ALLOWED_ORIGINS` (single origin only — browsers don't accept comma lists).
 - `views.py` — three HTML shell routes (`/`, `/index.html`, `/skill.html`) that just `read()` and return the matching file from `FRONTEND_DIR` with no templating; the skill name on the detail page is read client-side from the URL hash. Plus the `/api/*` JSON surface (see `skills/urls.py`). Server-side search on `/api/skills` ranks name-matches > description-matches > content-matches.
 
-**Env loading.** `settings.py:7` calls `load_dotenv(backend/.env)` *before* any `os.environ.get(...)`. `backend/.env` is gitignored, so its existence isn't obvious from a clean checkout — but if present, it silently overrides `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and `INSTALL_TARGET_*`. Note this is **separate** from `backend/.env.development` / `backend/.env.production`, which are sourced by `backend/start.sh` *before* Django boots. If a split-deploy mysteriously gets blocked by CORS even though `backend/.env.development` looks right, check `backend/.env` first.
+**Env loading.** `settings.py:7` calls `load_dotenv(backend/.env)` *before* any `os.environ.get(...)`. `backend/.env` is gitignored, so its existence isn't obvious from a clean checkout — but if present, it silently overrides `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and `INSTALL_TARGET_*`. Note this is **separate** from `backend/.env.development` / `backend/.env.production`, which are sourced by `backend/start.sh` *before* Django boots. If a deploy mysteriously gets blocked by CORS even though `backend/.env.development` looks right, check `backend/.env` first.
 
-**URL conventions.** `APPEND_SLASH = False` in `settings.py` — endpoints are `/api/skills`, not `/api/skills/`. Keep that in mind when adding routes or tests.
+**URL conventions.** `APPEND_SLASH = False` in `settings.py` — endpoints are `/api/skills`, not `/api/skills/`. Keep that in mind when adding routes or tests. HTML routes are `/`, `/skills/<name>/`, `/skills/<name>/v/<version>/`. The `/index.html` and `/skill.html` shell routes were removed in the Django-templates migration.
 
 **No CSRF middleware.** `MIDDLEWARE` (`settings.py:18-23`) deliberately omits `CsrfViewMiddleware`, so cross-origin `POST /api/install/run` works without a CSRF token. Auth on the install POST is by the `CURRENT_USER_NAME` cookie (the fetch sets `credentials: 'include'`). If you re-add CSRF, the cookie's SameSite policy becomes a split-deploy concern.
 
-**Statics & frontend.** `STATICFILES_DIRS = [FRONTEND_DIR]` (default `<repo>/frontend`, override via the `FRONTEND_DIR` env var) — the same files end up in `staticfiles/` after `collectstatic` and are served by WhiteNoise. `urls.py` also wires `re_path(r'^(vendor|assets)/...|config\.js$')` to serve those paths directly out of `FRONTEND_DIR` so the HTML's relative paths (`vendor/tailwind.min.css`, `assets/app.css`, `config.js`) work whether Django or a plain static host serves them. **Do not reintroduce a bundler** — third-party CSS/JS are vendored under `frontend/vendor/`. For a split deploy, the *only* file to edit on the frontend side is `frontend/config.js` — set `window.API_BASE` to the backend origin (e.g. `'http://localhost:8888'` or `'https://api.example.com'`); leave it as `''` for same-origin Django deploys.
+**Statics & frontend.** Static assets live in `backend/skills/static/skills/` and are picked up by `django.contrib.staticfiles` via `APP_DIRS=True`. WhiteNoise serves them in production after `collectstatic` populates `staticfiles/`. Templates live in `backend/skills/templates/skills/`. There is no `FRONTEND_DIR` environment variable, no `config.js`, and no separate static deploy — all paths resolve through `{% static %}`.
 
 ## Tests
 
