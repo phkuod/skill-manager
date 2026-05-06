@@ -1,5 +1,9 @@
+import logging
+
 from django.apps import AppConfig
 from django.core.signals import request_started
+
+logger = logging.getLogger('skills.apps')
 
 
 class SkillsConfig(AppConfig):
@@ -24,4 +28,5 @@ def _init_watcher_once(**_):
     _initialized = True
     from django.conf import settings
     from . import watcher
+    logger.info('initializing skill watcher (skill_repo=%s)', settings.SKILL_REPO_PATH)
     watcher.init_watcher(settings.SKILL_REPO_PATH)
