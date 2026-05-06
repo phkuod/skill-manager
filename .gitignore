@@ -18,3 +18,4 @@ __pycache__/
 staticfiles/
 *.egg-info/
 .pytest_cache/
+logs/
