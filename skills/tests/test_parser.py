@@ -8,7 +8,7 @@ import pytest
 from skills.parser import parse_skill, parse_all_skills, detect_versions
 
 SKILL_REPO_PATH = os.path.join(
-    os.path.dirname(__file__), '..', '..', '..', 'skill_repo'
+    os.path.dirname(__file__), '..', '..', 'skill_repo'
 )
 
 

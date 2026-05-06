@@ -4,7 +4,6 @@
 set -euo pipefail
 
 BACKEND="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$BACKEND/.." && pwd)"
 MODE="${1:-development}"
 
 # Normalize short aliases: dev → development, prod → production
@@ -44,7 +43,7 @@ PORT="${PORT:-3000}"
 if [ "$MODE" = "production" ]; then
   echo "[start] Starting gunicorn (production) on :$PORT ..."
   export DJANGO_SETTINGS_MODULE=skill_market.settings
-  export SKILL_REPO_PATH="${SKILL_REPO_PATH:-$REPO_ROOT/skill_repo}"
+  export SKILL_REPO_PATH="${SKILL_REPO_PATH:-$BACKEND/skill_repo}"
   export DEBUG="${DEBUG:-False}"
   export ALLOWED_HOSTS="${ALLOWED_HOSTS:-localhost,127.0.0.1}"
   exec gunicorn skill_market.wsgi \
@@ -53,6 +52,6 @@ if [ "$MODE" = "production" ]; then
     --chdir "$BACKEND"
 else
   echo "[start] Starting Django dev server on :$PORT ..."
-  export SKILL_REPO_PATH="${SKILL_REPO_PATH:-$REPO_ROOT/skill_repo}"
+  export SKILL_REPO_PATH="${SKILL_REPO_PATH:-$BACKEND/skill_repo}"
   exec "$PY" "$BACKEND/manage.py" runserver "0.0.0.0:$PORT"
 fi

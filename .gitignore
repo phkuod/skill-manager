@@ -11,3 +11,10 @@ client/dist/
 .DS_Store
 .claude/
 .playwright-mcp/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+staticfiles/
+*.egg-info/
+.pytest_cache/

@@ -7,7 +7,7 @@ import pytest
 from skills.file_reader import infer_language, read_skill_files
 
 SKILL_REPO_PATH = os.path.join(
-    os.path.dirname(__file__), '..', '..', '..', 'skill_repo'
+    os.path.dirname(__file__), '..', '..', 'skill_repo'
 )
 
 

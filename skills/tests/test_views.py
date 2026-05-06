@@ -6,7 +6,7 @@ import pytest
 from django.test import Client, TestCase, override_settings
 
 SKILL_REPO_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '..', '..', '..', 'skill_repo')
+    os.path.join(os.path.dirname(__file__), '..', '..', 'skill_repo')
 )
 VERSION_FIXTURE = os.path.join(SKILL_REPO_PATH, 'webapp-testing', '20260331-version-test')
 
