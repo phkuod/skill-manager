@@ -5,18 +5,15 @@ import re
 
 
 def _card_name(card):
-    """Skill name from a card's href: 'skill.html#pdf' -> 'pdf'."""
+    """Skill name from a card's href: '/skills/pdf/' -> 'pdf'."""
     href = card.get_attribute("href") or ""
-    return href.rsplit("#", 1)[-1]
+    # href format: /skills/<name>/
+    return href.rstrip("/").rsplit("/", 1)[-1]
 
 
 def _open_detail(page, server_url, name):
-    """Navigate to the detail page and wait for the SPA to finish loading.
-
-    The detail page is a static shell that calls /api/skills/<name> client-side
-    and only un-hides #skill-root once the JSON arrives. Tests that read body
-    text or query rendered controls must wait for that signal."""
-    page.goto(f"{server_url}/skill.html#{name}")
+    """Navigate to the detail page and wait for it to finish loading."""
+    page.goto(f"{server_url}/skills/{name}/")
     page.locator("#skill-root").wait_for(state="visible", timeout=5000)
 
 
@@ -188,9 +185,13 @@ def test_dark_mode_persists_on_reload(page, server_url):
 
 def test_skill_card_navigates_to_detail(page, server_url):
     page.goto(server_url)
-    page.locator(".skill-card[href$='#pdf']").click()
-    page.wait_for_url(re.compile(r"/skill\.html#pdf"))
-    assert "/skill.html#pdf" in page.url
+    page.locator(".skill-card[href$='/pdf/']").click()
+    page.wait_for_url(re.compile(r"/skills/pdf/"))
+    assert "/skills/pdf/" in page.url
+
+    # Verify skill name is in the initial HTML response (server-rendered, not JS-injected)
+    response = page.context.request.get(f"{server_url}/skills/pdf/")
+    assert 'pdf' in response.text()
 
 
 def test_detail_shows_license(page, server_url):
@@ -219,5 +220,5 @@ def test_detail_download_zip_link_exists(page, server_url):
 
 def test_detail_back_link_returns_home(page, server_url):
     _open_detail(page, server_url, "pdf")
-    page.locator("a[href='index.html']").first.click()
-    page.wait_for_url(re.compile(r"/index\.html$"))
+    page.locator("a[href='/']").first.click()
+    page.wait_for_url(re.compile(r"/$"))
