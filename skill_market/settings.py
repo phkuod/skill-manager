@@ -64,6 +64,22 @@ INSTALL_TIMEOUT_SECONDS = int(os.environ.get('INSTALL_TIMEOUT_SECONDS', '60'))
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+_LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
+if _LOG_LEVEL not in {'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'}:
+    import sys
+    print(f'[skill-market] WARNING: invalid LOG_LEVEL={_LOG_LEVEL!r}, falling back to INFO', file=sys.stderr)
+    _LOG_LEVEL = 'INFO'
+
+try:
+    _LOG_MAX_BYTES = int(os.environ.get('LOG_MAX_BYTES', str(10 * 1024 * 1024)))
+except ValueError:
+    _LOG_MAX_BYTES = 10 * 1024 * 1024
+
+try:
+    _LOG_BACKUP_COUNT = int(os.environ.get('LOG_BACKUP_COUNT', '5'))
+except ValueError:
+    _LOG_BACKUP_COUNT = 5
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -82,15 +98,16 @@ LOGGING = {
         'file': {
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.environ.get('LOG_FILE', 'logs/skill-market.log'),
-            'maxBytes': int(os.environ.get('LOG_MAX_BYTES', str(10 * 1024 * 1024))),
-            'backupCount': int(os.environ.get('LOG_BACKUP_COUNT', '5')),
+            'maxBytes': _LOG_MAX_BYTES,
+            'backupCount': _LOG_BACKUP_COUNT,
             'formatter': 'standard',
+            'encoding': 'utf-8',
             'delay': True,
         },
     },
     'root': {
         'handlers': ['console', 'file'],
-        'level': os.environ.get('LOG_LEVEL', 'INFO'),
+        'level': _LOG_LEVEL,
     },
     'loggers': {
         'django': {
@@ -100,7 +117,7 @@ LOGGING = {
         },
         'skills': {
             'handlers': ['console', 'file'],
-            'level': os.environ.get('LOG_LEVEL', 'INFO'),
+            'level': _LOG_LEVEL,
             'propagate': False,
         },
     },
