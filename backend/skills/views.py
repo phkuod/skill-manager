@@ -100,6 +100,31 @@ def skill_detail(request, name):
     })
 
 
+@require_GET
+def skill_detail_version(request, name, version):
+    skill = get_skills().get(name)
+    if skill is None:
+        from django.http import Http404
+        raise Http404(f"Skill '{name}' not found")
+    ver_dir = _version_dir(name, version)
+    if ver_dir is None:
+        from django.http import Http404
+        raise Http404(f"Version '{version}' not found")
+    if version == 'original':
+        ver_skill = parse_skill(ver_dir, name)
+    else:
+        ver_skill = _parse_version_dir(ver_dir, name)
+    if ver_skill is None:
+        from django.http import Http404
+        raise Http404(f"Version '{version}' not found")
+    return render(request, 'skills/skill_detail.html', {
+        'skill': ver_skill,
+        'skill_name': name,
+        'install_paths': _install_paths(name),
+        'version': version,
+    })
+
+
 # ---------------------------------------------------------------------------
 # JSON API views
 # ---------------------------------------------------------------------------

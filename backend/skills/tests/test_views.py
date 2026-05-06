@@ -389,3 +389,15 @@ def test_skill_detail_contains_skill_name(client, version_fixture):
 def test_skill_detail_404_for_missing_skill(client, version_fixture):
     res = client.get('/skills/does-not-exist/')
     assert res.status_code == 404
+
+
+def test_version_detail_renders_html(client, version_fixture):
+    res = client.get('/skills/webapp-testing/v/20260331-version-test/')
+    assert res.status_code == 200
+    body = res.content.decode('utf-8')
+    assert 'webapp-testing' in body
+
+
+def test_version_detail_404_for_missing_version(client, version_fixture):
+    res = client.get('/skills/webapp-testing/v/99999999-fake/')
+    assert res.status_code == 404

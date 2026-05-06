@@ -9,6 +9,7 @@ urlpatterns = [
     # deployment the frontend is served from a static host and these are unused.
     path('', views.home, name='home'),
     path('skills/<str:name>/', views.skill_detail, name='skill_detail'),
+    path('skills/<str:name>/v/<str:version>/', views.skill_detail_version, name='skill_detail_version'),
     path('index.html', views.index_shell),
     path('skill.html', views.skill_shell, name='skill_shell'),
 
