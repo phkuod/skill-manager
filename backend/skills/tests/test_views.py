@@ -352,28 +352,6 @@ def test_home_contains_skill_name_in_initial_html(client, version_fixture):
     assert 'href="/skills/pdf/"' in body or 'href="/skills/claude-api/"' in body
 
 
-# ---------------------------------------------------------------------------
-# HTML shells
-# ---------------------------------------------------------------------------
-# These routes return a static HTML shell; the frontend JS reads the skill
-# name from the URL hash and fetches /api/* — so /skill.html is served the
-# same regardless of which skill (or none) the user is looking at.
-
-def test_home_page_renders(client, version_fixture):
-    res = client.get('/')
-    assert res.status_code == 200
-    assert res['Content-Type'].startswith('text/html')
-    assert b'Skill Market' in res.content
-
-
-def test_detail_page_renders(client, version_fixture):
-    res = client.get('/skill.html')
-    assert res.status_code == 200
-    assert res['Content-Type'].startswith('text/html')
-    # The shell is static — skill name is populated client-side, not in HTML
-    assert b'skill-root' in res.content
-
-
 def test_skill_detail_renders_html(client, version_fixture):
     res = client.get('/skills/pdf/')
     assert res.status_code == 200

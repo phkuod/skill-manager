@@ -44,11 +44,8 @@ DATABASES = {
 
 APPEND_SLASH = False
 
-FRONTEND_DIR = Path(os.environ.get('FRONTEND_DIR', str(BASE_DIR.parent / 'frontend')))
-
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [FRONTEND_DIR]
 WHITENOISE_MANIFEST_STRICT = False
 
 SKILL_REPO_PATH = os.environ.get('SKILL_REPO_PATH', str(BASE_DIR.parent / 'skill_repo'))

@@ -1,26 +1,11 @@
-from django.conf import settings
-from django.urls import path, re_path
-from django.views.static import serve as static_serve
+from django.urls import path
 
 from . import views
 
 urlpatterns = [
-    # HTML shells. Useful for local dev (./backend/start.sh); in a split
-    # deployment the frontend is served from a static host and these are unused.
     path('', views.home, name='home'),
     path('skills/<str:name>/', views.skill_detail, name='skill_detail'),
     path('skills/<str:name>/v/<str:version>/', views.skill_detail_version, name='skill_detail_version'),
-    path('index.html', views.index_shell),
-    path('skill.html', views.skill_shell, name='skill_shell'),
-
-    # Frontend static assets at root URLs so HTML files can use relative
-    # paths (vendor/x.css, assets/x.js, config.js). Same URLs work whether
-    # served by Django or by a plain static host.
-    re_path(
-        r'^(?P<path>(?:vendor|assets)/.+|config\.js)$',
-        static_serve,
-        {'document_root': settings.FRONTEND_DIR},
-    ),
 
     # JSON API
     path('api/health', views.api_health, name='api_health'),

@@ -2,7 +2,7 @@ import json
 import os
 
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
 
@@ -51,29 +51,6 @@ def _search_sort_key(skill, search):
     if q in skill.get('description', '').lower():
         return 1
     return 2
-
-
-# ---------------------------------------------------------------------------
-# HTML shells — return the static frontend HTML as-is (no templating)
-# ---------------------------------------------------------------------------
-
-def _read_shell(filename):
-    path = settings.FRONTEND_DIR / filename
-    with open(path, 'rb') as f:
-        return HttpResponse(f.read(), content_type='text/html; charset=utf-8')
-
-
-@require_GET
-def index_shell(request):
-    return _read_shell('index.html')
-
-
-@require_GET
-def skill_shell(request):
-    # Skill name is read client-side from the URL hash (#<name>). The shell
-    # is served unconditionally; the frontend calls /api/skills/<name> and
-    # shows an inline "not found" state on 404.
-    return _read_shell('skill.html')
 
 
 @require_GET
