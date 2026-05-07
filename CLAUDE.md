@@ -46,6 +46,7 @@ pytest e2e/                                  # Playwright E2E (see caveat below)
 - `classifier.py` — `CATEGORY_MAP` is a **hardcoded** `skill_name → {category, icon}` table. Adding a new well-known skill requires an entry here; unknowns fall into `"Other" / 📦`.
 - `file_reader.py` — recursive text-file walk for the detail view. Skips binaries (null-byte probe in first 8 KB); files >500 KB return `{content: None, truncated: True}`. Sort order: `SKILL.md` first, then alphabetical.
 - `zipper.py` — builds the download ZIP in-memory (`io.BytesIO`); nothing is staged on disk.
+- `installer.py` — one-click install transport. `install_skill(src_dir, target_name, user_name)` validates the username (regex `[A-Za-z0-9_.-]+`), resolves the target from `INSTALL_TARGETS` settings, and dispatches to `_install_local` (shutil.copytree) or `_install_ssh` (rsync over SSH). Raises `InstallError(message, http_status)` on failure; views map `http_status` straight onto the JSON response.
 - `middleware.py::ApiCorsMiddleware` — adds permissive CORS (`Access-Control-Allow-Origin: *` by default) and short-circuits OPTIONS preflights, **only on `/api/*`**. Lock down for shared-host deploys via `CORS_ALLOWED_ORIGINS` (single origin only — browsers don't accept comma lists).
 - `views.py` — HTML template views (`home` at `/`, `skill_detail` at `/skills/<name>/`, `skill_detail_version` at `/skills/<name>/v/<version>/`) that server-render the catalog and skill detail pages using data from the in-memory `_skills` dict. Plus the `/api/*` JSON surface (see `skills/urls.py`). Server-side search on `/api/skills` ranks name-matches > description-matches > content-matches.
 
@@ -63,7 +64,20 @@ pytest e2e/                                  # Playwright E2E (see caveat below)
 - `e2e/` uses Playwright against a subprocess-launched `runserver` on port 8799. By default it uses Playwright's bundled Chromium; set `CHROMIUM_EXEC=/abs/path/to/chrome` to point at a system browser (useful for sandboxed/Linux CI environments where Playwright's download didn't run). The venv detection is OS-aware (`Scripts/python.exe` on Windows, `bin/python` elsewhere) and falls back to `sys.executable`.
 - **Install modal UI smoke test**: `skills/static/skills/dev/install-modal-ui-audit.js`. After ANY change to `skill_detail.html` modal markup or `skill.js` modal logic, open `/skills/<some-skill>/` in a browser, paste the file contents into DevTools console, and run. Must return `{passed: 64+, failed: 0}`. Catches the JIT-purged Tailwind trap (utility class missing from `skills/static/skills/vendor/tailwind.min.css`), modal positioning regressions, theme-contrast failures, and click-flow regressions. Also embeds well in the test plan for any install-feature PR.
 
-**JIT-purged Tailwind warning:** `frontend/vendor/tailwind.min.css` is a frozen JIT-purged build — only utilities that some element on the site uses at the time of the build are present. Adding a new element with a class that no other element uses (e.g. `.fixed`, `.inset-0`, `.max-w-md`, `.p-6` — all confirmed missing) silently breaks layout. When introducing a new utility, either verify it's already in the bundle or use an inline `style=""`. The audit script above tests this for the install modal specifically.
+**JIT-purged Tailwind warning:** `skills/static/skills/vendor/tailwind.min.css` is a frozen JIT-purged build — only utilities that some element on the site uses at the time of the build are present. Adding a new element with a class that no other element uses (e.g. `.fixed`, `.inset-0`, `.max-w-md`, `.p-6` — all confirmed missing) silently breaks layout. When introducing a new utility, either verify it's already in the bundle or use an inline `style=""`. The audit script above tests this for the install modal specifically.
+
+## Logging
+
+Structured rotating-file + console logging via Django's `LOGGING` dict in `settings.py`. Each module uses `logging.getLogger('skills.<module>')`. Key events logged: watcher init + parse timing, FS events (DEBUG), parser errors (WARNING), install request/success/error (INFO/ERROR).
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `LOG_FILE` | `logs/skill-market.log` | Log file path (`logs/` is gitignored; `logs/.gitkeep` is tracked) |
+| `LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` |
+| `LOG_MAX_BYTES` | `10485760` (10 MB) | Max size before rotation |
+| `LOG_BACKUP_COUNT` | `5` | Rotated files to keep |
+
+The file handler uses `delay=True` — the log file is not created until the first message is written, so `pytest` runs don't produce a `logs/skill-market.log`.
 
 ## Skill repository contract
 
