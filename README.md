@@ -115,8 +115,26 @@ skill_repo/
 | `LOG_BACKUP_COUNT`  | `5`                      | Number of rotated log files to keep           |
 | `CHROMIUM_EXEC`     | (Playwright default)     | E2E Chromium binary override                  |
 
-See `.env.example` for all supported variables including `INSTALL_TARGET_*` for
-the one-click install feature.
+See `.env.example` for all supported variables.
+
+## One-Click Install
+
+The **Install** button on each skill detail page copies a skill directly into a user's skills directory. Configure one or more targets via environment variables:
+
+```bash
+# Local filesystem target
+INSTALL_TARGET_F12_TYPE=local
+INSTALL_TARGET_F12_BASE=/home/{user_name}/skills   # {user_name} filled from browser cookie
+
+# Remote SSH target (uses rsync)
+INSTALL_TARGET_F15_TYPE=ssh
+INSTALL_TARGET_F15_BASE=/home/{user_name}/skills
+INSTALL_TARGET_F15_HOST=devbox.internal
+INSTALL_TARGET_F15_USER=deploy
+INSTALL_TARGET_F15_SSH_KEY=/etc/ssh/deploy_key
+```
+
+`<NAME>` in `INSTALL_TARGET_<NAME>_*` is what appears in the UI. The `{user_name}` placeholder is substituted from the browser's `CURRENT_USER_NAME` cookie. Without the cookie, the install button shows a warning and is disabled.
 
 ## Production with PM2
 
