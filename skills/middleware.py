@@ -1,5 +1,9 @@
+import time
+import threading
+from collections import defaultdict
+
 from django.conf import settings
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 
 
 class ApiCorsMiddleware:
@@ -54,3 +58,71 @@ class ApiCorsMiddleware:
             response['Vary'] = 'Origin'
 
         return response
+
+
+class SecurityHeadersMiddleware:
+    """Add security headers to every response.
+
+    - X-Content-Type-Options: nosniff — prevents MIME type sniffing
+    - X-Frame-Options: DENY — prevents clickjacking via iframes
+    - Referrer-Policy: strict-origin-when-cross-origin — limits referer leakage
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        response['X-Content-Type-Options'] = 'nosniff'
+        response['X-Frame-Options'] = 'DENY'
+        response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        return response
+
+
+class InstallRateLimitMiddleware:
+    """Simple in-process rate limiter for POST /api/*/install endpoints.
+
+    Uses a per-IP sliding window (default: 10 requests per 60 seconds).
+    Returns 429 if the limit is exceeded.
+
+    Env vars:
+      INSTALL_RATE_LIMIT_MAX   — max requests per window (default: 10)
+      INSTALL_RATE_LIMIT_WINDOW — window in seconds (default: 60)
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self._lock = threading.Lock()
+        # {ip: [timestamp, ...]}
+        self._requests = defaultdict(list)
+        self._max = int(getattr(settings, 'INSTALL_RATE_LIMIT_MAX', 10))
+        self._window = int(getattr(settings, 'INSTALL_RATE_LIMIT_WINDOW', 60))
+
+    def __call__(self, request):
+        if request.method != 'POST' or '/install' not in request.path:
+            return self.get_response(request)
+
+        ip = self._get_client_ip(request)
+        now = time.monotonic()
+
+        with self._lock:
+            # Prune old timestamps
+            timestamps = self._requests[ip]
+            cutoff = now - self._window
+            self._requests[ip] = [t for t in timestamps if t > cutoff]
+
+            if len(self._requests[ip]) >= self._max:
+                return JsonResponse(
+                    {'error': 'Rate limit exceeded. Try again later.'},
+                    status=429,
+                )
+            self._requests[ip].append(now)
+
+        return self.get_response(request)
+
+    @staticmethod
+    def _get_client_ip(request):
+        forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+        if forwarded:
+            return forwarded.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', '')

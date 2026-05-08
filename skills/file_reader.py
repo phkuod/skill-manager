@@ -60,16 +60,17 @@ def read_skill_files(dir_path):
             language = infer_language(fname)
 
             if size > MAX_FILE_SIZE:
-                results.append({'path': rel_path, 'content': None, 'language': language, 'truncated': True})
+                results.append({'path': rel_path, 'content': None, 'language': language, 'truncated': True, 'size': size, 'lines': 0})
                 continue
 
             try:
                 with open(abs_path, 'r', encoding='utf-8', errors='replace') as f:
                     content = f.read()
+                    lines = content.count('\n') + 1 if content else 0
             except OSError:
                 continue
 
-            results.append({'path': rel_path, 'content': content, 'language': language})
+            results.append({'path': rel_path, 'content': content, 'language': language, 'size': size, 'lines': lines})
 
     # Sort: SKILL.md first, rest alphabetically (already sorted by os.walk + sorted())
     results.sort(key=lambda f: (0 if f['path'] == 'SKILL.md' else 1, f['path']))

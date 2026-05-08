@@ -18,6 +18,11 @@ function toggleTheme() {
   var next = !document.documentElement.classList.contains('dark');
   document.documentElement.classList.toggle('dark', next);
   localStorage.setItem('theme', next ? 'dark' : 'light');
+  var themeLink = document.getElementById('hljs-theme');
+  if (themeLink) {
+    var basePath = themeLink.href.substring(0, themeLink.href.lastIndexOf('/'));
+    themeLink.href = basePath + (next ? '/github-dark.min.css' : '/github.min.css');
+  }
   applyThemeIcons();
 }
 
@@ -74,4 +79,20 @@ document.addEventListener('DOMContentLoaded', function () {
   applyThemeIcons();
   var themeBtn = document.getElementById('theme-toggle');
   if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+
+  // Back to Top functionality
+  var backToTop = document.getElementById('back-to-top');
+  if (backToTop) {
+    backToTop.addEventListener('click', function() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  // Keyboard shortcut for Jump to top
+  document.addEventListener('keydown', function(e) {
+    if (isTypingTarget(e.target)) return;
+    if (e.key.toLowerCase() === 'j') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
 });

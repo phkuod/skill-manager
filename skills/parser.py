@@ -6,8 +6,32 @@ from pathlib import Path
 
 import frontmatter
 import markdown
+import nh3
 
 from .classifier import classify
+
+# Tags and attributes allowed through sanitization.
+# Covers everything the markdown renderer produces (fenced_code, tables)
+# while blocking dangerous elements like <script>, <iframe>, <object>, etc.
+_ALLOWED_TAGS = {
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'p', 'br', 'hr',
+    'ul', 'ol', 'li',
+    'a', 'strong', 'em', 'b', 'i', 'u', 's', 'del', 'ins',
+    'code', 'pre', 'blockquote',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td',
+    'img', 'figure', 'figcaption',
+    'dl', 'dt', 'dd',
+    'div', 'span', 'sup', 'sub',
+}
+_ALLOWED_ATTRIBUTES = {
+    'a': {'href', 'title', 'target', 'rel'},
+    'img': {'src', 'alt', 'title', 'width', 'height'},
+    'code': {'class'},
+    'pre': {'class'},
+    'th': {'align'},
+    'td': {'align'},
+}
 
 logger = logging.getLogger('skills.parser')
 
@@ -85,9 +109,15 @@ def parse_skill_from_dir(dir_path, skill_name):
     classification = classify(skill_name, meta)
 
     try:
-        content_html = markdown.markdown(
+        raw_html = markdown.markdown(
             post.content,
             extensions=['fenced_code', 'tables'],
+        )
+        content_html = nh3.clean(
+            raw_html,
+            tags=_ALLOWED_TAGS,
+            attributes=_ALLOWED_ATTRIBUTES,
+            link_rel=None,
         )
     except Exception as exc:
         logger.warning('markdown render failed for %s, falling back to empty string: %s', skill_name, exc)

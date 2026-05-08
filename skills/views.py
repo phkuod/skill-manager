@@ -2,16 +2,16 @@ import json
 import os
 
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
 
 from .classifier import get_categories
 from .file_reader import read_skill_files
 from .installer import install_skill, InstallError
+from .parser import parse_skill, parse_skill_from_dir
 from .zipper import create_zip_response
 from .watcher import get_skills
-from .parser import parse_skill
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,6 @@ def home(request):
 def skill_detail(request, name):
     skill = get_skills().get(name)
     if skill is None:
-        from django.http import Http404
         raise Http404(f"Skill '{name}' not found")
     return render(request, 'skills/skill_detail.html', {
         'skill': skill,
@@ -81,18 +80,15 @@ def skill_detail(request, name):
 def skill_detail_version(request, name, version):
     skill = get_skills().get(name)
     if skill is None:
-        from django.http import Http404
         raise Http404(f"Skill '{name}' not found")
     ver_dir = _version_dir(name, version)
     if ver_dir is None:
-        from django.http import Http404
         raise Http404(f"Version '{version}' not found")
     if version == 'original':
         ver_skill = parse_skill(ver_dir, name)
     else:
         ver_skill = _parse_version_dir(ver_dir, name)
     if ver_skill is None:
-        from django.http import Http404
         raise Http404(f"Version '{version}' not found")
     return render(request, 'skills/skill_detail.html', {
         'skill': ver_skill,
@@ -298,7 +294,6 @@ def api_version_install(request, name, version):
 
 def _parse_version_dir(ver_dir, skill_name):
     """Parse a specific version subdirectory (not the main skill dir)."""
-    from .parser import parse_skill_from_dir
     skill = parse_skill_from_dir(ver_dir, skill_name)
     if skill is None:
         return None

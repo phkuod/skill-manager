@@ -1,5 +1,32 @@
 'use strict';
 
+// Copy-to-clipboard for install command blocks
+// Accessible as a global for onclick handlers in the template.
+function copyCommand(btn) {
+  var code = btn.parentElement.querySelector('code');
+  if (!code) return;
+  var text = code.textContent;
+  navigator.clipboard.writeText(text).then(function () {
+    btn.classList.add('copied');
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
+    setTimeout(function () {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+    }, 2000);
+  }).catch(function () {
+    // Fallback for older browsers / non-https contexts
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.classList.add('copied');
+    setTimeout(function () { btn.classList.remove('copied'); }, 2000);
+  });
+}
+
 (function () {
   var skillName = document.body.dataset.skillName || '';
   var version = document.body.dataset.version || '';
@@ -174,22 +201,199 @@
   // File viewer (lazy from /api/skills/<name>/files)
   // -------------------------------------------------------------------------
 
+  var currentFiles = [];
+
+  // Minimal escape helper
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function formatBytes(bytes) {
+    if (bytes === undefined || bytes === null) return '';
+    if (bytes < 1024) return bytes + ' B';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    else return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  window.selectFile = function(filename) {
+    var file = currentFiles.find(function(f) { return f.path === filename; });
+    var panel = document.getElementById('file-content-panel');
+    var title = document.getElementById('content-panel-title');
+    
+    if (title) title.textContent = filename;
+    
+    if (!file) {
+      panel.innerHTML = '<p style="color:var(--text-secondary);font-style:italic">Select a file to view its content.</p>';
+      return;
+    }
+    
+    document.querySelectorAll('.file-nav-item').forEach(function(el) {
+      if (el.dataset.filename === filename) {
+        el.classList.add('font-bold');
+        el.style.backgroundColor = 'var(--bg-secondary)';
+      } else {
+        el.classList.remove('font-bold');
+        el.style.backgroundColor = 'transparent';
+      }
+    });
+
+    if (file.truncated || file.content === null) {
+      panel.innerHTML = '<p style="color:var(--text-secondary);font-style:italic;">File too large to display.</p>';
+    } else if (filename === 'SKILL.md') {
+      var compiled = document.getElementById('compiled-skill-md');
+      var contentHtml = compiled ? compiled.innerHTML.trim() : '';
+      if (contentHtml) {
+        panel.innerHTML = '<div class="skill-markdown">' + contentHtml + '</div>';
+      } else {
+        renderCodeWithLineNumbers(panel, file.content, 'markdown');
+      }
+    } else {
+      renderCodeWithLineNumbers(panel, file.content, '');
+    }
+  };
+
+  function renderCodeWithLineNumbers(panel, content, extraClass) {
+      var tempDiv = document.createElement('div');
+      tempDiv.style.display = 'none';
+      var codeEl = document.createElement('code');
+      codeEl.className = 'hljs ' + extraClass;
+      codeEl.textContent = content || '';
+      tempDiv.appendChild(codeEl);
+      document.body.appendChild(tempDiv);
+      
+      if (window.hljs && window.hljs.highlightElement) {
+        window.hljs.highlightElement(codeEl);
+      }
+      
+      var highlightedHtml = codeEl.innerHTML;
+      document.body.removeChild(tempDiv);
+
+      var lines = highlightedHtml.split('\n');
+      var out = '<div style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.875rem; line-height: 1.5; padding: 1rem 0; overflow-x: hidden;">';
+      
+      var openTags = [];
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        if (i === lines.length - 1 && line === '') continue;
+        
+        var prefix = openTags.join('');
+        var re = /<span[^>]*>|<\/span>/g;
+        var match;
+        while ((match = re.exec(line)) !== null) {
+          if (match[0] === '</span>') {
+            openTags.pop();
+          } else {
+            openTags.push(match[0]);
+          }
+        }
+        var suffix = '';
+        for (var j = openTags.length - 1; j >= 0; j--) {
+          suffix += '</span>';
+        }
+        
+        var lineNum = i + 1;
+        var wrappedLine = prefix + line + suffix;
+        if (!wrappedLine) wrappedLine = ' ';
+        
+        out += '<div style="display: flex; width: 100%;">';
+        out += '<div style="flex: 0 0 auto; min-width: 3rem; text-align: right; padding-right: 1rem; color: var(--text-secondary); user-select: none; border-right: 1px solid var(--border); opacity: 0.5;">' + lineNum + '</div>';
+        out += '<div style="flex: 1; min-width: 0; padding-left: 1rem; white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; tab-size: 4;"><code class="hljs" style="background:transparent;padding:0;line-height:1.5;color:inherit;white-space:pre-wrap;">' + wrappedLine + '</code></div>';
+        out += '</div>';
+      }
+      out += '</div>';
+
+      panel.innerHTML = out;
+  }
+
+  window.toggleFolder = function(btn) {
+    var children = btn.nextElementSibling;
+    if (children) {
+      var isHidden = children.classList.contains('hidden');
+      if (isHidden) {
+        children.classList.remove('hidden');
+        btn.querySelector('.folder-arrow').style.transform = 'rotate(90deg)';
+      } else {
+        children.classList.add('hidden');
+        btn.querySelector('.folder-arrow').style.transform = 'rotate(0deg)';
+      }
+    }
+  };
+
+  window.toggleFileExplorer = function() {
+    var container = document.getElementById('file-explorer-container');
+    var chevron = document.getElementById('file-explorer-chevron');
+    if (!container || !chevron) return;
+    if (container.style.maxHeight === '0px') {
+      container.style.maxHeight = '300px';
+      container.style.padding = '0.5rem';
+      chevron.style.transform = 'rotate(0deg)';
+    } else {
+      container.style.maxHeight = '0px';
+      container.style.padding = '0px 0.5rem';
+      chevron.style.transform = 'rotate(180deg)';
+    }
+  };
+
+  function buildTreeHtml(nodes, level) {
+    var html = '';
+    var indent = level * 1.5;
+    nodes.forEach(function(node) {
+      if (node.type === 'folder') {
+        html += '<button onclick="toggleFolder(this)" class="transition-colors w-full text-left flex items-center gap-2 py-1.5 px-3 rounded" style="color: var(--text-primary); cursor: pointer; padding-left: ' + (indent + 0.75) + 'rem;">' +
+                  '<svg class="folder-arrow transition-transform" style="width:12px;height:12px;color:var(--text-secondary);transform:rotate(0deg);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>' +
+                  '<span style="font-size:1.1em">📁</span>' +
+                  '<span class="font-bold">' + escapeHtml(node.name) + '</span>' +
+                '</button>';
+        html += '<div class="folder-children hidden">' + buildTreeHtml(node.children, level + 1) + '</div>';
+      } else {
+        html += '<button class="file-nav-item transition-colors w-full text-left flex items-center justify-between py-1.5 px-3 rounded" data-filename="' + escapeHtml(node.file.path) + '" onclick="selectFile(\'' + escapeHtml(node.file.path) + '\')" style="color: var(--text-primary); cursor: pointer; padding-left: ' + (indent + 1.5) + 'rem;">' +
+                  '<div class="flex items-center gap-2">' +
+                    '<span style="color:var(--text-secondary);font-size:1.1em">📄</span>' +
+                    '<span>' + escapeHtml(node.name) + '</span>' +
+                  '</div>' +
+                  '<span style="color:var(--text-secondary); font-size:0.85em;">' + formatBytes(node.file.size) + '</span>' +
+                '</button>';
+      }
+    });
+    return html;
+  }
+
   function renderFiles(files) {
-    var section = document.getElementById('files-section');
+    currentFiles = files || [];
+    var filesSection = document.getElementById('files-section');
+    var contentSection = document.getElementById('content-section');
     var list = document.getElementById('files-list');
-    if (!files || !files.length) return;
-    section.classList.remove('hidden');
-    list.innerHTML = files.map(function (f) {
-      var content = f.truncated || f.content === null
-        ? '<p style="color:var(--text-secondary);font-style:italic;padding:1rem">File too large to display.</p>'
-        : '<pre><code class="hljs">' + escapeHtml(f.content || '') + '</code></pre>';
-      return (
-        '<details class="px-5 py-3"><summary style="cursor:pointer;color:var(--text-primary)">' +
-          escapeHtml(f.path) +
-        '</summary><div class="mt-3">' + content + '</div></details>'
-      );
-    }).join('');
-    if (window.hljs && window.hljs.highlightAll) window.hljs.highlightAll();
+    var badge = document.getElementById('file-count-badge');
+    
+    if (!currentFiles.length) return;
+    if (filesSection) filesSection.classList.remove('hidden');
+    if (contentSection) contentSection.classList.remove('hidden');
+    if (badge) badge.textContent = currentFiles.length + ' files';
+    
+    var tree = [];
+    currentFiles.forEach(function(f) {
+      var parts = f.path.split('/');
+      var currentLevel = tree;
+      for (var i=0; i < parts.length - 1; i++) {
+        var part = parts[i];
+        var existing = currentLevel.find(function(item) { return item.name === part && item.type === 'folder'; });
+        if (!existing) {
+          existing = { name: part, type: 'folder', children: [] };
+          currentLevel.push(existing);
+        }
+        currentLevel = existing.children;
+      }
+      currentLevel.push({ name: parts[parts.length - 1], type: 'file', file: f });
+    });
+
+    list.innerHTML = buildTreeHtml(tree, 0);
+    
+    var defaultFile = currentFiles.find(function(f) { return f.path === 'SKILL.md'; });
+    if (defaultFile) {
+      selectFile('SKILL.md');
+    } else if (currentFiles.length > 0) {
+      selectFile(currentFiles[0].path);
+    }
   }
 
   fetch(filesUrl())

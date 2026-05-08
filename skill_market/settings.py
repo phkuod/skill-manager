@@ -18,7 +18,9 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'skills.middleware.SecurityHeadersMiddleware',
     'skills.middleware.ApiCorsMiddleware',
+    'skills.middleware.InstallRateLimitMiddleware',
     'django.middleware.common.CommonMiddleware',
 ]
 
