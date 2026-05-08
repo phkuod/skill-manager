@@ -297,7 +297,46 @@ body {
   background-color: var(--bg-secondary);
   color: var(--text-primary);
 }
+:root {
+  /* Modern System Font Stack - prioritize Segoe UI Variable for Windows and SF Pro for Mac */
+  --font-main: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  /* ... existing variables ... */
+}
 
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em; /* Subtle modern touch for system fonts */
+}
+
+.hero-section {
+  padding: 6rem 1.5rem;
+  text-align: center;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: 3.75rem; /* Slightly larger to compensate for system font plainness */
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 1.25rem;
+  letter-spacing: -0.04em; /* Tighter tracking for that premium "Display" look */
+  color: var(--text-primary);
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto;
+  opacity: 0.75;
+}
 .install-modal-kicker {
   margin: 0 0 4px;
   font-size: 0.7rem;

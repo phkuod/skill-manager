@@ -33,7 +33,6 @@
       <div class="flex-1">
         <div class="flex flex-wrap items-center gap-2 mb-1">
           <h1 class="text-2xl font-bold" style="color:var(--text-primary)">{{ skill.name }}</h1>
-          <span class="text-sm px-2 py-0.5 rounded-full category-badge" data-category="{{ skill.category }}">{{ skill.category }}</span>
         </div>
         <p style="color:var(--text-secondary)">{{ skill.description }}</p>
       </div>
@@ -61,6 +60,7 @@
 
       <a id="download-link"
         href="{% if version %}/api/skills/{{ skill_name }}/versions/{{ version }}/zip{% else %}/api/skills/{{ skill_name }}/zip{% endif %}"
+        download="{{ skill_name }}.zip"
         title="Download ZIP (D)"
         class="flex items-center justify-center gap-2 rounded-xl font-medium border hover:bg-opacity-10 transition-colors"
         style="color:var(--text-primary); border-color:var(--border); padding: 0.5rem 1rem; font-size: 0.875rem;">
