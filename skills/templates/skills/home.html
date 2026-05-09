@@ -54,7 +54,7 @@
       <option value="name">Name</option>
     </select>
   </div>
-</div>
+</section>
 
 <main class="px-6 pb-10">
   <div id="skill-grid" class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -62,9 +62,8 @@
       <a href="/skills/{{ skill.name }}/"
          class="skill-card block rounded-xl border p-5 transition-all hover:shadow-lg"
          style="background-color:var(--bg-card);border-color:var(--border);text-decoration:none">
-        <div class="flex items-start justify-between mb-3">
-          <span class="text-3xl">{{ skill.icon }}</span>
-          <span class="text-xs px-2 py-0.5 rounded-full category-badge" data-category="{{ skill.category }}">{{ skill.category }}</span>
+        <div class="icon-wrapper">
+          <span>{{ skill.icon }}</span>
         </div>
         <h3 class="font-semibold mb-1 truncate" style="color:var(--text-primary)">{{ skill.name }}</h3>
         <p class="text-sm mb-3 line-clamp-2" style="color:var(--text-secondary)">{{ skill.description }}</p>
@@ -84,5 +83,5 @@
 {% block footer %}<span id="footer-count">{{ skills|length }}</span> skills available{% endblock %}
 
 {% block extra_scripts %}
-<script src="{% static 'skills/js/home.js' %}"></script>
+<script src="{% static 'skills/js/home.js' %}?t={% now 'U' %}"></script>
 {% endblock %}

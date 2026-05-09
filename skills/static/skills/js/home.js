@@ -6,7 +6,6 @@
   // <script id="skills-data"> JSON block and re-renders via filter/sort/search.
 
   var allSkills = null;       // lazily filled from #skills-data on first interaction
-  var currentCategory = 'All';
   var currentSearch = '';
   var currentSort = 'lastUpdated';
   var debounceTimer = null;
@@ -18,7 +17,6 @@
   var searchInput = document.getElementById('search-input');
   var searchClear = document.getElementById('search-clear');
   var sortSelect = document.getElementById('sort-select');
-  var categoryFilters = document.getElementById('category-filters');
 
   function ensureSkillsLoaded() {
     if (allSkills !== null) return;
@@ -36,11 +34,8 @@
       '<a href="/skills/' + encodeURIComponent(skill.name) + '/"' +
       ' class="skill-card block rounded-xl border p-5 transition-all hover:shadow-lg"' +
       ' style="background-color:var(--bg-card);border-color:var(--border);text-decoration:none">' +
-        '<div class="flex items-start justify-between mb-3">' +
-          '<span class="text-3xl">' + escapeHtml(skill.icon) + '</span>' +
-          '<span class="text-xs px-2 py-0.5 rounded-full category-badge" data-category="' + escapeHtml(skill.category) + '">' +
-            escapeHtml(skill.category) +
-          '</span>' +
+        '<div class="icon-wrapper">' +
+          '<span>' + escapeHtml(skill.icon) + '</span>' +
         '</div>' +
         '<h3 class="font-semibold mb-1 truncate" style="color:var(--text-primary)">' + escapeHtml(skill.name) + '</h3>' +
         '<p class="text-sm mb-3 line-clamp-2" style="color:var(--text-secondary)">' + escapeHtml(skill.description) + '</p>' +
@@ -63,8 +58,6 @@
     ensureSkillsLoaded();
     var q = currentSearch.toLowerCase();
     var visible = allSkills.filter(function (s) {
-      var matchCat = currentCategory === 'All' || s.category === currentCategory;
-      if (!matchCat) return false;
       if (!q) return true;
       return matchRank(s, q) !== -1;
     });
@@ -81,16 +74,7 @@
     if (searchClear) searchClear.classList.toggle('hidden', !currentSearch);
   }
 
-  // Wire category pills (already server-rendered)
-  Array.prototype.forEach.call(categoryFilters.querySelectorAll('.category-pill'), function (pill) {
-    pill.addEventListener('click', function () {
-      currentCategory = pill.dataset.category;
-      categoryFilters.querySelectorAll('.category-pill').forEach(function (p) {
-        p.classList.toggle('active', p.dataset.category === currentCategory);
-      });
-      render();
-    });
-  });
+
 
   if (searchInput) {
     searchInput.addEventListener('input', function () {

@@ -8,7 +8,7 @@ import frontmatter
 import markdown
 import nh3
 
-from .classifier import classify
+# (from .classifier import classify) - removed dependency
 
 # Tags and attributes allowed through sanitization.
 # Covers everything the markdown renderer produces (fenced_code, tables)
@@ -99,6 +99,29 @@ def detect_versions(skill_dir):
     return versions
 
 
+def _get_default_icon(skill_name, meta):
+    """Resolve icon for a skill based on name keywords if not in meta."""
+    icon = (meta or {}).get('icon')
+    if icon:
+        return icon
+    
+    name_lower = skill_name.lower()
+    mapping = {
+        ('design', 'art', 'theme', 'css', 'style', 'canvas', 'factory'): '🎨',
+        ('tool', 'util', 'convert', 'pdf', 'docx', 'xlsx', 'pptx', 'zip'): '🔧',
+        ('code', 'dev', 'build', 'script', 'api', 'mcp', 'skill'): '💻',
+        ('content', 'doc', 'write', 'comms', 'brand', 'internal'): '📝',
+        ('test', 'qa', 'check', 'verify'): '🧪',
+        ('ai', 'ml', 'chat', 'claude', 'bot', 'data', 'algorithm'): '🤖',
+        ('slack', 'comm', 'message', 'gif'): '💬',
+        ('git', 'repo', 'version'): '📦',
+    }
+    for keywords, emoji in mapping.items():
+        if any(k in name_lower for k in keywords):
+            return emoji
+    return '📦'
+
+
 def parse_skill_from_dir(dir_path, skill_name):
     """Parse SKILL.md from dir_path. Returns dict or None."""
     skill_md = os.path.join(dir_path, 'SKILL.md')
@@ -112,7 +135,7 @@ def parse_skill_from_dir(dir_path, skill_name):
         return None
 
     meta = post.metadata
-    classification = classify(skill_name, meta)
+    icon = _get_default_icon(skill_name, meta)
 
     try:
         raw_html = markdown.markdown(
@@ -133,8 +156,7 @@ def parse_skill_from_dir(dir_path, skill_name):
         'name': meta.get('name') or skill_name,
         'description': meta.get('description') or '',
         'license': meta.get('license') or 'Unknown',
-        'category': classification['category'],
-        'icon': classification['icon'],
+        'icon': icon,
         'fileCount': _count_files(dir_path),
         'lastUpdated': _last_modified(dir_path),
         'content': post.content,

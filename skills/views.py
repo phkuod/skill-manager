@@ -6,12 +6,15 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
-from .classifier import get_categories
+# (from .classifier import get_categories) - removed dependency
 from .file_reader import read_skill_files
 from .installer import install_skill, InstallError
 from .parser import parse_skill, parse_skill_from_dir
 from .zipper import create_zip_response
 from .watcher import get_skills
+
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -59,7 +62,6 @@ def home(request):
     skills = list(skills_dict.values())
     return render(request, 'skills/home.html', {
         'skills': skills,
-        'categories': get_categories(skills_dict),
     })
 
 
@@ -100,7 +102,7 @@ def skill_detail_version(request, name, version):
     ver_skill['currentVersion'] = skill.get('currentVersion')
     
     # Fallback to main skill metadata if versioned metadata is missing
-    for key in ['name', 'description', 'icon', 'category']:
+    for key in ['name', 'description', 'icon']:
         if not ver_skill.get(key) and skill.get(key):
             ver_skill[key] = skill[key]
     return render(request, 'skills/skill_detail.html', {
@@ -128,13 +130,10 @@ def api_health(request):
 @require_GET
 def api_skill_list(request):
     search = request.GET.get('search', '').strip()
-    category = request.GET.get('category', '').strip()
 
     skills = list(get_skills().values())
 
-    # Filter by category
-    if category and category != 'All':
-        skills = [s for s in skills if s.get('category') == category]
+
 
     # Filter by search — match name, description, or markdown body
     if search:
@@ -149,7 +148,6 @@ def api_skill_list(request):
 
     return JsonResponse({
         'skills': list(skills),
-        'categories': get_categories(get_skills()),
     })
 
 

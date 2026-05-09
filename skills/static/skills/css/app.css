@@ -8,18 +8,6 @@
   --border: #e2e8f0;
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
-  --badge-dev-bg: #ede9fe;
-  --badge-dev-text: #6d28d9;
-  --badge-content-bg: #dbeafe;
-  --badge-content-text: #1e40af;
-  --badge-tools-bg: #fef3c7;
-  --badge-tools-text: #92400e;
-  --badge-ai-bg: #d1fae5;
-  --badge-ai-text: #065f46;
-  --badge-testing-bg: #fee2e2;
-  --badge-testing-text: #991b1b;
-  --badge-other-bg: #f1f5f9;
-  --badge-other-text: #475569;
   --result-ok-bg: #dcfce7;
   --result-ok-text: #166534;
   --result-err-bg: #fee2e2;
@@ -36,18 +24,6 @@
   --border: #334155;
   --accent: #6366f1;
   --accent-hover: #818cf8;
-  --badge-dev-bg: #312e81;
-  --badge-dev-text: #a5b4fc;
-  --badge-content-bg: #1e3a5f;
-  --badge-content-text: #93c5fd;
-  --badge-tools-bg: #713f12;
-  --badge-tools-text: #fde68a;
-  --badge-ai-bg: #064e3b;
-  --badge-ai-text: #6ee7b7;
-  --badge-testing-bg: #7f1d1d;
-  --badge-testing-text: #fca5a5;
-  --badge-other-bg: #1e293b;
-  --badge-other-text: #94a3b8;
   --result-ok-bg: #14532d;
   --result-ok-text: #86efac;
   --result-err-bg: #7f1d1d;
@@ -101,14 +77,6 @@ body {
   border-color: var(--result-ok-text);
 }
 
-/* Category badge colors */
-.category-badge[data-category="Development"] { background-color: var(--badge-dev-bg); color: var(--badge-dev-text); }
-.category-badge[data-category="Content"]     { background-color: var(--badge-content-bg); color: var(--badge-content-text); }
-.category-badge[data-category="Tools"]       { background-color: var(--badge-tools-bg); color: var(--badge-tools-text); }
-.category-badge[data-category="Data & AI"]   { background-color: var(--badge-ai-bg); color: var(--badge-ai-text); }
-.category-badge[data-category="Testing"]     { background-color: var(--badge-testing-bg); color: var(--badge-testing-text); }
-.category-badge[data-category="Other"]       { background-color: var(--badge-other-bg); color: var(--badge-other-text); }
-
 /* Skill card hover */
 .skill-card {
   transition: transform 0.15s, box-shadow 0.15s;
@@ -117,11 +85,24 @@ body {
   transform: scale(1.02);
 }
 
-/* Active category pill */
-.category-pill.active {
-  background-color: var(--accent) !important;
-  color: #ffffff !important;
-  border-color: var(--accent) !important;
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.skill-card:hover .icon-wrapper {
+  background-color: var(--bg-primary);
+  transform: translateY(-2px);
+  border-color: var(--accent);
 }
 
 /* Install tabs */
