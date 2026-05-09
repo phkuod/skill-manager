@@ -320,17 +320,9 @@ function copyCommand(btn) {
   };
 
   window.toggleFileExplorer = function() {
-    var container = document.getElementById('file-explorer-container');
-    var chevron = document.getElementById('file-explorer-chevron');
-    if (!container || !chevron) return;
-    if (container.style.maxHeight === '0px') {
-      container.style.maxHeight = '300px';
-      container.style.padding = '0.5rem';
-      chevron.style.transform = 'rotate(0deg)';
-    } else {
-      container.style.maxHeight = '0px';
-      container.style.padding = '0px 0.5rem';
-      chevron.style.transform = 'rotate(180deg)';
+    var section = document.getElementById('files-section');
+    if (section) {
+      section.classList.toggle('collapsed');
     }
   };
 

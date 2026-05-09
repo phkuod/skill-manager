@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="{% static 'skills/favicon.png' %}">
   <link rel="stylesheet" href="{% static 'skills/vendor/tailwind.min.css' %}">
   <link id="hljs-theme" rel="stylesheet" href="{% static 'skills/vendor/github.min.css' %}">
-  <link rel="stylesheet" href="{% static 'skills/css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'skills/css/app.css' %}?v={% now 'U' %}">
   <script>
     // Apply theme before first paint to avoid flash
     (function () {

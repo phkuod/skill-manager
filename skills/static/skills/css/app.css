@@ -201,6 +201,72 @@ body {
   overflow: hidden;
 }
 
+/* Detail page layout */
+.detail-layout-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .detail-layout-grid {
+    flex-direction: row !important;
+    align-items: flex-start !important;
+  }
+  
+  #files-section {
+    flex: 0 0 300px !important;
+    position: sticky;
+    top: 5.5rem;
+    max-height: calc(100vh - 7.5rem);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  #file-explorer-container {
+    flex: 1;
+    max-height: none !important;
+    overflow-y: auto;
+  }
+
+  #content-section {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Collapsed state handling */
+#files-section.collapsed #file-explorer-container {
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  overflow: hidden;
+}
+#files-section.collapsed #file-explorer-chevron {
+  transform: rotate(180deg) !important;
+}
+
+/* Better scrollbars */
+#file-explorer-container::-webkit-scrollbar {
+  width: 5px;
+}
+#file-explorer-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+#file-explorer-container::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+#file-explorer-container:hover::-webkit-scrollbar-thumb {
+  background: var(--text-secondary);
+}
+
+#file-explorer-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
 /* ===========================================================================
  * Install modal — fully self-contained styles. Doesn't rely on Tailwind
  * utility classes (vendor bundle is JIT-purged; many utilities are absent).

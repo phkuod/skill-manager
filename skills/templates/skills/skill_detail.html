@@ -77,9 +77,9 @@
 
       <div id="compiled-skill-md" class="hidden">{{ skill.contentHtml|safe }}</div>
       
-      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <div class="detail-layout-grid">
         <!-- File Explorer Panel -->
-        <section id="files-section" class="rounded-xl border hidden overflow-hidden" style="border-color:var(--border);background-color:var(--bg-card); width: 100%;">
+        <section id="files-section" class="rounded-xl border hidden overflow-hidden" style="border-color:var(--border);background-color:var(--bg-card);">
           <div class="px-4 py-3 border-b flex justify-between items-center text-sm" style="border-color:var(--border); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">
             <div class="flex items-center gap-3">
               <div class="flex gap-1.5">
@@ -91,16 +91,16 @@
             </div>
             <span id="file-count-badge" style="color:var(--text-secondary)"></span>
           </div>
-          <div id="file-explorer-container" style="max-height: 300px; overflow-y: auto; overflow-x: hidden; padding: 0.5rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.875rem; transition: max-height 0.3s ease;">
+          <div id="file-explorer-container" style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding: 0.5rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.875rem; transition: max-height 0.3s ease;">
             <div id="files-list" style="display: flex; flex-direction: column; gap: 0.25rem;"></div>
           </div>
           <div class="px-4 py-2 border-t flex justify-center text-xs cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors" style="border-color:var(--border); color:var(--text-secondary)" onclick="toggleFileExplorer()">
-            <svg id="file-explorer-chevron" class="w-4 h-4 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="transform: rotate(0deg);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+            <svg id="file-explorer-chevron" class="w-4 h-4 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
           </div>
         </section>
 
         <!-- Content Panel -->
-        <section id="content-section" class="rounded-xl border hidden overflow-hidden relative" style="border-color:var(--border);background-color:var(--bg-card); width: 100%;">
+        <section id="content-section" class="rounded-xl border hidden overflow-hidden relative" style="border-color:var(--border);background-color:var(--bg-card);">
           <div class="px-4 py-3 border-b flex items-center justify-between text-sm" style="border-color:var(--border); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">
             <div class="flex items-center gap-3">
               <div class="flex gap-1.5">
