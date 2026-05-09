@@ -3,7 +3,7 @@ import os
 
 from django.conf import settings
 from django.http import Http404, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from .classifier import get_categories
@@ -68,6 +68,11 @@ def skill_detail(request, name):
     skill = get_skills().get(name)
     if skill is None:
         raise Http404(f"Skill '{name}' not found")
+    # For multi-version skills redirect to the latest version URL so the
+    # version context is available to the JS layer (file fetching, etc.).
+    current = skill.get('currentVersion')
+    if current:
+        return redirect('skill_detail_version', name=name, version=current)
     return render(request, 'skills/skill_detail.html', {
         'skill': skill,
         'skill_name': name,
@@ -90,6 +95,14 @@ def skill_detail_version(request, name, version):
         ver_skill = _parse_version_dir(ver_dir, name)
     if ver_skill is None:
         raise Http404(f"Version '{version}' not found")
+    # Preserve parent skill's version list and metadata so the UI stays consistent
+    ver_skill['versions'] = skill.get('versions', [])
+    ver_skill['currentVersion'] = skill.get('currentVersion')
+    
+    # Fallback to main skill metadata if versioned metadata is missing
+    for key in ['name', 'description', 'icon', 'category']:
+        if not ver_skill.get(key) and skill.get(key):
+            ver_skill[key] = skill[key]
     return render(request, 'skills/skill_detail.html', {
         'skill': ver_skill,
         'skill_name': name,
@@ -165,6 +178,13 @@ def api_skill_files(request, name):
     skill = get_skills().get(name)
     if skill is None:
         return JsonResponse({'error': f"Skill '{name}' not found"}, status=404)
+    # For multi-version skills, read from the latest version subdirectory.
+    current = skill.get('currentVersion')
+    if current:
+        ver_dir = _version_dir(name, current)
+        if ver_dir:
+            files = read_skill_files(ver_dir)
+            return JsonResponse(files, safe=False)
     files = read_skill_files(_skill_dir(name))
     return JsonResponse(files, safe=False)
 

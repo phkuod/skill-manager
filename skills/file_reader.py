@@ -1,4 +1,5 @@
 import os
+import re
 
 MAX_FILE_SIZE = 500 * 1024  # 500 KB
 BINARY_CHECK_BYTES = 8192
@@ -43,7 +44,16 @@ def read_skill_files(dir_path):
         return []
 
     results = []
+    # Matches versioned skill subdirectories.
+    #   Pattern: ^(\d{8})(?:-.*)?$
+    #   Matches: "20260328", "20260328-hotfix", "20260328-v2"
+    #   No match: "2026032", "20260328v2", "assets"
+    #   \d{8}    → exactly 8 digits (yyyymmdd date)
+    #   (?:-.*)? → optional dash followed by any suffix
+    pattern = re.compile(r'^(\d{8})(?:-.*)?$')
     for root, dirs, files in os.walk(dir_path):
+        if root == dir_path:
+            dirs[:] = [d for d in dirs if not (pattern.match(d) and os.path.isfile(os.path.join(dir_path, d, 'SKILL.md')))]
         dirs.sort()
         for fname in sorted(files):
             abs_path = os.path.join(root, fname)

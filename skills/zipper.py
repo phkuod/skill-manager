@@ -1,5 +1,6 @@
 import io
 import os
+import re
 import zipfile
 
 from django.http import HttpResponse
@@ -13,8 +14,11 @@ def create_zip_response(dir_path, zip_name):
         return JsonResponse({'error': f'Directory not found: {zip_name}'}, status=404)
 
     buffer = io.BytesIO()
+    pattern = re.compile(r'^(\d{8})(?:-.*)?$')
     with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
         for root, dirs, files in os.walk(dir_path):
+            if root == dir_path:
+                dirs[:] = [d for d in dirs if not (pattern.match(d) and os.path.isfile(os.path.join(dir_path, d, 'SKILL.md')))]
             dirs.sort()
             for fname in sorted(files):
                 abs_path = os.path.join(root, fname)

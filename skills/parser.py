@@ -38,14 +38,20 @@ logger = logging.getLogger('skills.parser')
 
 def _count_files(dir_path):
     count = 0
-    for _, _, files in os.walk(dir_path):
+    pattern = re.compile(r'^(\d{8})(?:-.*)?$')
+    for root, dirs, files in os.walk(dir_path):
+        if root == dir_path:
+            dirs[:] = [d for d in dirs if not (pattern.match(d) and os.path.isfile(os.path.join(dir_path, d, 'SKILL.md')))]
         count += len(files)
     return count
 
 
 def _last_modified(dir_path):
     latest = 0
-    for root, _, files in os.walk(dir_path):
+    pattern = re.compile(r'^(\d{8})(?:-.*)?$')
+    for root, dirs, files in os.walk(dir_path):
+        if root == dir_path:
+            dirs[:] = [d for d in dirs if not (pattern.match(d) and os.path.isfile(os.path.join(dir_path, d, 'SKILL.md')))]
         for f in files:
             try:
                 mtime = os.stat(os.path.join(root, f)).st_mtime
@@ -68,7 +74,7 @@ def detect_versions(skill_dir):
         return []
 
     versions = []
-    pattern = re.compile(r'^(\d{8})-.+')
+    pattern = re.compile(r'^(\d{8})(?:-.*)?$')
     try:
         entries = os.listdir(skill_dir)
     except OSError:
@@ -150,9 +156,10 @@ def parse_skill(skill_dir, skill_name):
         if skill is None:
             return None
         skill['currentVersion'] = versions[0]['version']
-        skill['versions'] = [
-            {'version': v['version'], 'date': v['date']} for v in versions
-        ] + [{'version': 'original', 'date': None}]
+        versions_list = [{'version': v['version'], 'date': v['date']} for v in versions]
+        if os.path.isfile(os.path.join(skill_dir, 'SKILL.md')):
+            versions_list.append({'version': 'original', 'date': None})
+        skill['versions'] = versions_list
     else:
         skill = parse_skill_from_dir(skill_dir, skill_name)
         if skill is None:

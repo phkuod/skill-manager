@@ -107,7 +107,18 @@ def _install_local(src_dir, dst):
     os.makedirs(parent, exist_ok=True)
     if os.path.exists(dst):
         shutil.rmtree(dst, ignore_errors=False)
-    shutil.copytree(src_dir, dst)
+    _version_pattern = re.compile(r'^(\d{8})(?:-.*)?$')
+
+    def _ignore_versions(directory, contents):
+        if os.path.normpath(directory) != os.path.normpath(src_dir):
+            return []
+        return [
+            name for name in contents
+            if _version_pattern.match(name)
+            and os.path.isfile(os.path.join(directory, name, 'SKILL.md'))
+        ]
+
+    shutil.copytree(src_dir, dst, ignore=_ignore_versions)
 
 
 def _install_ssh(src_dir, dst, cfg):
