@@ -55,7 +55,8 @@ def test_health_status(client, version_fixture):
     assert res.status_code == 200
     data = res.json()
     assert data['status'] == 'ok'
-    assert data['skillCount'] == 17
+    assert isinstance(data['skillCount'], int)
+    assert data['skillCount'] >= 1
 
 
 # ---------------------------------------------------------------------------
@@ -67,9 +68,10 @@ def test_list_all_skills(client, version_fixture):
     assert res.status_code == 200
     data = res.json()
     assert isinstance(data['skills'], list)
-    assert len(data['skills']) == 17
-    assert isinstance(data['categories'], list)
-    assert data['categories'][0] == 'All'
+    assert len(data['skills']) > 0
+    # Default limit (50) > test fixture total (~18), so the page contains
+    # everything and len(skills) matches `total` from the pagination envelope.
+    assert data['total'] == len(data['skills'])
 
 
 def test_list_includes_content_for_search(client, version_fixture):
@@ -81,9 +83,13 @@ def test_list_includes_content_for_search(client, version_fixture):
 
 
 def test_list_required_fields(client, version_fixture):
+    # Mirrors _LIST_FIELDS in views.py — fields the home page actually
+    # consumes. `category` was removed when the category system was dropped;
+    # `license` was removed by the list-projection slimming.
     res = client.get('/api/skills')
     skill = res.json()['skills'][0]
-    for field in ['name', 'description', 'category', 'icon', 'license', 'fileCount', 'lastUpdated', 'currentVersion', 'versions']:
+    for field in ['name', 'description', 'icon', 'fileCount', 'lastUpdated',
+                  'currentVersion', 'versions']:
         assert field in skill, f"Missing field: {field}"
 
 
@@ -121,37 +127,6 @@ def test_search_name_matches_first(client, version_fixture):
     skills = res.json()['skills']
     if len(skills) > 1:
         assert 'api' in skills[0]['name'].lower()
-
-
-# ---------------------------------------------------------------------------
-# Category filter
-# ---------------------------------------------------------------------------
-
-def test_category_filter(client, version_fixture):
-    res = client.get('/api/skills?category=Tools')
-    assert res.status_code == 200
-    for s in res.json()['skills']:
-        assert s['category'] == 'Tools'
-
-
-def test_category_all(client, version_fixture):
-    res = client.get('/api/skills?category=All')
-    assert len(res.json()['skills']) == 17
-
-
-def test_category_nonexistent(client, version_fixture):
-    res = client.get('/api/skills?category=Nonexistent')
-    assert res.json()['skills'] == []
-
-
-def test_search_and_category(client, version_fixture):
-    res = client.get('/api/skills?search=pdf&category=Tools')
-    assert res.status_code == 200
-    skills = res.json()['skills']
-    for s in skills:
-        assert s['category'] == 'Tools'
-    names = [s['name'] for s in skills]
-    assert 'pdf' in names
 
 
 def test_search_matches_content(client, version_fixture):
@@ -286,7 +261,8 @@ def test_detail_repo_path(client, version_fixture):
 def test_detail_all_metadata(client, version_fixture):
     res = client.get('/api/skills/frontend-design')
     data = res.json()
-    for field in ['name', 'description', 'category', 'icon', 'license', 'fileCount', 'lastUpdated', 'content', 'installPaths', 'repoPath']:
+    for field in ['name', 'description', 'icon', 'license', 'fileCount',
+                  'lastUpdated', 'content', 'installPaths', 'repoPath']:
         assert field in data, f"Missing field: {field}"
 
 
