@@ -421,8 +421,20 @@ function copyCommand(btn) {
     var defaultFile = currentFiles.find(function(f) { return f.path === 'SKILL.md'; });
     if (defaultFile) {
       selectFile('SKILL.md');
-    } else if (currentFiles.length > 0) {
-      selectFile(currentFiles[0].path);
+    } else {
+      // If no SKILL.md, show a placeholder in the content panel rather than just
+      // picking a random file. This provides a better UX.
+      var panel = document.getElementById('file-content-panel');
+      var title = document.getElementById('content-panel-title');
+      if (title) title.textContent = 'Documentation';
+      if (panel) {
+        panel.innerHTML = 
+          '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem 2rem;text-align:center;color:var(--text-secondary);">' +
+            '<div style="font-size:3rem;margin-bottom:1rem;opacity:0.5;">📄</div>' +
+            '<h3 style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;color:var(--text-primary);">No documentation provided</h3>' +
+            '<p style="font-size:0.9rem;max-width:300px;">This skill doesn\'t have a SKILL.md file. You can still explore its source files in the sidebar.</p>' +
+          '</div>';
+      }
     }
   }
 

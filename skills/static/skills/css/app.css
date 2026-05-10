@@ -4,7 +4,7 @@
   --bg-secondary: #f8fafc;
   --bg-card: #ffffff;
   --text-primary: #0f172a;
-  --text-secondary: #64748b;
+  --text-secondary: #475569; /* Increased contrast from #64748b (WCAG AA compliant) */
   --border: #e2e8f0;
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
@@ -12,6 +12,11 @@
   --result-ok-text: #166534;
   --result-err-bg: #fee2e2;
   --result-err-text: #991b1b;
+  --highlight-bg: #fef08a;
+  --highlight-text: #854d0e;
+  /* High-quality system font stack - no network dependencies */
+  --font-main: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI', 'Inter', system-ui, sans-serif;
 }
 
 /* Dark mode */
@@ -19,7 +24,7 @@
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
   --bg-card: #1e293b;
-  --text-primary: #e2e8f0;
+  --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --border: #334155;
   --accent: #6366f1;
@@ -28,11 +33,16 @@
   --result-ok-text: #86efac;
   --result-err-bg: #7f1d1d;
   --result-err-text: #fca5a5;
+  --highlight-bg: #854d0e;
+  --highlight-text: #fef08a;
 }
 
 body {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  transition: background-color 0.2s, color 0.2s;
+  font-family: var(--font-main);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Screen-reader-only fallback — the Tailwind .sr-only class is missing from
@@ -79,10 +89,15 @@ body {
 
 /* Skill card hover */
 .skill-card {
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .skill-card:hover {
-  transform: scale(1.02);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15), 0 0 0 2px var(--accent);
+  border-color: var(--accent) !important;
+}
+.dark .skill-card:hover {
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4), 0 0 0 2px var(--accent);
 }
 
 .icon-wrapper {
@@ -206,6 +221,7 @@ body {
   position: relative;
   display: inline-flex;
   align-items: center;
+  margin-left: 0.5rem;
 }
 
 .version-select {
@@ -392,12 +408,6 @@ body {
   background-color: var(--bg-secondary);
   color: var(--text-primary);
 }
-:root {
-  /* Modern System Font Stack - prioritize Segoe UI Variable for Windows and SF Pro for Mac */
-  --font-main: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  /* ... existing variables ... */
-}
 
 body {
   font-family: var(--font-main);
@@ -432,6 +442,21 @@ body {
   margin: 0 auto;
   opacity: 0.75;
 }
+
+mark {
+  background-color: var(--highlight-bg);
+  color: var(--highlight-text);
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: inherit;
+}
+
+header {
+  background: linear-gradient(to bottom, var(--bg-secondary), var(--bg-primary)) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 .install-modal-kicker {
   margin: 0 0 4px;
   font-size: 0.7rem;
