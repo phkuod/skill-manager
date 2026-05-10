@@ -33,24 +33,22 @@
         <span>{{ skill.icon }}</span>
       </div>
       <div class="flex-1">
-        <div class="flex flex-wrap items-center gap-2 mb-1">
+        <div class="flex flex-wrap items-center gap-3 mb-1">
           <h1 class="text-2xl font-bold" style="color:var(--text-primary)">{{ skill.name }}</h1>
+          {% if skill.versions %}
+          <div class="version-badge" title="Switch version">
+            <select id="version-select" class="version-select">
+              {% for v in skill.versions %}
+                <option value="{{ v.version }}"{% if v.version == skill.currentVersion and not version %} selected{% endif %}{% if v.version == version %} selected{% endif %}>v{{ v.version }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
         </div>
         <p style="color:var(--text-secondary)">{{ skill.description }}</p>
       </div>
     </div>
 
-    {% if skill.versions %}
-    <div class="flex items-center gap-2">
-      <label for="version-select" class="text-sm" style="color:var(--text-secondary)">Version:</label>
-      <select id="version-select" class="text-sm rounded-lg border px-2 py-1"
-        style="background-color:var(--bg-secondary);color:var(--text-primary);border-color:var(--border)">
-        {% for v in skill.versions %}
-          <option value="{{ v.version }}"{% if v.version == skill.currentVersion and not version %} selected{% endif %}{% if v.version == version %} selected{% endif %}>{{ v.version }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    {% endif %}
 
     <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
       <button id="install-button"

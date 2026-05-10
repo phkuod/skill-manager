@@ -201,6 +201,54 @@ body {
   overflow: hidden;
 }
 
+/* Version selector badge */
+.version-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.version-select {
+  appearance: none;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 28px 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+  outline: none;
+}
+
+.version-select:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+}
+
+.version-badge::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 45%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--text-secondary);
+  border-bottom: 1.5px solid var(--text-secondary);
+  pointer-events: none;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.version-badge:hover::after {
+  opacity: 1;
+  border-color: var(--accent);
+}
+
 /* Detail page layout */
 .detail-layout-grid {
   display: flex !important;
