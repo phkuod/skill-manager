@@ -46,9 +46,12 @@ if [ "$MODE" = "production" ]; then
   export SKILL_REPO_PATH="${SKILL_REPO_PATH:-$ROOT/skill_repo}"
   export DEBUG="${DEBUG:-False}"
   export ALLOWED_HOSTS="${ALLOWED_HOSTS:-localhost,127.0.0.1}"
+  # NOTE: --workers must stay at 1. Each worker holds its own in-process
+  # `_skills` dict and watchdog observer, so >1 workers cause catalog drift
+  # across consecutive requests. See CLAUDE.md (Architecture).
   exec gunicorn skill_market.wsgi \
     --bind "0.0.0.0:$PORT" \
-    --workers 2 \
+    --workers 1 \
     --chdir "$ROOT"
 else
   echo "[start] Starting Django dev server on :$PORT ..."

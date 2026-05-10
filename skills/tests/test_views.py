@@ -173,6 +173,34 @@ def test_search_ranks_name_above_content(client, version_fixture):
 
 
 # ---------------------------------------------------------------------------
+# List projection (no rendered HTML on the wire)
+# ---------------------------------------------------------------------------
+
+def test_list_excludes_contentHtml(client, version_fixture):
+    # `contentHtml` is the sanitized rendered markdown (~5 KB per skill).
+    # The home page never reads it from the list response, so we strip it
+    # to keep the inline #skills-data JSON small.
+    res = client.get('/api/skills')
+    for skill in res.json()['skills']:
+        assert 'contentHtml' not in skill, (
+            f"List response leaks contentHtml for {skill.get('name')}"
+        )
+
+
+def test_list_keeps_fields_used_by_home_page(client, version_fixture):
+    # home.js matchRank reads name/description/content; cards render
+    # name/icon/description/fileCount/lastUpdated. All must survive the
+    # projection.
+    res = client.get('/api/skills')
+    for skill in res.json()['skills']:
+        for field in ('name', 'icon', 'description', 'fileCount',
+                      'lastUpdated', 'content'):
+            assert field in skill, (
+                f"List projection dropped a field still used by the UI: {field}"
+            )
+
+
+# ---------------------------------------------------------------------------
 # Skill detail
 # ---------------------------------------------------------------------------
 
@@ -331,6 +359,41 @@ def test_version_files(client, version_fixture):
 
 def test_version_files_404(client, version_fixture):
     res = client.get('/api/skills/webapp-testing/versions/99990101-fake/files')
+    assert res.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Path-traversal protection on the <version> segment
+# ---------------------------------------------------------------------------
+
+def test_version_files_dotdot_rejected(client, version_fixture):
+    # `..` as the version segment must not be allowed to walk above the
+    # skill directory. A 200 here would leak every skill's files.
+    res = client.get('/api/skills/webapp-testing/versions/../files')
+    assert res.status_code == 404
+
+
+def test_version_zip_dotdot_rejected(client, version_fixture):
+    res = client.get('/api/skills/webapp-testing/versions/../zip')
+    assert res.status_code == 404
+
+
+def test_version_detail_dotdot_rejected(client, version_fixture):
+    res = client.get('/api/skills/webapp-testing/versions/..')
+    assert res.status_code == 404
+
+
+def test_version_files_unknown_version_rejected(client, version_fixture):
+    # An unknown version that is not in the catalog must be rejected even
+    # if a directory of that name happens to exist on disk.
+    res = client.get('/api/skills/webapp-testing/versions/some-fake-version/files')
+    assert res.status_code == 404
+
+
+def test_version_original_files_rejected_for_unversioned(client, version_fixture):
+    # 'original' is only valid for skills that have versions. The 'pdf'
+    # skill has none, so /versions/original/files must 404.
+    res = client.get('/api/skills/pdf/versions/original/files')
     assert res.status_code == 404
 
 

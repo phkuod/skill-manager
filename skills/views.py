@@ -33,17 +33,37 @@ def _skill_dir(skill_name):
 
 
 def _version_dir(skill_name, version):
-    """Return the directory for a skill version (or None if invalid)."""
+    """Return the directory for a skill version, or None if invalid.
+
+    Validates `version` against the parsed catalog before any FS access so
+    a request like /api/skills/<n>/versions/../files cannot walk above the
+    skill directory and leak the whole skill repo.
+    """
+    skill = get_skills().get(skill_name)
+    if skill is None:
+        return None
+
+    valid_versions = {v['version'] for v in skill.get('versions', [])}
+    if version not in valid_versions:
+        return None
+
     skill_dir_path = _skill_dir(skill_name)
     if version == 'original':
-        # 'original' is only valid when the skill has versions
-        skill = get_skills().get(skill_name)
-        if skill is None or not skill.get('versions'):
-            return None
         return skill_dir_path
-    else:
-        path = os.path.join(skill_dir_path, version)
-        return path if os.path.isdir(path) else None
+
+    path = os.path.join(skill_dir_path, version)
+    # Defense-in-depth: confirm the resolved path is strictly inside the
+    # configured skill repo root, in case the catalog ever drifts.
+    try:
+        repo_root = os.path.realpath(settings.SKILL_REPO_PATH)
+        resolved = os.path.realpath(path)
+        if (os.path.commonpath([resolved, repo_root]) != repo_root
+                or resolved == repo_root):
+            return None
+    except (ValueError, OSError):
+        return None
+
+    return path if os.path.isdir(path) else None
 
 
 def _search_sort_key(skill, search):
@@ -56,10 +76,24 @@ def _search_sort_key(skill, search):
     return 2
 
 
+# Fields surfaced in the catalog list view. Anything beyond this set
+# (notably `contentHtml`, ~5 KB of rendered markdown per skill, and
+# `license`) is stripped before responses leave this layer.
+_LIST_FIELDS = (
+    'name', 'icon', 'description', 'fileCount', 'lastUpdated',
+    'content', 'currentVersion', 'versions',
+)
+
+
+def _summary(skill):
+    """Project a parsed skill dict to the list-view field set."""
+    return {field: skill.get(field) for field in _LIST_FIELDS}
+
+
 @require_GET
 def home(request):
     skills_dict = get_skills()
-    skills = list(skills_dict.values())
+    skills = [_summary(s) for s in skills_dict.values()]
     return render(request, 'skills/home.html', {
         'skills': skills,
     })
@@ -133,9 +167,9 @@ def api_skill_list(request):
 
     skills = list(get_skills().values())
 
-
-
-    # Filter by search — match name, description, or markdown body
+    # Filter by search — match name, description, or markdown body. Search
+    # runs against the full skill dicts (so `content` is matched) before we
+    # project to the list-view field set.
     if search:
         q = search.lower()
         skills = [
@@ -147,7 +181,7 @@ def api_skill_list(request):
         skills.sort(key=lambda s: _search_sort_key(s, search))
 
     return JsonResponse({
-        'skills': list(skills),
+        'skills': [_summary(s) for s in skills],
     })
 
 
