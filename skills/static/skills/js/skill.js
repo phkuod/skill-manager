@@ -143,10 +143,16 @@ function copyCommand(btn) {
     closeBtn.onclick = closeInstallModal;
     modal.classList.remove('hidden');
     requestAnimationFrame(function () { modal.classList.add('is-open'); });
+    // Trap keyboard focus inside the modal until close.
+    modal._focusRelease = focusTrap(modal);
   }
 
   function closeInstallModal() {
     var modal = document.getElementById('install-modal');
+    if (modal._focusRelease) {
+      modal._focusRelease();
+      modal._focusRelease = null;
+    }
     modal.classList.remove('is-open');
     setTimeout(function () { modal.classList.add('hidden'); }, 220);
   }
@@ -172,13 +178,19 @@ function copyCommand(btn) {
         if (r.ok && r.data.status === 'ok') {
           row.dataset.state = 'ok';
           row.querySelector('.install-target-go').innerHTML = '✓';
-          resultEl.textContent = '✓ Installed to ' + r.data.target + ' — ' + r.data.path;
+          var okMsg = '✓ Installed to ' + r.data.target + ' — ' + r.data.path;
+          resultEl.textContent = okMsg;
           resultEl.classList.add('is-ok');
+          // Auto-dismissing success toast — survives modal close.
+          toast(okMsg, 'success');
         } else {
           row.dataset.state = 'err';
           row.querySelector('.install-target-go').innerHTML = '✗';
-          resultEl.textContent = '✗ ' + (r.data.error || 'Install failed');
+          var errMsg = '✗ ' + (r.data.error || 'Install failed');
+          resultEl.textContent = errMsg;
           resultEl.classList.add('is-err');
+          // Sticky error toast — must be dismissed manually.
+          toast(errMsg, 'error');
         }
         resultEl.classList.remove('hidden');
         cancelBtn.textContent = 'Close';
@@ -186,10 +198,12 @@ function copyCommand(btn) {
       .catch(function (err) {
         row.dataset.state = 'err';
         row.querySelector('.install-target-go').innerHTML = '✗';
-        resultEl.textContent = '✗ Network error — ' + err.message;
+        var netMsg = '✗ Network error — ' + err.message;
+        resultEl.textContent = netMsg;
         resultEl.classList.add('is-err');
         resultEl.classList.remove('hidden');
         cancelBtn.textContent = 'Close';
+        toast(netMsg, 'error');
       });
   }
 
@@ -486,6 +500,18 @@ function copyCommand(btn) {
   // -------------------------------------------------------------------------
 
   document.addEventListener('keydown', function (e) {
+    // Esc on an open install modal closes it instead of navigating away.
+    // Runs before isTypingTarget so the close still works while focus is
+    // on a modal control.
+    if (e.key === 'Escape') {
+      var openModal = document.getElementById('install-modal');
+      if (openModal && !openModal.classList.contains('hidden')) {
+        e.preventDefault();
+        closeInstallModal();
+        return;
+      }
+    }
+
     if (isTypingTarget(e.target)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 

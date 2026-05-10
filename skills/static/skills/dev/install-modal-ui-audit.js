@@ -192,6 +192,32 @@
       'cancel button morphs to "Close" after install');
   }
 
+  // ------------------------------------------------------------ 6.5 Focus trap
+  // Modal is still open with cancel button at "Close". Verify the focus
+  // trap from common.js cycles Tab/Shift+Tab among focusable descendants.
+  const installModal = document.getElementById('install-modal');
+  const focusables = Array.from(installModal.querySelectorAll(
+    'button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null);
+  assert(focusables.length >= 2,
+    'modal has ≥2 focusable elements (' + focusables.length + ' found)');
+  if (focusables.length >= 2) {
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    last.focus();
+    document.dispatchEvent(new KeyboardEvent('keydown',
+      { key: 'Tab', bubbles: true, cancelable: true }));
+    await sleep(40);
+    assert(document.activeElement === first,
+      'Tab from last focusable cycles back to first');
+    first.focus();
+    document.dispatchEvent(new KeyboardEvent('keydown',
+      { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+    await sleep(40);
+    assert(document.activeElement === last,
+      'Shift+Tab from first focusable cycles to last');
+  }
+
   // ---------------------------------------------------------- 7. Theme contrast
   for (const mode of ['light', 'dark']) {
     document.documentElement.classList.toggle('dark', mode === 'dark');
@@ -202,7 +228,20 @@
       mode + ' theme: result fg/bg luminosity diff ≥50 (got ' + Math.round(Math.abs(fg - bg)) + ')');
   }
   document.documentElement.classList.remove('dark');
+
+  // -------------------------------------------------------- 8. Toast feedback
+  // Success toast must appear after install and survive modal close.
+  const toastSuccess = document.querySelector('#toasts .toast.is-success');
+  assert(!!toastSuccess, 'success toast appears after install');
+  if (toastSuccess) {
+    assert(/Installed to F12/.test(toastSuccess.textContent),
+      'toast carries the install success message');
+  }
   document.getElementById('install-modal-cancel').click();
+  await sleep(250);
+  const toastAfterClose = document.querySelector('#toasts .toast.is-success');
+  assert(!!toastAfterClose, 'success toast persists after modal close');
+
   window.fetch = origFetch;
 
   const summary = { passed: passes.length, failed: fails.length };
