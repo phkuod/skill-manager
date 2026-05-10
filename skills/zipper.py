@@ -1,31 +1,42 @@
-import io
 import os
 import re
+import tempfile
 import zipfile
 
-from django.http import HttpResponse
+from django.http import FileResponse, JsonResponse
+
+
+# Spool ZIPs in memory up to this threshold; past it the SpooledTemporaryFile
+# transparently spills to disk so peak memory stays bounded even for skills
+# with many large files. Small zips (the common case) never touch the disk.
+_SPOOL_LIMIT_BYTES = 10 * 1024 * 1024
 
 
 def create_zip_response(dir_path, zip_name):
-    """Create an HttpResponse containing a ZIP of dir_path.
-    Returns 404 response if directory doesn't exist."""
+    """Stream a ZIP of dir_path back to the client.
+
+    Returns a 404 JsonResponse if the directory doesn't exist.
+    """
     if not os.path.isdir(dir_path):
-        from django.http import JsonResponse
         return JsonResponse({'error': f'Directory not found: {zip_name}'}, status=404)
 
-    buffer = io.BytesIO()
+    spooled = tempfile.SpooledTemporaryFile(max_size=_SPOOL_LIMIT_BYTES)
     pattern = re.compile(r'^(\d{8})(?:-.*)?$')
-    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(spooled, 'w', zipfile.ZIP_DEFLATED) as zf:
         for root, dirs, files in os.walk(dir_path):
             if root == dir_path:
-                dirs[:] = [d for d in dirs if not (pattern.match(d) and os.path.isfile(os.path.join(dir_path, d, 'SKILL.md')))]
+                dirs[:] = [
+                    d for d in dirs
+                    if not (pattern.match(d)
+                            and os.path.isfile(os.path.join(dir_path, d, 'SKILL.md')))
+                ]
             dirs.sort()
             for fname in sorted(files):
                 abs_path = os.path.join(root, fname)
                 arcname = os.path.relpath(abs_path, dir_path)
                 zf.write(abs_path, arcname)
 
-    buffer.seek(0)
-    response = HttpResponse(buffer.read(), content_type='application/zip')
+    spooled.seek(0)
+    response = FileResponse(spooled, content_type='application/zip')
     response['Content-Disposition'] = f'attachment; filename="{zip_name}.zip"'
     return response

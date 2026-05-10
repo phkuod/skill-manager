@@ -173,6 +173,62 @@ def test_search_ranks_name_above_content(client, version_fixture):
 
 
 # ---------------------------------------------------------------------------
+# Pagination
+# ---------------------------------------------------------------------------
+
+def test_pagination_envelope_when_under_limit(client, version_fixture):
+    # No params, fewer skills than the default limit: every skill fits on
+    # page 1, hasNext is False, no Link header is emitted.
+    res = client.get('/api/skills')
+    data = res.json()
+    for key in ('skills', 'page', 'limit', 'total', 'hasNext'):
+        assert key in data, f"Pagination envelope missing key: {key}"
+    assert data['page'] == 1
+    assert data['limit'] == 50
+    assert data['total'] == len(data['skills'])
+    assert data['hasNext'] is False
+    assert 'Link' not in res
+
+
+def test_pagination_first_page_with_custom_limit(client, version_fixture):
+    res = client.get('/api/skills?limit=5')
+    data = res.json()
+    assert len(data['skills']) == 5
+    assert data['page'] == 1
+    assert data['limit'] == 5
+    assert data['hasNext'] is True
+
+
+def test_pagination_second_page(client, version_fixture):
+    page1 = client.get('/api/skills?limit=5').json()['skills']
+    page2 = client.get('/api/skills?page=2&limit=5').json()['skills']
+    assert len(page2) == 5
+    page1_names = {s['name'] for s in page1}
+    page2_names = {s['name'] for s in page2}
+    assert page1_names.isdisjoint(page2_names)
+
+
+def test_pagination_out_of_range_returns_empty(client, version_fixture):
+    res = client.get('/api/skills?page=999&limit=5')
+    data = res.json()
+    assert data['skills'] == []
+    assert data['hasNext'] is False
+
+
+def test_pagination_limit_clamped_to_max(client, version_fixture):
+    res = client.get('/api/skills?limit=99999')
+    data = res.json()
+    assert data['limit'] == 200
+
+
+def test_pagination_link_header_present(client, version_fixture):
+    res = client.get('/api/skills?limit=5')
+    assert 'Link' in res
+    assert 'page=2' in res['Link']
+    assert 'rel="next"' in res['Link']
+
+
+# ---------------------------------------------------------------------------
 # List projection (no rendered HTML on the wire)
 # ---------------------------------------------------------------------------
 
@@ -253,7 +309,21 @@ def test_zip_download(client, version_fixture):
 
 def test_zip_nonempty(client, version_fixture):
     res = client.get('/api/skills/brand-guidelines/zip')
-    assert len(res.content) > 0
+    body = b''.join(res.streaming_content)
+    assert len(body) > 0
+
+
+def test_zip_archive_contains_skill_md(client, version_fixture):
+    # End-to-end correctness: the streamed bytes must be a valid ZIP that
+    # contains the skill's SKILL.md. Catches any regression in the streaming
+    # plumbing (truncation, wrong seek position, etc.).
+    import io
+    import zipfile
+    res = client.get('/api/skills/brand-guidelines/zip')
+    body = b''.join(res.streaming_content)
+    with zipfile.ZipFile(io.BytesIO(body)) as zf:
+        names = zf.namelist()
+    assert 'SKILL.md' in names
 
 
 def test_zip_404(client, version_fixture):

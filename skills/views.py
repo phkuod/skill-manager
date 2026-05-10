@@ -90,6 +90,27 @@ def _summary(skill):
     return {field: skill.get(field) for field in _LIST_FIELDS}
 
 
+_DEFAULT_PAGE_LIMIT = 50
+_MAX_PAGE_LIMIT = 200
+
+
+def _get_int_param(request, name, default, minimum=1, maximum=None):
+    """Parse a positive integer query param. Falls back to default on bad input,
+    caps at maximum when provided."""
+    raw = request.GET.get(name)
+    if raw is None or raw == '':
+        return default
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return default
+    if value < minimum:
+        return default
+    if maximum is not None and value > maximum:
+        return maximum
+    return value
+
+
 @require_GET
 def home(request):
     skills_dict = get_skills()
@@ -164,6 +185,13 @@ def api_health(request):
 @require_GET
 def api_skill_list(request):
     search = request.GET.get('search', '').strip()
+    page = _get_int_param(request, 'page', default=1, minimum=1)
+    limit = _get_int_param(
+        request, 'limit',
+        default=_DEFAULT_PAGE_LIMIT,
+        minimum=1,
+        maximum=_MAX_PAGE_LIMIT,
+    )
 
     skills = list(get_skills().values())
 
@@ -180,9 +208,24 @@ def api_skill_list(request):
         ]
         skills.sort(key=lambda s: _search_sort_key(s, search))
 
-    return JsonResponse({
-        'skills': [_summary(s) for s in skills],
+    total = len(skills)
+    start = (page - 1) * limit
+    end = start + limit
+    page_slice = skills[start:end]
+    has_next = end < total
+
+    response = JsonResponse({
+        'skills': [_summary(s) for s in page_slice],
+        'page': page,
+        'limit': limit,
+        'total': total,
+        'hasNext': has_next,
     })
+    if has_next:
+        next_qs = request.GET.copy()
+        next_qs['page'] = str(page + 1)
+        response['Link'] = f'<{request.path}?{next_qs.urlencode()}>; rel="next"'
+    return response
 
 
 @require_GET
