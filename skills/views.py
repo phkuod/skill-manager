@@ -183,6 +183,16 @@ def api_health(request):
 
 
 @require_GET
+def api_version(request):
+    # Discovery endpoint at /api/version. Top-level (not v1-prefixed) so
+    # clients can discover supported API versions before choosing a path.
+    return JsonResponse({
+        'app': 'skill-market',
+        'apiVersions': ['v1'],
+    })
+
+
+@require_GET
 def api_skill_list(request):
     search = request.GET.get('search', '').strip()
     page = _get_int_param(request, 'page', default=1, minimum=1)
