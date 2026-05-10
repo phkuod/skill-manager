@@ -9,6 +9,7 @@
   var currentSearch = '';
   var currentSort = 'lastUpdated';
   var debounceTimer = null;
+  var DEFAULT_SORT = 'lastUpdated';
 
   var skillGrid = document.getElementById('skill-grid');
   var noResults = document.getElementById('no-results');
@@ -72,6 +73,38 @@
     if (footerCount) footerCount.textContent = visible.length;
     if (resultCount) resultCount.textContent = 'Showing ' + visible.length + ' of ' + allSkills.length;
     if (searchClear) searchClear.classList.toggle('hidden', !currentSearch);
+    writeUrlState();
+  }
+
+  function writeUrlState() {
+    // Two-way bind search/sort to ?q=&sort= so reload + copy-paste preserve
+    // catalog state. Defaults are omitted from the URL.
+    var params = new URLSearchParams();
+    if (currentSearch) params.set('q', currentSearch);
+    if (currentSort && currentSort !== DEFAULT_SORT) params.set('sort', currentSort);
+    var qs = params.toString();
+    var newUrl = qs
+      ? window.location.pathname + '?' + qs
+      : window.location.pathname;
+    window.history.replaceState(null, '', newUrl);
+  }
+
+  function hydrateFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var q = params.get('q') || '';
+    var sort = params.get('sort');
+    var dirty = false;
+    if (q) {
+      currentSearch = q;
+      if (searchInput) searchInput.value = q;
+      dirty = true;
+    }
+    if (sort === 'name' || sort === 'lastUpdated') {
+      currentSort = sort;
+      if (sortSelect) sortSelect.value = sort;
+      if (sort !== DEFAULT_SORT) dirty = true;
+    }
+    if (dirty) render();
   }
 
 
@@ -101,6 +134,8 @@
       render();
     });
   }
+
+  hydrateFromUrl();
 
   // Keyboard shortcuts (unchanged from prior version)
   document.addEventListener('keydown', function (e) {
