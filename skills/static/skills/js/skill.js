@@ -63,10 +63,26 @@ function copyCommand(btn) {
   }
 
   function fetchInstallTargets() {
+    // Throws on network/server failure so the caller can show a retry card,
+    // versus the existing empty-targets state which means "configured but none".
     return fetch('/api/install/targets')
-      .then(function (res) { return res.ok ? res.json() : { targets: [] }; })
-      .then(function (data) { return data.targets || []; })
-      .catch(function () { return []; });
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (data) { return data.targets || []; });
+  }
+
+  function renderTargetsRetry(container, retryFn) {
+    container.innerHTML =
+      '<div style="padding:1rem;text-align:center;color:var(--text-secondary);">' +
+        '<p style="margin:0 0 0.6rem 0;font-size:0.85rem;">Could not load install targets.</p>' +
+        '<button type="button" id="install-targets-retry" ' +
+          'style="background:transparent;border:1px solid var(--border);color:var(--text-primary);' +
+          'padding:5px 14px;border-radius:6px;font-size:0.8rem;cursor:pointer;">Retry</button>' +
+      '</div>';
+    var btn = document.getElementById('install-targets-retry');
+    if (btn) btn.onclick = retryFn;
   }
 
   function openInstallModal() {
@@ -90,30 +106,38 @@ function copyCommand(btn) {
     noCookieEl.classList.toggle('hidden', !!user);
     targetsEl.innerHTML = '';
 
-    fetchInstallTargets().then(function (targets) {
-      if (!targets.length) {
-        var empty = document.createElement('p');
-        empty.style.color = 'var(--text-secondary)';
-        empty.style.fontSize = '0.85rem';
-        empty.style.margin = '0';
-        empty.textContent = 'No install targets configured — set INSTALL_TARGET_* env vars on the backend.';
-        targetsEl.appendChild(empty);
-        return;
-      }
-      targets.forEach(function (t) {
-        var path = (user ? t.base.replace('{user_name}', user) : t.base.replace('{user_name}', '<user>')) + '/' + skillName;
-        var row = document.createElement('button');
-        row.type = 'button';
-        row.className = 'install-target-btn';
-        row.disabled = !user;
-        row.innerHTML =
-          '<span class="install-target-name">' + escapeHtml(t.name) + '</span>' +
-          '<span class="install-target-path">' + escapeHtml(path) + '</span>' +
-          '<span class="install-target-go">&rarr;</span>';
-        row.onclick = function () { performInstall(t.name, row); };
-        targetsEl.appendChild(row);
+    function loadTargets() {
+      targetsEl.innerHTML =
+        '<p style="color:var(--text-secondary);font-size:0.85rem;margin:0;">Loading install targets…</p>';
+      fetchInstallTargets().then(function (targets) {
+        targetsEl.innerHTML = '';
+        if (!targets.length) {
+          var empty = document.createElement('p');
+          empty.style.color = 'var(--text-secondary)';
+          empty.style.fontSize = '0.85rem';
+          empty.style.margin = '0';
+          empty.textContent = 'No install targets configured — set INSTALL_TARGET_* env vars on the backend.';
+          targetsEl.appendChild(empty);
+          return;
+        }
+        targets.forEach(function (t) {
+          var path = (user ? t.base.replace('{user_name}', user) : t.base.replace('{user_name}', '<user>')) + '/' + skillName;
+          var row = document.createElement('button');
+          row.type = 'button';
+          row.className = 'install-target-btn';
+          row.disabled = !user;
+          row.innerHTML =
+            '<span class="install-target-name">' + escapeHtml(t.name) + '</span>' +
+            '<span class="install-target-path">' + escapeHtml(path) + '</span>' +
+            '<span class="install-target-go">&rarr;</span>';
+          row.onclick = function () { performInstall(t.name, row); };
+          targetsEl.appendChild(row);
+        });
+      }).catch(function () {
+        renderTargetsRetry(targetsEl, loadTargets);
       });
-    });
+    }
+    loadTargets();
 
     cancelBtn.onclick = closeInstallModal;
     closeBtn.onclick = closeInstallModal;
@@ -388,10 +412,65 @@ function copyCommand(btn) {
     }
   }
 
-  fetch(filesUrl())
-    .then(function (res) { return res.ok ? res.json() : []; })
-    .then(renderFiles)
-    .catch(function () { /* silent — files section just stays hidden */ });
+  // -------------------------------------------------------------------------
+  // File-tree loading + retry
+  // -------------------------------------------------------------------------
+
+  (function injectSkeletonStyles() {
+    if (document.getElementById('skill-skeleton-styles')) return;
+    var s = document.createElement('style');
+    s.id = 'skill-skeleton-styles';
+    s.textContent =
+      '@keyframes skill-skeleton-pulse{0%,100%{opacity:0.4}50%{opacity:0.7}}';
+    document.head.appendChild(s);
+  })();
+
+  function renderFilesSkeleton() {
+    var list = document.getElementById('files-list');
+    var filesSection = document.getElementById('files-section');
+    if (!list) return;
+    if (filesSection) filesSection.classList.remove('hidden');
+    var html = '';
+    for (var i = 0; i < 5; i++) {
+      var bar = (60 + (i * 7) % 30);
+      html +=
+        '<div style="padding:8px 12px;display:flex;align-items:center;gap:8px;">' +
+          '<div style="width:14px;height:14px;background:var(--bg-secondary);border-radius:3px;opacity:0.5;"></div>' +
+          '<div style="flex:0 0 ' + bar + '%;height:10px;background:var(--bg-secondary);border-radius:3px;' +
+            'animation:skill-skeleton-pulse 1.4s ease-in-out infinite;"></div>' +
+        '</div>';
+    }
+    list.innerHTML = html;
+  }
+
+  function renderFilesError(retryFn) {
+    var list = document.getElementById('files-list');
+    var filesSection = document.getElementById('files-section');
+    if (!list) return;
+    if (filesSection) filesSection.classList.remove('hidden');
+    list.innerHTML =
+      '<div style="padding:1.25rem;text-align:center;color:var(--text-secondary);">' +
+        '<p style="margin:0 0 0.6rem 0;font-size:0.9rem;">Could not load files.</p>' +
+        '<button type="button" id="files-retry-btn" ' +
+          'style="background:transparent;border:1px solid var(--border);color:var(--text-primary);' +
+          'padding:6px 14px;border-radius:6px;font-size:0.85rem;cursor:pointer;">Retry</button>' +
+      '</div>';
+    var btn = document.getElementById('files-retry-btn');
+    if (btn) btn.onclick = retryFn;
+  }
+
+  function loadFiles() {
+    renderFilesSkeleton();
+    fetch(filesUrl())
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(renderFiles)
+      .catch(function () { renderFilesError(loadFiles); });
+  }
+
+  loadFiles();
 
   // -------------------------------------------------------------------------
   // Install button
