@@ -655,3 +655,208 @@ body > header {
   .install-modal-card { padding: 22px 20px 18px; }
   .install-modal-title { font-size: 1.15rem; }
 }
+
+/* ---------- Installed page ---------- */
+.installed-target {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.installed-target-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: transparent;
+  border: 0;
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.installed-target-header:hover {
+  background: rgba(127,127,127,0.08);
+}
+.installed-target-caret { width: 1ch; opacity: 0.7; }
+.installed-target-name { font-weight: 600; }
+.installed-target-type {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.installed-target-host { font-size: 0.75rem; color: var(--text-secondary); }
+.installed-target-base {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.installed-target-spacer { flex: 1; }
+.installed-target-refresh {
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.installed-target-body {
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+.installed-group { margin-top: 8px; }
+.installed-group:first-child { margin-top: 0; }
+.installed-group-title {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 4px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.installed-card {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-primary);
+  margin-bottom: 8px;
+}
+.installed-card-orphan { opacity: 0.85; }
+.installed-card-icon {
+  width: 48px; height: 48px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.75rem;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+}
+.installed-card-name { font-weight: 600; color: var(--text-primary); }
+.installed-card-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  margin-left: 8px;
+}
+.installed-card-desc { font-size: 0.9rem; color: var(--text-secondary); margin-top: 2px; }
+.installed-card-meta { font-size: 0.8rem; color: var(--text-secondary); margin-top: 6px; }
+.installed-card-path {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  margin-top: 2px;
+  word-break: break-all;
+}
+.installed-uninstall-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #b42318;
+  background: transparent;
+  color: #b42318;
+  font-weight: 600;
+  cursor: pointer;
+}
+.installed-uninstall-btn:hover { background: rgba(180, 35, 24, 0.08); }
+.installed-empty { color: var(--text-secondary); font-size: 0.9rem; padding: 8px; }
+.installed-skeleton {
+  height: 64px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(127,127,127,0.08), rgba(127,127,127,0.16), rgba(127,127,127,0.08));
+  background-size: 200% 100%;
+  animation: installed-skel 1.4s ease-in-out infinite;
+  margin-bottom: 8px;
+}
+@keyframes installed-skel {
+  0% { background-position: 0% 0; }
+  100% { background-position: -200% 0; }
+}
+.installed-error {
+  display: flex; gap: 12px; align-items: center;
+  padding: 12px; border-radius: 10px;
+  background: rgba(180, 35, 24, 0.08);
+  color: #b42318;
+}
+
+#nav-installed[aria-current="page"] {
+  background: rgba(127,127,127,0.08);
+  color: var(--text-primary);
+}
+
+/* ---------- Uninstall modal ---------- */
+.uninstall-modal {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.45);
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+  z-index: 9999;
+}
+.uninstall-modal.is-open { opacity: 1; }
+.uninstall-modal-card {
+  width: min(520px, calc(100% - 32px));
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  position: relative;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  transform: translateY(8px);
+  transition: transform 120ms ease-out;
+}
+.uninstall-modal.is-open .uninstall-modal-card { transform: translateY(0); }
+.uninstall-modal-close {
+  position: absolute; top: 10px; right: 12px;
+  background: transparent; border: 0; cursor: pointer;
+  font-size: 1.4rem; color: var(--text-secondary); line-height: 1;
+}
+.uninstall-modal-title { font-size: 1.15rem; font-weight: 700; margin: 0 0 12px; }
+.uninstall-modal-details {
+  display: grid; grid-template-columns: 90px 1fr; gap: 4px 12px;
+  font-size: 0.9rem;
+  margin: 0 0 12px;
+}
+.uninstall-modal-details dt { color: var(--text-secondary); }
+.uninstall-modal-details dd {
+  margin: 0; word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+.uninstall-modal-warning { color: #b42318; font-weight: 600; margin: 4px 0 12px; }
+.uninstall-modal-confirm-label {
+  display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px;
+}
+.uninstall-modal-confirm-input {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+.uninstall-modal-result {
+  margin-top: 12px; padding: 8px 12px; border-radius: 8px; font-size: 0.9rem;
+}
+.uninstall-modal-result.is-err { background: rgba(180,35,24,0.08); color: #b42318; }
+.uninstall-modal-result.is-ok  { background: rgba(34,134,58,0.10); color: #22863a; }
+.uninstall-modal-actions {
+  display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px;
+}
+.btn-secondary {
+  padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-primary); cursor: pointer;
+}
+.btn-danger {
+  padding: 8px 14px; border-radius: 8px; border: 1px solid #b42318;
+  background: #b42318; color: #fff; font-weight: 600; cursor: pointer;
+}
+.btn-danger:disabled {
+  opacity: 0.55; cursor: not-allowed;
+}
