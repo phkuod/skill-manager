@@ -1,4 +1,6 @@
 import os
+import subprocess
+from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -108,3 +110,60 @@ def test_uninstall_skill_unknown_target():
         with pytest.raises(InstallError) as ex:
             uninstall_skill('NOPE', 'coman', 'coding-guide')
     assert ex.value.http_status == 400
+
+
+def _ssh_target_cfg():
+    return {
+        'type': 'ssh',
+        'base': '/AAA/{user_name}/skills',
+        'host': 'f15.intra.example',
+        'user': 'svc-skillmarket',
+        'ssh_key': '/etc/ssh/skillmarket_id_rsa',
+    }
+
+
+def test_uninstall_skill_ssh_invokes_rm_with_quoted_path():
+    completed = MagicMock(returncode=0, stdout=b'', stderr=b'')
+    with override_settings(INSTALL_TARGETS={'F15': _ssh_target_cfg()}), \
+         patch('skills.installer.subprocess.run', return_value=completed) as run:
+        result = uninstall_skill('F15', 'coman', 'coding-guide')
+
+    assert result == {
+        'target': 'F15',
+        'path': '/AAA/coman/skills/coding-guide',
+    }
+    args, _kwargs = run.call_args
+    cmd = args[0]
+    assert cmd[0] == 'ssh'
+    assert 'BatchMode=yes' in ' '.join(cmd)
+    remote_cmd = cmd[-1]
+    assert remote_cmd.startswith('rm -rf -- ')
+    assert '/AAA/coman/skills/coding-guide' in remote_cmd
+
+
+def test_uninstall_skill_ssh_nonzero_exit_raises_500():
+    err = subprocess.CalledProcessError(1, 'ssh', stderr=b'rm: cannot remove')
+    with override_settings(INSTALL_TARGETS={'F15': _ssh_target_cfg()}), \
+         patch('skills.installer.subprocess.run', side_effect=err):
+        with pytest.raises(InstallError) as ex:
+            uninstall_skill('F15', 'coman', 'coding-guide')
+    assert ex.value.http_status == 500
+    assert ex.value.code == e.UNINSTALL_FAILED
+
+
+def test_uninstall_skill_ssh_timeout_raises_504():
+    err = subprocess.TimeoutExpired(cmd='ssh', timeout=10)
+    with override_settings(INSTALL_TARGETS={'F15': _ssh_target_cfg()}), \
+         patch('skills.installer.subprocess.run', side_effect=err):
+        with pytest.raises(InstallError) as ex:
+            uninstall_skill('F15', 'coman', 'coding-guide')
+    assert ex.value.http_status == 504
+
+
+def test_uninstall_skill_ssh_missing_host_raises_500():
+    cfg = _ssh_target_cfg()
+    cfg['host'] = ''
+    with override_settings(INSTALL_TARGETS={'F15': cfg}):
+        with pytest.raises(InstallError) as ex:
+            uninstall_skill('F15', 'coman', 'coding-guide')
+    assert ex.value.http_status == 500

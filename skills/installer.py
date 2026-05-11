@@ -8,6 +8,7 @@ maps the structured `code` onto the {error: {code, message}} envelope.
 import logging
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import time
@@ -289,6 +290,64 @@ def _uninstall_local(dst, base):
     except OSError as exc:
         raise InstallError(
             f'rmtree failed: {exc}',
+            http_status=500,
+            code=e.UNINSTALL_FAILED,
+        )
+
+
+def _uninstall_ssh(cfg, dst, base):
+    """SSH removal. Path-traversal guard via prefix check on POSIX strings."""
+    base_norm = base.replace('\\', '/').rstrip('/')
+    dst_norm = dst.replace('\\', '/').rstrip('/')
+    if not dst_norm.startswith(base_norm + '/') or dst_norm == base_norm:
+        raise InstallError(
+            f'Resolved path escapes target base: {dst_norm}',
+            http_status=409,
+            code=e.UNINSTALL_PATH_OUTSIDE_BASE,
+        )
+    if '..' in dst_norm.split('/'):
+        raise InstallError(
+            f'Path contains traversal segment: {dst_norm}',
+            http_status=409,
+            code=e.UNINSTALL_PATH_OUTSIDE_BASE,
+        )
+
+    for required in ('host', 'user', 'ssh_key'):
+        if not cfg.get(required):
+            raise InstallError(
+                f"SSH target missing required field {required!r}",
+                http_status=500,
+                code=e.INSTALL_CONFIG_ERROR,
+            )
+
+    remote_cmd = f'rm -rf -- {shlex.quote(dst_norm)}'
+    ssh_cmd = [
+        'ssh',
+        '-i', cfg['ssh_key'],
+        '-o', 'BatchMode=yes',
+        '-o', 'ConnectTimeout=10',
+        '-o', 'StrictHostKeyChecking=accept-new',
+        f"{cfg['user']}@{cfg['host']}",
+        remote_cmd,
+    ]
+
+    try:
+        subprocess.run(
+            ssh_cmd,
+            timeout=settings.INSTALL_TIMEOUT_SECONDS,
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.TimeoutExpired:
+        raise InstallError(
+            f'Uninstall timed out after {settings.INSTALL_TIMEOUT_SECONDS}s',
+            http_status=504,
+            code=e.UNINSTALL_FAILED,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or b'').decode('utf-8', errors='replace')[:500].strip()
+        raise InstallError(
+            f'ssh rm failed (exit {exc.returncode}): {stderr}',
             http_status=500,
             code=e.UNINSTALL_FAILED,
         )
