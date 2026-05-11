@@ -158,6 +158,145 @@
     if (nav) nav.setAttribute('aria-current', 'page');
   });
 
-  // Expose openUninstallModal placeholder; real impl appended in Task 13.
-  window.openUninstallModal = window.openUninstallModal || function () {};
+  const modal = document.getElementById('uninstall-modal');
+  const modalCard = modal && modal.querySelector('.uninstall-modal-card');
+  const modalClose = document.getElementById('uninstall-modal-close');
+  const modalCancel = document.getElementById('uninstall-modal-cancel');
+  const modalConfirm = document.getElementById('uninstall-modal-confirm');
+  const modalInput = document.getElementById('uninstall-modal-confirm-input');
+  const modalSkillName = document.getElementById('uninstall-modal-skill-name');
+  const modalTarget = document.getElementById('uninstall-modal-target');
+  const modalPath = document.getElementById('uninstall-modal-path');
+  const modalFiles = document.getElementById('uninstall-modal-files');
+  const modalMtime = document.getElementById('uninstall-modal-mtime');
+  const modalTitle = document.getElementById('uninstall-modal-title');
+  const modalResult = document.getElementById('uninstall-modal-result');
+
+  let modalCtx = null;
+  let lastFocus = null;
+
+  function refreshConfirmState() {
+    if (!modalCtx) return;
+    const matches = modalInput.value.trim() === modalCtx.name;
+    modalConfirm.disabled = !matches;
+    modalConfirm.setAttribute('aria-disabled', String(!matches));
+  }
+
+  function setModalResult(message, isError) {
+    if (!message) {
+      modalResult.hidden = true;
+      modalResult.textContent = '';
+      modalResult.classList.remove('is-err', 'is-ok');
+      return;
+    }
+    modalResult.textContent = message;
+    modalResult.hidden = false;
+    modalResult.classList.toggle('is-err', !!isError);
+    modalResult.classList.toggle('is-ok', !isError);
+  }
+
+  function closeModal() {
+    if (!modal) return;
+    modal.classList.remove('is-open');
+    modal.hidden = true;
+    modalInput.value = '';
+    setModalResult('', false);
+    modalConfirm.disabled = true;
+    modalConfirm.setAttribute('aria-disabled', 'true');
+    modalCtx = null;
+    if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
+    lastFocus = null;
+  }
+
+  async function submitUninstall() {
+    if (!modalCtx) return;
+    modalConfirm.disabled = true;
+    modalCancel.disabled = true;
+    modalConfirm.textContent = 'Removing…';
+    setModalResult('', false);
+
+    const url = `/api/install/targets/${encodeURIComponent(modalCtx.target)}/skills/${encodeURIComponent(modalCtx.name)}/uninstall`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!res.ok) {
+        let msg;
+        try { msg = (await res.json()).error || `HTTP ${res.status}`; }
+        catch (_e) { msg = `HTTP ${res.status}`; }
+        throw new Error(msg);
+      }
+      // Remove the row from the section, decrement counts
+      const section = modalCtx.sectionEl;
+      const cached = cache[modalCtx.target];
+      if (cached) {
+        cached.catalog = cached.catalog.filter((r) => r.name !== modalCtx.name);
+        cached.orphan = cached.orphan.filter((r) => r.name !== modalCtx.name);
+        const body = section.querySelector('.installed-target-body');
+        renderSection(body, cached);
+      }
+      toast(`Removed "${modalCtx.name}" from ${modalCtx.target}`, 'success');
+      closeModal();
+    } catch (err) {
+      setModalResult(err.message || String(err), true);
+    } finally {
+      modalConfirm.textContent = 'Remove';
+      modalCancel.disabled = false;
+      refreshConfirmState();
+    }
+  }
+
+  function openUninstallModal(ctx) {
+    if (!modal) return;
+    modalCtx = ctx;
+    lastFocus = ctx.triggerEl || document.activeElement;
+    modalTitle.textContent = `Remove "${ctx.name}" from ${ctx.target}?`;
+    modalTarget.textContent = ctx.target;
+    modalPath.textContent = ctx.path;
+    modalFiles.textContent = ctx.files !== '' && ctx.files != null ? ctx.files : '–';
+    modalMtime.textContent = ctx.mtime || '–';
+    modalSkillName.textContent = ctx.name;
+    modalInput.value = '';
+    setModalResult('', false);
+    modalConfirm.disabled = true;
+    modalConfirm.setAttribute('aria-disabled', 'true');
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add('is-open'));
+    setTimeout(() => modalInput.focus(), 0);
+  }
+
+  window.openUninstallModal = openUninstallModal;
+
+  if (modal) {
+    modalInput.addEventListener('input', refreshConfirmState);
+    modalConfirm.addEventListener('click', submitUninstall);
+    modalCancel.addEventListener('click', closeModal);
+    modalClose.addEventListener('click', closeModal);
+    modal.addEventListener('click', (ev) => {
+      if (ev.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (ev) => {
+      if (modal.hidden) return;
+      if (ev.key === 'Escape') {
+        ev.preventDefault();
+        closeModal();
+      } else if (ev.key === 'Tab') {
+        // simple focus trap: keep tab cycling inside the card
+        const focusables = modalCard.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (ev.shiftKey && document.activeElement === first) {
+          ev.preventDefault(); last.focus();
+        } else if (!ev.shiftKey && document.activeElement === last) {
+          ev.preventDefault(); first.focus();
+        }
+      }
+    });
+  }
 })();
