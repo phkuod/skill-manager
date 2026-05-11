@@ -38,6 +38,22 @@ def _validate_user_name(user_name):
         )
 
 
+_skill_name_re = re.compile(r'^[A-Za-z0-9_.-]+$')
+
+
+def _validate_skill_name(skill_name):
+    if (
+        not skill_name
+        or not _skill_name_re.match(skill_name)
+        or set(skill_name) <= {'.'}
+    ):
+        raise InstallError(
+            f'Invalid skill_name: {skill_name!r}. Must match [A-Za-z0-9_.-]+.',
+            http_status=400,
+            code=e.UNINSTALL_SKILL_NAME_INVALID,
+        )
+
+
 def _resolve_target(target_name):
     cfg = settings.INSTALL_TARGETS.get(target_name)
     if cfg is None:
