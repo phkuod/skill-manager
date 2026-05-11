@@ -64,7 +64,7 @@ def test_list_ssh_parses_find_output():
     assert cmd[0] == 'ssh'
     assert '-i' in cmd and '/etc/ssh/skillmarket_id_rsa' in cmd
     assert 'BatchMode=yes' in ' '.join(cmd)
-    assert "'/AAA/coman/skills'" in cmd[-1] or '"/AAA/coman/skills"' in cmd[-1]
+    assert '/AAA/coman/skills' in cmd[-1]
 
     names = sorted(r[0] for r in rows)
     assert names == ['coding-guide', 'legacy-thing']

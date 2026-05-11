@@ -70,7 +70,7 @@ def _list_ssh(cfg, base):
                 code=e.INSTALL_CONFIG_ERROR,
             )
 
-    base_q = "'" + base.replace("'", "'\\''") + "'"  # Always quote with single quotes
+    base_q = shlex.quote(base)
     remote_cmd = (
         f"find {base_q} -maxdepth 1 -mindepth 1 -type d "
         f"-printf '%f\\t%T@\\n' 2>/dev/null || true"
