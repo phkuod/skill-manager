@@ -6,6 +6,7 @@ urlpatterns = [
     path('', views.home, name='home'),
     path('skills/<str:name>/', views.skill_detail, name='skill_detail'),
     path('skills/<str:name>/v/<str:version>/', views.skill_detail_version, name='skill_detail_version'),
+    path('installed/', views.installed_page, name='installed_page'),
 
     # Discovery (top-level, not v1-prefixed)
     path('api/version', views.api_version, name='api_version'),
@@ -24,6 +25,10 @@ urlpatterns = [
          views.api_version_install, name='api_version_install'),
     path('api/skills/<str:name>/versions/<str:version>/zip', views.api_version_zip, name='api_version_zip'),
     path('api/skills/<str:name>/versions/<str:version>/files', views.api_version_files, name='api_version_files'),
+    path('api/install/targets/<str:target_name>/skills',
+         views.api_installed_list, name='api_installed_list'),
+    path('api/install/targets/<str:target_name>/skills/<str:name>/uninstall',
+         views.api_installed_uninstall, name='api_installed_uninstall'),
 
     # v1 JSON API — {data, meta?, error?} envelope, structured error codes
     path('api/v1/health', views_v1.api_v1_health, name='api_v1_health'),

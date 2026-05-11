@@ -8,7 +8,8 @@ from django.views.decorators.http import require_GET, require_POST
 
 # (from .classifier import get_categories) - removed dependency
 from .file_reader import read_skill_files
-from .installer import install_skill, InstallError
+from .installer import install_skill, InstallError, uninstall_skill
+from .inventory import list_installed_skills, InventoryError
 from .parser import parse_skill, parse_skill_from_dir
 from .zipper import create_zip_response
 from .watcher import get_skills
@@ -405,3 +406,59 @@ def _parse_version_dir(ver_dir, skill_name):
     skill['currentVersion'] = None
     skill['versions'] = []
     return skill
+
+
+# ---------------------------------------------------------------------------
+# Installed page + uninstall
+# ---------------------------------------------------------------------------
+
+def installed_page(request):
+    """Render the installed-skills management page.
+
+    Targets and the current user are passed to the template so the JS
+    bootstrap can render section headers without an extra round trip.
+    """
+    user_name = (request.COOKIES.get('CURRENT_USER_NAME') or '').strip()
+    targets = [
+        {'name': name, 'type': cfg.get('type', ''), 'base': cfg.get('base', ''), 'host': cfg.get('host', '')}
+        for name, cfg in settings.INSTALL_TARGETS.items()
+    ]
+    return render(request, 'skills/installed.html', {
+        'user_name': user_name,
+        'targets': targets,
+        'targets_json': json.dumps(targets),
+    })
+
+
+@require_GET
+def api_installed_list(request, target_name):
+    user_name = (request.COOKIES.get('CURRENT_USER_NAME') or '').strip()
+    if not user_name:
+        return JsonResponse(
+            {'error': 'Missing or invalid CURRENT_USER_NAME cookie'},
+            status=400,
+        )
+    try:
+        result = list_installed_skills(target_name, user_name)
+    except InventoryError as exc:
+        return JsonResponse({'error': str(exc)}, status=exc.http_status)
+    return JsonResponse(result)
+
+
+def _do_uninstall(request, target_name, name):
+    user_name = (request.COOKIES.get('CURRENT_USER_NAME') or '').strip()
+    if not user_name:
+        return JsonResponse(
+            {'error': 'Missing or invalid CURRENT_USER_NAME cookie'},
+            status=400,
+        )
+    try:
+        result = uninstall_skill(target_name, user_name, name)
+    except InstallError as exc:
+        return JsonResponse({'error': str(exc)}, status=exc.http_status)
+    return JsonResponse({'status': 'ok', **result})
+
+
+@require_POST
+def api_installed_uninstall(request, target_name, name):
+    return _do_uninstall(request, target_name, name)
