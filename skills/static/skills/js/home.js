@@ -29,31 +29,43 @@
     }
   }
 
-   function highlight(text, query) {
-     if (!query) return escapeHtml(text);
-     var re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
-     return escapeHtml(text).replace(re, '<mark>$1</mark>');
-   }
- 
-   function cardHtml(skill) {
-     var q = currentSearch.toLowerCase();
-     var updated = skill.lastUpdated || '';
-     return (
-       '<a href="/skills/' + encodeURIComponent(skill.name) + '/"' +
-       ' class="skill-card block rounded-xl border p-5 transition-all hover:shadow-lg"' +
-       ' style="background-color:var(--bg-card);border-color:var(--border);text-decoration:none">' +
-         '<div class="icon-wrapper">' +
-           '<span>' + escapeHtml(skill.icon) + '</span>' +
-         '</div>' +
-         '<h3 class="font-semibold mb-1 truncate" style="color:var(--text-primary)">' + highlight(skill.name, q) + '</h3>' +
-         '<p class="text-sm mb-3 line-clamp-2" style="color:var(--text-secondary)">' + highlight(skill.description, q) + '</p>' +
-         '<div class="flex items-center justify-between text-xs" style="color:var(--text-secondary)">' +
-           '<span>' + skill.fileCount + ' file' + (skill.fileCount === 1 ? '' : 's') + '</span>' +
-           '<span>' + escapeHtml(relativeTime(updated) || updated.slice(0, 10)) + '</span>' +
-         '</div>' +
-       '</a>'
-     );
-   }
+  // Highlight `query` matches inside `text`. Walk the *raw* string with the
+  // regex, escape each segment before concatenation, and wrap matches in
+  // <mark>. Escaping the full text first (the prior approach) breaks the
+  // entity sequence when the query contains &, <, >, ", or '.
+  function highlight(text, query) {
+    if (!query) return escapeHtml(text);
+    var re = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    var out = '';
+    var last = 0;
+    var m;
+    while ((m = re.exec(text)) !== null) {
+      out += escapeHtml(text.slice(last, m.index)) + '<mark>' + escapeHtml(m[0]) + '</mark>';
+      last = m.index + m[0].length;
+      if (m[0].length === 0) re.lastIndex++;
+    }
+    return out + escapeHtml(text.slice(last));
+  }
+
+  function cardHtml(skill) {
+    var q = currentSearch;
+    var updated = skill.lastUpdated || '';
+    return (
+      '<a href="/skills/' + encodeURIComponent(skill.name) + '/"' +
+      ' class="skill-card block rounded-xl border p-5 transition-all hover:shadow-lg"' +
+      ' style="background-color:var(--bg-card);border-color:var(--border);text-decoration:none">' +
+        '<div class="icon-wrapper">' +
+          '<span>' + escapeHtml(skill.icon) + '</span>' +
+        '</div>' +
+        '<h3 class="font-semibold mb-1 truncate" style="color:var(--text-primary)">' + highlight(skill.name, q) + '</h3>' +
+        '<p class="text-sm mb-3 line-clamp-2" style="color:var(--text-secondary)">' + highlight(skill.description, q) + '</p>' +
+        '<div class="flex items-center justify-between text-xs" style="color:var(--text-secondary)">' +
+          '<span>' + skill.fileCount + ' file' + (skill.fileCount === 1 ? '' : 's') + '</span>' +
+          '<span>' + escapeHtml(relativeTime(updated) || updated.slice(0, 10)) + '</span>' +
+        '</div>' +
+      '</a>'
+    );
+  }
 
   function matchRank(skill, q) {
     if ((skill.name || '').toLowerCase().indexOf(q) !== -1) return 0;
@@ -142,8 +154,10 @@
     });
   }
 
-   hydrateFromUrl();
-   render(); // Always render once to ensure JS state and UI (result count) are in sync.
+  hydrateFromUrl();
+  // Always render once on init so the result counter and search-clear button
+  // reflect the current state, even when the URL has nothing to hydrate.
+  render();
 
   // Keyboard shortcuts (unchanged from prior version)
   document.addEventListener('keydown', function (e) {

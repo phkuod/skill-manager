@@ -453,7 +453,10 @@ mark {
   font-weight: inherit;
 }
 
-header {
+/* Site header gradient. Scoped to `body > header` so any future
+ * <article><header>…</header></article> blocks (or other semantic
+ * headers) won't pick up the page-chrome gradient. */
+body > header {
   background: linear-gradient(to bottom, var(--bg-secondary), var(--bg-primary)) !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
