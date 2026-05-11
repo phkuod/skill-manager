@@ -197,3 +197,98 @@ def _install_ssh(src_dir, dst, cfg):
             http_status=502,
             code=e.RSYNC_FAILED,
         )
+
+
+def uninstall_skill(target_name, user_name, skill_name):
+    """Remove a previously-installed skill directory from a target.
+
+    Validates inputs, resolves the target, verifies the path stays inside
+    the configured base, then deletes (local) or sends a remote rm via SSH.
+
+    Returns: {'target': str, 'path': str}
+    Raises: InstallError(..., http_status=...)
+    """
+    _validate_user_name(user_name)
+    _validate_skill_name(skill_name)
+    cfg = _resolve_target(target_name)
+
+    base_template = cfg.get('base')
+    if not base_template:
+        raise InstallError(
+            f"Target {target_name!r} missing 'base' config",
+            http_status=500,
+            code=e.INSTALL_CONFIG_ERROR,
+        )
+
+    ttype = cfg.get('type')
+    base = base_template.format(user_name=user_name).rstrip('/\\')
+    if ttype == 'ssh':
+        dst = base.replace('\\', '/') + '/' + skill_name
+    else:
+        dst = os.path.join(base, skill_name)
+
+    logger.info('uninstall requested: skill=%s user=%s target=%s', skill_name, user_name, target_name)
+    t0 = time.monotonic()
+
+    try:
+        if ttype == 'local':
+            _uninstall_local(dst, base)
+        elif ttype == 'ssh':
+            _uninstall_ssh(cfg, dst, base)
+        else:
+            raise InstallError(
+                f"Target {target_name!r} has unsupported type {ttype!r}",
+                http_status=500,
+                code=e.INSTALL_CONFIG_ERROR,
+            )
+    except InstallError as exc:
+        logger.error('uninstall failed: skill=%s user=%s target=%s — %s', skill_name, user_name, target_name, exc)
+        raise
+
+    elapsed = int((time.monotonic() - t0) * 1000)
+    logger.info('uninstall success: %s (%dms)', dst, elapsed)
+    return {'target': target_name, 'path': dst}
+
+
+def _uninstall_local(dst, base):
+    """Local removal. Refuses symlinks, enforces path stays inside base."""
+    if os.path.islink(dst):
+        raise InstallError(
+            f'Refusing to delete symlink: {dst}',
+            http_status=409,
+            code=e.UNINSTALL_PATH_OUTSIDE_BASE,
+        )
+
+    if not os.path.exists(dst):
+        raise InstallError(
+            f'Target path does not exist: {dst}',
+            http_status=404,
+            code=e.UNINSTALL_TARGET_PATH_NOT_FOUND,
+        )
+
+    try:
+        base_real = os.path.realpath(base)
+        dst_real = os.path.realpath(dst)
+        common = os.path.commonpath([dst_real, base_real])
+    except (ValueError, OSError) as exc:
+        raise InstallError(
+            f'Path resolution failed: {exc}',
+            http_status=409,
+            code=e.UNINSTALL_PATH_OUTSIDE_BASE,
+        )
+
+    if common != base_real or dst_real == base_real:
+        raise InstallError(
+            f'Resolved path escapes target base: {dst_real}',
+            http_status=409,
+            code=e.UNINSTALL_PATH_OUTSIDE_BASE,
+        )
+
+    try:
+        shutil.rmtree(dst)
+    except OSError as exc:
+        raise InstallError(
+            f'rmtree failed: {exc}',
+            http_status=500,
+            code=e.UNINSTALL_FAILED,
+        )
