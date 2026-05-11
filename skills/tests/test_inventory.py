@@ -100,3 +100,71 @@ def test_list_ssh_missing_config_raises():
     with pytest.raises(InventoryError) as ex:
         _list_ssh({'host': '', 'user': '', 'ssh_key': ''}, '/AAA/coman/skills')
     assert ex.value.http_status == 500
+
+
+from django.test import override_settings
+from datetime import datetime, timezone
+
+from skills.inventory import list_installed_skills
+import skills.watcher as watcher_mod
+
+
+def _fake_catalog():
+    return {
+        'coding-guide': {
+            'name': 'coding-guide',
+            'icon': '📘',
+            'description': 'How to write clean code',
+            'fileCount': 14,
+        },
+    }
+
+
+def test_list_installed_skills_partitions_catalog_and_orphan(tmp_path):
+    (tmp_path / 'coding-guide').mkdir()
+    (tmp_path / 'legacy-thing').mkdir()
+    cfg_base = str(tmp_path)
+
+    with override_settings(
+        INSTALL_TARGETS={'TEST': {'type': 'local', 'base': cfg_base}}
+    ), patch.object(watcher_mod, '_skills', _fake_catalog()):
+        result = list_installed_skills('TEST', 'coman')
+
+    assert result['target'] == 'TEST'
+    assert result['base'] == cfg_base
+
+    catalog_names = [row['name'] for row in result['catalog']]
+    orphan_names = [row['name'] for row in result['orphan']]
+    assert catalog_names == ['coding-guide']
+    assert orphan_names == ['legacy-thing']
+
+    cg = result['catalog'][0]
+    assert cg['icon'] == '📘'
+    assert cg['description'] == 'How to write clean code'
+    assert cg['fileCount'] == 14
+    assert cg['path'].endswith('coding-guide')
+    assert cg['mtime'].endswith('Z')
+    datetime.fromisoformat(cg['mtime'].replace('Z', '+00:00'))
+
+
+def test_list_installed_skills_invalid_user_raises():
+    with override_settings(INSTALL_TARGETS={'TEST': {'type': 'local', 'base': '/tmp/{user_name}/x'}}):
+        with pytest.raises(InventoryError) as ex:
+            list_installed_skills('TEST', '..')
+    assert ex.value.http_status == 400
+
+
+def test_list_installed_skills_unknown_target_raises():
+    with override_settings(INSTALL_TARGETS={}):
+        with pytest.raises(InventoryError) as ex:
+            list_installed_skills('NOPE', 'coman')
+    assert ex.value.http_status == 400
+
+
+def test_list_installed_skills_missing_base_returns_empty_groups():
+    cfg = {'type': 'local', 'base': '/this/does/not/exist/{user_name}'}
+    with override_settings(INSTALL_TARGETS={'TEST': cfg}), \
+         patch.object(watcher_mod, '_skills', {}):
+        result = list_installed_skills('TEST', 'coman')
+    assert result['catalog'] == []
+    assert result['orphan'] == []

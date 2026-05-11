@@ -16,10 +16,13 @@ import logging
 import os
 import shlex
 import subprocess
+from datetime import datetime, timezone
 
 from django.conf import settings
 
 from . import envelope as e
+from .installer import _validate_user_name, InstallError
+from .watcher import get_skills
 
 logger = logging.getLogger('skills.inventory')
 
@@ -118,3 +121,66 @@ def _list_ssh(cfg, base):
             continue
         rows.append((name, base.rstrip('/') + '/' + name, mtime))
     return rows
+
+
+def _mtime_iso(mtime_epoch):
+    """Convert epoch timestamp to ISO 8601 string with Z suffix."""
+    return datetime.fromtimestamp(mtime_epoch, tz=timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+
+
+def list_installed_skills(target_name, user_name):
+    """Return {target, base, catalog: [...], orphan: [...]}.
+
+    Raises InventoryError(http_status=...) on any failure.
+    """
+    try:
+        _validate_user_name(user_name)
+    except InstallError as exc:
+        raise InventoryError(str(exc), http_status=exc.http_status, code=exc.code)
+
+    cfg = settings.INSTALL_TARGETS.get(target_name)
+    if cfg is None:
+        raise InventoryError(
+            f"Unknown install target: {target_name!r}",
+            http_status=400,
+            code=e.INSTALL_TARGET_INVALID,
+        )
+
+    base_template = cfg.get('base')
+    if not base_template:
+        raise InventoryError(
+            f"Target {target_name!r} missing 'base' config",
+            http_status=500,
+            code=e.INSTALL_CONFIG_ERROR,
+        )
+    base = base_template.format(user_name=user_name).rstrip('/\\')
+
+    ttype = cfg.get('type')
+    if ttype == 'local':
+        rows = _list_local(base)
+    elif ttype == 'ssh':
+        rows = _list_ssh(cfg, base)
+    else:
+        raise InventoryError(
+            f"Target {target_name!r} has unsupported type {ttype!r}",
+            http_status=500,
+            code=e.INSTALL_CONFIG_ERROR,
+        )
+
+    catalog_map = get_skills()
+    catalog = []
+    orphan = []
+    for name, path, mtime in sorted(rows, key=lambda r: r[0].lower()):
+        common = {'name': name, 'path': path, 'mtime': _mtime_iso(mtime)}
+        hit = catalog_map.get(name)
+        if hit is not None:
+            catalog.append({
+                **common,
+                'icon': hit.get('icon'),
+                'description': hit.get('description'),
+                'fileCount': hit.get('fileCount'),
+            })
+        else:
+            orphan.append(common)
+
+    return {'target': target_name, 'base': base, 'catalog': catalog, 'orphan': orphan}
