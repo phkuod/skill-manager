@@ -1,0 +1,89 @@
+{% extends "skills/base.html" %}
+{% load static %}
+
+{% block title %}Installed Skills — Skill Market{% endblock %}
+
+{% block header %}
+<header class="sticky top-0 z-50 border-b px-6 py-4 flex items-center gap-4" style="background-color:var(--bg-secondary);border-color:var(--border)">
+  <div class="flex items-center gap-2 flex-shrink-0">
+    <a href="/" class="flex items-center gap-2" style="text-decoration:none">
+      <span class="text-2xl">🛍️</span>
+      <span class="font-bold text-lg hidden sm:inline" style="color:var(--text-primary)">Skill Market</span>
+    </a>
+  </div>
+  <div class="flex-1"></div>
+  <a href="/installed/" id="nav-installed" class="text-sm font-medium px-3 py-2 rounded-lg border"
+     aria-current="page"
+     style="color:var(--text-primary);border-color:var(--border);text-decoration:none"
+     title="View installed skills">
+    Installed
+  </a>
+  <button id="theme-toggle" class="p-2 rounded-lg border flex-shrink-0" style="border-color:var(--border)" aria-label="Toggle theme">
+    <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 5a7 7 0 100 14 7 7 0 000-14z"/>
+    </svg>
+    <svg id="icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+    </svg>
+  </button>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-6 py-8">
+  <h1 class="text-2xl font-bold mb-1" style="color:var(--text-primary)">Installed skills</h1>
+  <p class="text-sm mb-2" style="color:var(--text-secondary)">
+    Manage skills installed under your account on each target.
+  </p>
+  <p class="text-sm mb-6" style="color:var(--text-secondary)">
+    Signed in as: <strong>{{ user_name|default:"(not set)" }}</strong>
+  </p>
+
+  <div id="installed-sections">
+    {% for t in targets %}
+      <section class="installed-target" data-target="{{ t.name }}" data-type="{{ t.type }}">
+        <button type="button" class="installed-target-header" aria-expanded="false">
+          <span class="installed-target-caret">&#9658;</span>
+          <span class="installed-target-name">{{ t.name }}</span>
+          <span class="installed-target-type">{{ t.type }}</span>
+          {% if t.host %}<span class="installed-target-host">{{ t.host }}</span>{% endif %}
+          <span class="installed-target-base">{{ t.base }}</span>
+          <span class="installed-target-spacer" aria-hidden="true"></span>
+          <span class="installed-target-refresh" hidden title="Refresh">&#8635;</span>
+        </button>
+        <div class="installed-target-body" hidden></div>
+      </section>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Uninstall confirmation modal -->
+<div id="uninstall-modal" class="uninstall-modal" role="dialog" aria-modal="true" aria-labelledby="uninstall-modal-title" hidden>
+  <div class="uninstall-modal-card">
+    <button type="button" id="uninstall-modal-close" class="uninstall-modal-close" aria-label="Cancel">&times;</button>
+    <h2 id="uninstall-modal-title" class="uninstall-modal-title">Remove skill?</h2>
+    <dl class="uninstall-modal-details">
+      <dt>Target</dt>     <dd id="uninstall-modal-target"></dd>
+      <dt>Path</dt>       <dd id="uninstall-modal-path"></dd>
+      <dt>Files</dt>      <dd id="uninstall-modal-files">&ndash;</dd>
+      <dt>Last mod</dt>   <dd id="uninstall-modal-mtime">&ndash;</dd>
+    </dl>
+    <p class="uninstall-modal-warning">This action cannot be undone.</p>
+    <label class="uninstall-modal-confirm-label" for="uninstall-modal-confirm-input">
+      Type the skill name to confirm: <strong id="uninstall-modal-skill-name"></strong>
+    </label>
+    <input type="text" id="uninstall-modal-confirm-input" class="uninstall-modal-confirm-input" autocomplete="off" spellcheck="false">
+    <div id="uninstall-modal-result" class="uninstall-modal-result" hidden></div>
+    <div class="uninstall-modal-actions">
+      <button type="button" id="uninstall-modal-cancel" class="btn-secondary">Cancel</button>
+      <button type="button" id="uninstall-modal-confirm" class="btn-danger" disabled aria-disabled="true">Remove</button>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="installed-bootstrap">
+{{ targets_json|safe }}
+</script>
+<script src="{% static 'skills/js/common.js' %}"></script>
+<script src="{% static 'skills/js/installed.js' %}"></script>
+{% endblock %}

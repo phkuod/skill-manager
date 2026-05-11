@@ -12,7 +12,6 @@ def client():
 
 # ---------- HTML page ----------
 
-@pytest.mark.skip(reason="template added in Task 11")
 def test_installed_page_renders(client):
     cfg = {'type': 'local', 'base': '/tmp/{user_name}/skills'}
     with override_settings(INSTALL_TARGETS={'F12': cfg}):
