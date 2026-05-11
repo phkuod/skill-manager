@@ -47,4 +47,8 @@ urlpatterns = [
          views_v1.api_v1_version_zip, name='api_v1_version_zip'),
     path('api/v1/skills/<str:name>/versions/<str:version>/files',
          views_v1.api_v1_version_files, name='api_v1_version_files'),
+    path('api/v1/install/targets/<str:target_name>/skills',
+         views_v1.api_v1_installed_list, name='api_v1_installed_list'),
+    path('api/v1/install/targets/<str:target_name>/skills/<str:name>/uninstall',
+         views_v1.api_v1_installed_uninstall, name='api_v1_installed_uninstall'),
 ]

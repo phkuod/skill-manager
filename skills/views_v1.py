@@ -16,7 +16,8 @@ from django.views.decorators.http import require_GET, require_POST
 
 from . import envelope as e
 from .file_reader import read_skill_files
-from .installer import install_skill, InstallError
+from .installer import install_skill, InstallError, uninstall_skill
+from .inventory import list_installed_skills, InventoryError
 from .parser import parse_skill
 from .views import (
     _DEFAULT_PAGE_LIMIT,
@@ -249,3 +250,39 @@ def api_v1_version_install(request, name, version):
     if err_resp:
         return err_resp
     return _do_install_v1(request, ver_dir, name)
+
+
+# ---------------------------------------------------------------------------
+# Installed + uninstall (v1)
+# ---------------------------------------------------------------------------
+
+@require_GET
+def api_v1_installed_list(request, target_name):
+    user_name = (request.COOKIES.get('CURRENT_USER_NAME') or '').strip()
+    if not user_name:
+        return e.err(
+            e.INVALID_BODY,
+            'Missing or invalid CURRENT_USER_NAME cookie',
+            status=400,
+        )
+    try:
+        result = list_installed_skills(target_name, user_name)
+    except InventoryError as exc:
+        return e.err(exc.code, str(exc), status=exc.http_status)
+    return e.ok(result)
+
+
+@require_POST
+def api_v1_installed_uninstall(request, target_name, name):
+    user_name = (request.COOKIES.get('CURRENT_USER_NAME') or '').strip()
+    if not user_name:
+        return e.err(
+            e.INVALID_BODY,
+            'Missing or invalid CURRENT_USER_NAME cookie',
+            status=400,
+        )
+    try:
+        result = uninstall_skill(target_name, user_name, name)
+    except InstallError as exc:
+        return e.err(exc.code, str(exc), status=exc.http_status)
+    return e.ok({'status': 'ok', **result})
