@@ -5,11 +5,15 @@
 
 {% block header %}
 <header class="sticky top-0 z-50 border-b px-6 py-4 flex items-center gap-4" style="background-color:var(--bg-secondary);border-color:var(--border)">
+  <a href="/" id="nav-back" title="Back to catalog" class="flex items-center gap-2 text-sm font-medium flex-shrink-0" style="color:var(--text-secondary);text-decoration:none">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back
+  </a>
   <div class="flex items-center gap-2 flex-shrink-0">
-    <a href="/" class="flex items-center gap-2" style="text-decoration:none">
-      <span class="text-2xl">🛍️</span>
-      <span class="font-bold text-lg hidden sm:inline" style="color:var(--text-primary)">Skill Market</span>
-    </a>
+    <span class="text-2xl">🛍️</span>
+    <span class="font-bold text-lg hidden sm:inline" style="color:var(--text-primary)">Skill Market</span>
   </div>
   <div class="flex-1"></div>
   <a href="/installed/" id="nav-installed" class="text-sm font-medium px-3 py-2 rounded-lg border"
@@ -84,6 +88,8 @@
 <script type="application/json" id="installed-bootstrap">
 {{ targets_json|safe }}
 </script>
-<script src="{% static 'skills/js/common.js' %}"></script>
+{% endblock %}
+
+{% block extra_scripts %}
 <script src="{% static 'skills/js/installed.js' %}"></script>
 {% endblock %}
