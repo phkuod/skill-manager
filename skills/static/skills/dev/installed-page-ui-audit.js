@@ -86,10 +86,12 @@
     if (listMatch && (!init || (init.method || 'GET') === 'GET')) {
       const t = decodeURIComponent(listMatch[1]);
       const body = { ...FAKE_LIST, target: t, base: '/audit/audit-user/skills' };
-      return Promise.resolve({
+      // Small async delay so the skeleton loading state has a chance to paint
+      // before the response resolves.
+      return new Promise((res) => setTimeout(() => res({
         ok: true, status: 200,
         json: () => Promise.resolve(body),
-      });
+      }), 30));
     }
     const unMatch = u.match(/\/api\/install\/targets\/([^/]+)\/skills\/([^/]+)\/uninstall$/);
     if (unMatch && init && init.method === 'POST') {
@@ -157,7 +159,7 @@
         r.selectorText.split(',').some(s => s.trim() === '.' + cls));
     } catch (_e) { return false; }
   });
-  const utilsToCheck = ['text-sm', 'font-medium', 'px-3', 'py-2', 'rounded-lg', 'border', 'max-w-5xl'];
+  const utilsToCheck = ['text-sm', 'font-medium', 'px-3', 'py-2', 'rounded-lg', 'border', 'max-w-6xl'];
   for (const cls of utilsToCheck) {
     assert(ruleExists(cls),
       'Tailwind utility "' + cls + '" present in vendor bundle (used by /installed/)');
