@@ -151,12 +151,40 @@
     }
   }
 
+  async function checkAndAutoExpand(section) {
+    const targetName = section.dataset.target;
+    try {
+      const data = await fetchTarget(targetName);
+      cache[targetName] = data;
+      if (data && (data.catalog.length > 0 || data.orphan.length > 0)) {
+        const header = section.querySelector('.installed-target-header');
+        const body = section.querySelector('.installed-target-body');
+        const caret = section.querySelector('.installed-target-caret');
+        const refresh = section.querySelector('.installed-target-refresh');
+        if (header && header.getAttribute('aria-expanded') !== 'true') {
+          header.setAttribute('aria-expanded', 'true');
+          body.hidden = false;
+          if (caret) caret.textContent = '▾';
+          if (refresh) refresh.hidden = false;
+          renderSection(body, data);
+        }
+      }
+    } catch (_err) {
+      // leave collapsed on error
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.installed-target').forEach(wireSection);
+    document.querySelectorAll('.installed-target').forEach((section) => {
+      wireSection(section);
+      checkAndAutoExpand(section);
+    });
     // Mark nav link as current page for active styling
     const nav = document.getElementById('nav-installed');
     if (nav) nav.setAttribute('aria-current', 'page');
   });
+
+  window.__installedCache = cache;
 
   const modal = document.getElementById('uninstall-modal');
   const modalCard = modal && modal.querySelector('.uninstall-modal-card');

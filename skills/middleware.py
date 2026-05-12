@@ -72,7 +72,20 @@ class SecurityHeadersMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        set_cookie = False
+        if settings.DEBUG and request.method == 'GET' and not request.COOKIES.get('CURRENT_USER_NAME'):
+            import os
+            dev_user = os.environ.get('DEV_USER_NAME', 'dev')
+            request.COOKIES['CURRENT_USER_NAME'] = dev_user
+            set_cookie = True
+
         response = self.get_response(request)
+
+        if set_cookie:
+            import os
+            dev_user = os.environ.get('DEV_USER_NAME', 'dev')
+            response.set_cookie('CURRENT_USER_NAME', dev_user, path='/', samesite='Lax')
+
         response['X-Content-Type-Options'] = 'nosniff'
         response['X-Frame-Options'] = 'DENY'
         response['Referrer-Policy'] = 'strict-origin-when-cross-origin'

@@ -203,6 +203,8 @@ def test_version_install_uses_skill_name_not_version_for_destination(settings, t
         ver_path.mkdir(parents=True, exist_ok=True)
         (ver_path / 'SKILL.md').write_text(
             '---\nname: ' + skill_name + '\nlicense: MIT\n---\nv', encoding='utf-8')
+        from skills.watcher import _reload
+        _reload()
         try:
             resp = _client_with_cookie('jane').post(
                 f'/api/skills/{skill_name}/versions/20260501-regression-test/install',
@@ -219,6 +221,7 @@ def test_version_install_uses_skill_name_not_version_for_destination(settings, t
             assert expected.is_dir()
         finally:
             __import__('shutil').rmtree(ver_path, ignore_errors=True)
+            _reload()
     else:
         skill_name, skill = versioned
         version = skill['versions'][0]['version']

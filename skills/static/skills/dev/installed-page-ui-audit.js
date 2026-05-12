@@ -125,6 +125,24 @@
     assert(Array.isArray(bootstrapData), 'bootstrap JSON parses to an array');
   }
 
+  // Reset any auto-expanded sections back to clean collapsed state so manual
+  // expansion and skeleton loading can be tested hermetically.
+  document.querySelectorAll('.installed-target').forEach(s => {
+    const h = s.querySelector('.installed-target-header');
+    const b = s.querySelector('.installed-target-body');
+    const c = s.querySelector('.installed-target-caret');
+    const r = s.querySelector('.installed-target-refresh');
+    if (h) h.setAttribute('aria-expanded', 'false');
+    if (b) { b.hidden = true; b.innerHTML = ''; }
+    if (c) c.textContent = '▸';
+    if (r) r.hidden = true;
+  });
+  if (window.__installedCache) {
+    for (const k of Object.keys(window.__installedCache)) {
+      delete window.__installedCache[k];
+    }
+  }
+
   const sections = document.querySelectorAll('.installed-target');
   assert(sections.length >= 1, 'at least one .installed-target section rendered (got ' + sections.length + ')');
   assert(sections.length === bootstrapData.length,

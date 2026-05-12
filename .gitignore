@@ -19,4 +19,4 @@ staticfiles/
 *.egg-info/
 .pytest_cache/
 logs/
-skill_repo/
+skill_repo*/

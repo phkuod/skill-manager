@@ -38,7 +38,7 @@ logger = logging.getLogger('skills.parser')
 
 def _count_files(dir_path):
     count = 0
-    pattern = re.compile(r'^(\d{8})(?:-.*)?$')
+    pattern = re.compile(r'^(\d{8})-.+$')
     for root, dirs, files in os.walk(dir_path):
         if root == dir_path:
             dirs[:] = [d for d in dirs if not (pattern.match(d) and os.path.isfile(os.path.join(dir_path, d, 'SKILL.md')))]
@@ -48,7 +48,7 @@ def _count_files(dir_path):
 
 def _last_modified(dir_path):
     latest = 0
-    pattern = re.compile(r'^(\d{8})(?:-.*)?$')
+    pattern = re.compile(r'^(\d{8})-.+$')
     for root, dirs, files in os.walk(dir_path):
         if root == dir_path:
             dirs[:] = [d for d in dirs if not (pattern.match(d) and os.path.isfile(os.path.join(dir_path, d, 'SKILL.md')))]
@@ -74,7 +74,7 @@ def detect_versions(skill_dir):
         return []
 
     versions = []
-    pattern = re.compile(r'^(\d{8})(?:-.*)?$')
+    pattern = re.compile(r'^(\d{8})-.+$')
     try:
         entries = os.listdir(skill_dir)
     except OSError:

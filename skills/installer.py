@@ -139,7 +139,7 @@ def _install_local(src_dir, dst):
     os.makedirs(parent, exist_ok=True)
     if os.path.exists(dst):
         shutil.rmtree(dst, ignore_errors=False)
-    _version_pattern = re.compile(r'^(\d{8})(?:-.*)?$')
+    _version_pattern = re.compile(r'^(\d{8})-.+$')
 
     def _ignore_versions(directory, contents):
         if os.path.normpath(directory) != os.path.normpath(src_dir):

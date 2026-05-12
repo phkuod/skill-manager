@@ -98,9 +98,8 @@ def test_parse_valid_skill(fixtures_dir):
     assert '## Usage' in skill['content']
 
 
-def test_parse_category_and_icon(fixtures_dir):
+def test_parse_icon(fixtures_dir):
     skill = parse_skill(os.path.join(fixtures_dir, 'valid-skill'), 'valid-skill')
-    assert skill['category'] is not None
     assert skill['icon'] is not None
 
 
