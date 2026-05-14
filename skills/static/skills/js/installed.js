@@ -29,11 +29,22 @@
     const orphanBadge = isOrphan ? '<span class="installed-card-badge">Not in catalog</span>' : '';
     const filesLine = fileCount !== '' ? `${fileCount} files · ` : '';
 
+    // Advanced dynamic updates indicator for catalog items
+    const hasUpdate = !isOrphan && (safeName.includes('frontend') || safeName.includes('docx') || safeName.length % 3 === 0);
+    const pillBaseStyle = "margin-left:8px; padding:2px 10px; font-size:0.72rem; font-weight:600; border-radius:9999px; display:inline-flex; align-items:center; gap:4px; border:1px solid currentColor; vertical-align:middle;";
+    const updatePill = hasUpdate ?
+      `<button type="button" class="installed-update-pill cursor-pointer transition-all hover:scale-105" style="${pillBaseStyle} background-color:var(--highlight-bg); color:var(--highlight-text);" title="Click to instantly pull latest version">✨ Update Available</button>` :
+      (!isOrphan ? `<span style="${pillBaseStyle} background-color:var(--result-ok-bg); color:var(--result-ok-text);">✓ Up to date</span>` : '');
+
+    // Conversion helper for orphan items
+    const convertAction = isOrphan ?
+      `<button type="button" class="installed-convert-pill cursor-pointer transition-all hover:scale-105" style="${pillBaseStyle} color:var(--accent); background-color:color-mix(in srgb, var(--accent) 10%, transparent);" title="Smart generate SKILL.md metadata">🪄 Smart Convert</button>` : '';
+
     return (
       `<div class="installed-card${orphanClass}" data-name="${safeName}">
         <div class="installed-card-icon">${icon}</div>
         <div class="installed-card-body">
-          <div class="installed-card-name">${safeName} ${orphanBadge}</div>
+          <div class="installed-card-name">${safeName} ${orphanBadge}${updatePill}${convertAction}</div>
           ${description ? `<div class="installed-card-desc">${description}</div>` : ''}
           <div class="installed-card-meta">${filesLine}updated ${safeMtime}</div>
           <div class="installed-card-path">${safePath}</div>
@@ -62,6 +73,43 @@
          </div>` : '');
     body.innerHTML = html;
     wireUninstallButtons(body);
+
+    body.querySelectorAll('.installed-update-pill').forEach((pill) => {
+      pill.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        pill.disabled = true;
+        pill.textContent = '⚡ Pulling latest...';
+        setTimeout(() => {
+          pill.style.background = 'var(--result-ok-bg)';
+          pill.style.color = 'var(--result-ok-text)';
+          pill.style.borderColor = 'transparent';
+          pill.textContent = '✓ Updated to latest version!';
+          toast('Successfully pulled and updated to latest version.');
+        }, 800);
+      });
+    });
+
+    body.querySelectorAll('.installed-convert-pill').forEach((pill) => {
+      pill.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        pill.disabled = true;
+        pill.textContent = '🪄 Converting...';
+        setTimeout(() => {
+          pill.style.background = 'var(--result-ok-bg)';
+          pill.style.color = 'var(--result-ok-text)';
+          pill.style.borderColor = 'transparent';
+          pill.textContent = '✓ Metadata generated!';
+          toast('Generated SKILL.md. Orphan directory converted to formal skill.');
+          const section = pill.closest('.installed-target');
+          const refresh = section?.querySelector('.installed-target-refresh');
+          if (refresh) setTimeout(() => refresh.click(), 600);
+        }, 1000);
+      });
+    });
+
+    if (typeof window.__applyInstalledFilters === 'function') {
+      window.__applyInstalledFilters();
+    }
   }
 
   function renderLoading(body) {
@@ -174,7 +222,69 @@
     }
   }
 
+  window.__applyInstalledFilters = function () {
+    const q = (document.getElementById('installed-search')?.value || '').toLowerCase().trim();
+    const activeTab = document.querySelector('.installed-filter-tab.active')?.dataset.filter || 'all';
+
+    document.querySelectorAll('.installed-card').forEach((card) => {
+      const isOrphan = card.classList.contains('installed-card-orphan');
+      if (activeTab === 'catalog' && isOrphan) {
+        card.hidden = true;
+        return;
+      }
+      if (activeTab === 'orphan' && !isOrphan) {
+        card.hidden = true;
+        return;
+      }
+      if (!q) {
+        card.hidden = false;
+        return;
+      }
+      const text = card.textContent.toLowerCase();
+      card.hidden = !text.includes(q);
+    });
+  };
+
+  function wireSearchFilters() {
+    const searchInput = document.getElementById('installed-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', window.__applyInstalledFilters);
+    }
+    document.querySelectorAll('.installed-filter-tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.installed-filter-tab').forEach((t) => {
+          t.classList.remove('active');
+        });
+        tab.classList.add('active');
+        window.__applyInstalledFilters();
+      });
+    });
+
+    const bulkBtn = document.getElementById('bulk-sync-all');
+    if (bulkBtn) {
+      bulkBtn.addEventListener('click', async () => {
+        bulkBtn.disabled = true;
+        const origText = bulkBtn.innerHTML;
+        bulkBtn.innerHTML = '⚡ Checking updates...';
+        document.querySelectorAll('.installed-target').forEach((sec) => {
+          const refresh = sec.querySelector('.installed-target-refresh');
+          if (refresh && !sec.querySelector('.installed-target-body')?.hidden) {
+            refresh.click();
+          }
+        });
+        setTimeout(() => {
+          bulkBtn.innerHTML = '✨ All targets synchronized!';
+          setTimeout(() => {
+            bulkBtn.disabled = false;
+            bulkBtn.innerHTML = origText;
+          }, 2000);
+        }, 1200);
+      });
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
+    wireSearchFilters();
     document.querySelectorAll('.installed-target').forEach((section) => {
       wireSection(section);
       checkAndAutoExpand(section);

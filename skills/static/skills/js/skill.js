@@ -183,6 +183,7 @@ function copyCommand(btn) {
           resultEl.classList.add('is-ok');
           // Auto-dismissing success toast — survives modal close.
           toast(okMsg, 'success');
+          if (typeof loadDetailInstalledState === 'function') loadDetailInstalledState();
         } else {
           row.dataset.state = 'err';
           row.querySelector('.install-target-go').innerHTML = '✗';
@@ -505,6 +506,237 @@ function copyCommand(btn) {
   var installBtn = document.getElementById('install-button');
   if (installBtn) installBtn.onclick = openInstallModal;
 
+  var uninstallBtn = document.getElementById('uninstall-button');
+  var installedInfoEl = document.getElementById('detail-installed-info');
+  var currentInstalledTargets = [];
+
+  function getTargetStyle(tName) {
+    var c = (tName || '').toLowerCase();
+    if (c.indexOf('prod') !== -1 || c.indexOf('f20') !== -1) {
+      return { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.25)', text: '#059669', dot: '#10b981' };
+    } else if (c.indexOf('stage') !== -1 || c.indexOf('f15') !== -1) {
+      return { bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.25)', text: '#6d28d9', dot: '#8b5cf6' };
+    } else {
+      return { bg: 'rgba(14, 165, 233, 0.08)', border: 'rgba(14, 165, 233, 0.25)', text: '#0369a1', dot: '#0ea5e9' };
+    }
+  }
+
+  function loadDetailInstalledState() {
+    if (!installedInfoEl) return;
+    fetchInstallTargets().then(function (targets) {
+      var foundTargets = [];
+      var checks = targets.map(function(t) {
+        return fetch('/api/install/targets/' + encodeURIComponent(t.name) + '/skills', { credentials: 'include' })
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(d) {
+            if (d && d.catalog) {
+              var hasIt = d.catalog.some(function(item) { return item.name === skillName; });
+              if (hasIt) foundTargets.push(t.name);
+            }
+          })
+          .catch(function() {});
+      });
+      Promise.all(checks).then(function() {
+        currentInstalledTargets = foundTargets;
+        if (foundTargets.length > 0) {
+          var html = '';
+          foundTargets.forEach(function(tgt) {
+            var ts = getTargetStyle(tgt);
+            html += '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all hover:scale-105" style="background-color:' + ts.bg + ';border:1px solid ' + ts.border + ';color:' + ts.text + ';font-size:0.72rem;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,0.03);margin-right:6px;">' +
+              '<span class="inline-block w-2 h-2 rounded-full" style="background-color:' + ts.dot + ';box-shadow:0 0 8px ' + ts.dot + ';"></span>' +
+              '<span style="opacity:0.75;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;">Target</span>' +
+              '<span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">' + escapeHtml(tgt) + '</span>' +
+            '</span>';
+          });
+          installedInfoEl.innerHTML = html;
+          if (uninstallBtn) {
+            uninstallBtn.classList.remove('hidden');
+            uninstallBtn.style.display = 'flex';
+          }
+        } else {
+          installedInfoEl.innerHTML = '';
+          if (uninstallBtn) {
+            uninstallBtn.classList.add('hidden');
+            uninstallBtn.style.display = '';
+          }
+        }
+      });
+    }).catch(function() {});
+  }
+
+  function openDetailUninstallModal() {
+    var modal = document.getElementById('uninstall-target-modal');
+    if (!modal) return;
+    var targetsEl = document.getElementById('uninstall-target-modal-targets');
+    var resultEl = document.getElementById('uninstall-target-modal-result');
+    var cancelBtn = document.getElementById('uninstall-target-modal-cancel');
+    var closeBtn = document.getElementById('uninstall-target-modal-close');
+
+    if (resultEl) {
+      resultEl.classList.add('hidden');
+      resultEl.classList.remove('is-ok', 'is-err');
+      resultEl.textContent = '';
+    }
+    if (cancelBtn) {
+      cancelBtn.textContent = 'Cancel';
+      cancelBtn.disabled = false;
+    }
+    if (targetsEl) targetsEl.innerHTML = '';
+
+    if (!currentInstalledTargets.length) {
+      if (targetsEl) targetsEl.innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;margin:0;">Not installed on any targets.</p>';
+    } else {
+      currentInstalledTargets.forEach(function(tName) {
+        var row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'uninstall-target-btn';
+        row.innerHTML =
+          '<span class="install-target-name" style="color:#b42318;">' + escapeHtml(tName) + '</span>' +
+          '<span class="install-target-path" style="color:var(--text-secondary);">Remove from this target</span>' +
+          '<span class="install-target-go" style="color:#b42318;font-size:1.25rem;">&times;</span>';
+        row.onclick = function() { confirmDetailUninstallSelection(tName); };
+        targetsEl.appendChild(row);
+      });
+    }
+
+    if (cancelBtn) cancelBtn.onclick = closeDetailUninstallModal;
+    if (closeBtn) closeBtn.onclick = closeDetailUninstallModal;
+    modal.classList.remove('hidden');
+    requestAnimationFrame(function () { modal.classList.add('is-open'); });
+    modal._focusRelease = focusTrap(modal);
+  }
+
+  function confirmDetailUninstallSelection(targetName) {
+    var targetsEl = document.getElementById('uninstall-target-modal-targets');
+    var resultEl = document.getElementById('uninstall-target-modal-result');
+    if (!targetsEl) return;
+
+    if (resultEl) {
+      resultEl.classList.add('hidden');
+      resultEl.classList.remove('is-ok', 'is-err');
+      resultEl.textContent = '';
+    }
+
+    targetsEl.innerHTML =
+      '<div style="padding:16px; background-color:var(--bg-secondary); border:1px solid var(--border); border-radius:12px;">' +
+        '<p style="margin:0 0 8px; font-size:0.95rem; font-weight:600; color:var(--text-primary);">Remove from <span style="color:#b42318;font-family:monospace;">' + escapeHtml(targetName) + '</span>?</p>' +
+        '<p style="margin:0 0 12px; font-size:0.82rem; color:var(--text-secondary);">This action cannot be undone. Please type <strong style="color:var(--text-primary);">' + escapeHtml(skillName) + '</strong> to confirm.</p>' +
+        '<input type="text" id="detail-uninstall-confirm-input" autocomplete="off" spellcheck="false" placeholder="Type skill name..." style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-primary); color:var(--text-primary); font-size:0.85rem; margin-bottom:14px; box-sizing:border-box; outline:none;">' +
+        '<div style="display:flex; justify-content:flex-end; gap:8px;">' +
+          '<button type="button" id="detail-uninstall-back-btn" style="padding:8px 14px; border:1px solid var(--border); border-radius:8px; background:transparent; color:var(--text-secondary); font-size:0.82rem; font-weight:600; cursor:pointer;">Back</button>' +
+          '<button type="button" id="detail-uninstall-go-btn" disabled style="padding:8px 14px; border:none; border-radius:8px; background:#b42318; color:#ffffff; font-size:0.82rem; font-weight:600; cursor:pointer; opacity:0.5; transition:opacity 0.15s;">Remove</button>' +
+        '</div>' +
+      '</div>';
+
+    var inputEl = document.getElementById('detail-uninstall-confirm-input');
+    var backBtn = document.getElementById('detail-uninstall-back-btn');
+    var goBtn = document.getElementById('detail-uninstall-go-btn');
+
+    if (backBtn) {
+      backBtn.onclick = function() {
+        openDetailUninstallModal();
+      };
+    }
+
+    if (inputEl && goBtn) {
+      inputEl.oninput = function() {
+        if (inputEl.value.trim() === skillName) {
+          goBtn.disabled = false;
+          goBtn.style.opacity = '1';
+          goBtn.style.cursor = 'pointer';
+        } else {
+          goBtn.disabled = true;
+          goBtn.style.opacity = '0.5';
+          goBtn.style.cursor = 'not-allowed';
+        }
+      };
+
+      goBtn.onclick = function() {
+        performDetailUninstallSelection(targetName);
+      };
+
+      setTimeout(function() { inputEl.focus(); }, 50);
+    }
+  }
+
+  function closeDetailUninstallModal() {
+    var modal = document.getElementById('uninstall-target-modal');
+    if (!modal) return;
+    if (modal._focusRelease) {
+      modal._focusRelease();
+      modal._focusRelease = null;
+    }
+    modal.classList.remove('is-open');
+    setTimeout(function () { modal.classList.add('hidden'); }, 220);
+  }
+
+  function performDetailUninstallSelection(targetName) {
+    var resultEl = document.getElementById('uninstall-target-modal-result');
+    var cancelBtn = document.getElementById('uninstall-target-modal-cancel');
+    var targetsEl = document.getElementById('uninstall-target-modal-targets');
+    
+    var goBtn = document.getElementById('detail-uninstall-go-btn');
+    var backBtn = document.getElementById('detail-uninstall-back-btn');
+    var inputEl = document.getElementById('detail-uninstall-confirm-input');
+    
+    if (goBtn) { goBtn.disabled = true; goBtn.textContent = 'Removing...'; }
+    if (backBtn) backBtn.disabled = true;
+    if (inputEl) inputEl.disabled = true;
+
+    fetch('/api/install/targets/' + encodeURIComponent(targetName) + '/skills/' + encodeURIComponent(skillName) + '/uninstall', {
+      method: 'POST',
+      credentials: 'include'
+    })
+    .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
+    .then(function(r) {
+      if (r.ok && r.data && r.data.status === 'ok') {
+        var okMsg = '✓ Uninstalled from ' + targetName;
+        if (resultEl) {
+          resultEl.textContent = okMsg;
+          resultEl.classList.add('is-ok');
+          resultEl.classList.remove('hidden');
+        }
+        toast(okMsg, 'success');
+        currentInstalledTargets = currentInstalledTargets.filter(function(t) { return t !== targetName; });
+        loadDetailInstalledState();
+        setTimeout(closeDetailUninstallModal, 600);
+      } else {
+        var errMsg = '✗ Uninstall failed: ' + (r.data ? r.data.error : '');
+        if (resultEl) {
+          resultEl.textContent = errMsg;
+          resultEl.classList.add('is-err');
+          resultEl.classList.remove('hidden');
+        }
+        toast(errMsg, 'error');
+        if (goBtn) { goBtn.disabled = false; goBtn.textContent = 'Remove'; }
+        if (backBtn) backBtn.disabled = false;
+        if (inputEl) inputEl.disabled = false;
+      }
+      if (cancelBtn) cancelBtn.textContent = 'Close';
+    })
+    .catch(function(err) {
+      var netMsg = '✗ Network error';
+      if (resultEl) {
+        resultEl.textContent = netMsg;
+        resultEl.classList.add('is-err');
+        resultEl.classList.remove('hidden');
+      }
+      if (cancelBtn) cancelBtn.textContent = 'Close';
+      toast(netMsg, 'error');
+      if (goBtn) { goBtn.disabled = false; goBtn.textContent = 'Remove'; }
+      if (backBtn) backBtn.disabled = false;
+      if (inputEl) inputEl.disabled = false;
+    });
+  }
+
+  if (uninstallBtn) {
+    uninstallBtn.onclick = openDetailUninstallModal;
+  }
+
+  // Make loadDetailInstalledState accessible globally for the performInstall success callback
+  window.loadDetailInstalledState = loadDetailInstalledState;
+  loadDetailInstalledState();
+
   // -------------------------------------------------------------------------
   // Keyboard shortcuts
   //   Esc → back to catalog
@@ -520,6 +752,12 @@ function copyCommand(btn) {
       if (openModal && !openModal.classList.contains('hidden')) {
         e.preventDefault();
         closeInstallModal();
+        return;
+      }
+      var openUninstallModal = document.getElementById('uninstall-target-modal');
+      if (openUninstallModal && !openUninstallModal.classList.contains('hidden')) {
+        e.preventDefault();
+        closeDetailUninstallModal();
         return;
       }
     }

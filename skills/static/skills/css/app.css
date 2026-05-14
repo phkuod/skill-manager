@@ -602,6 +602,73 @@ body > header {
   color: var(--result-err-text);
 }
 
+.uninstall-target-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, transform 0.1s;
+}
+.uninstall-target-btn:hover:not(:disabled) {
+  border-color: #b42318;
+  background-color: rgba(180, 35, 24, 0.04);
+}
+.uninstall-target-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.uninstall-target-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.uninstall-target-btn:hover:not(:disabled) .install-target-go {
+  color: #b42318;
+  transform: translateX(2px);
+}
+.uninstall-target-btn[data-state="busy"] .install-target-go {
+  color: #b42318;
+  animation: install-spin 0.9s linear infinite;
+}
+.uninstall-target-btn[data-state="ok"] .install-target-go {
+  color: var(--result-ok-text);
+}
+.uninstall-target-btn[data-state="err"] .install-target-go {
+  color: var(--result-err-text);
+}
+
+.uninstall-target-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 26px 26px 22px;
+  box-shadow: 0 24px 60px -16px rgba(180, 35, 24, 0.25);
+  transform: scale(0.96) translateY(10px);
+  opacity: 0;
+  transition: transform 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.15), opacity 0.22s ease;
+}
+.install-modal.is-open .uninstall-target-modal-card {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+.uninstall-target-modal-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #b42318 0%, #ef4444 100%);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
 @keyframes install-spin {
   to { transform: rotate(360deg); }
 }

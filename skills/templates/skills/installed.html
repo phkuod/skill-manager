@@ -35,13 +35,123 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto px-6 py-8">
-  <h1 class="text-2xl font-bold mb-1" style="color:var(--text-primary)">Installed skills</h1>
+  <div class="flex items-center justify-between mb-1">
+    <h1 class="text-2xl font-bold" style="color:var(--text-primary)">Installed skills</h1>
+    <button type="button" id="bulk-sync-all" class="premium-sync-btn" title="Check updates for all expanded targets">
+      <span style="font-size:0.95rem; line-height:1;">⚡</span><span>Check updates</span>
+    </button>
+  </div>
   <p class="text-sm mb-2" style="color:var(--text-secondary)">
     Manage skills installed under your account on each target.
   </p>
   <p class="text-sm mb-6" style="color:var(--text-secondary)">
     Signed in as: <strong>{{ user_name|default:"(not set)" }}</strong>
   </p>
+
+  <style>
+    /* Premium visual polish for Installed page dynamic bar */
+    .installed-search-wrapper {
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .installed-search-input {
+      width: 100%;
+      padding: 10px 16px 10px 38px;
+      font-size: 0.9rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background-color: var(--bg-secondary);
+      color: var(--text-primary);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .installed-search-input:focus {
+      border-color: var(--accent);
+      background-color: var(--bg-primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+    }
+    .installed-search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      pointer-events: none;
+    }
+    /* Premium Segmented Control for Tabs */
+    .installed-tabs-container {
+      display: inline-flex;
+      align-items: center;
+      background-color: var(--bg-secondary);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      gap: 2px;
+    }
+    .installed-filter-tab {
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .installed-filter-tab:hover {
+      color: var(--text-primary);
+    }
+    .installed-filter-tab.active {
+      background-color: var(--bg-primary);
+      color: var(--accent);
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+    .dark .installed-filter-tab.active {
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+    /* Premium sync action button */
+    .premium-sync-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 9999px; /* Unified capsule rounding */
+      border: 1px solid var(--accent);
+      background-color: var(--accent);
+      color: #ffffff !important;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 4px color-mix(in srgb, var(--accent) 20%, transparent);
+    }
+    .premium-sync-btn:hover {
+      transform: translateY(-1px);
+      background-color: var(--accent-hover);
+      border-color: var(--accent-hover);
+      box-shadow: 0 4px 6px color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+    .premium-sync-btn:active {
+      transform: translateY(0);
+    }
+  </style>
+
+  <div class="mb-6 p-4 sm:p-5 rounded-xl border shadow-sm transition-all" style="background-color:var(--bg-primary);border-color:var(--border);">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between" style="gap:16px;">
+      <div class="installed-search-wrapper flex-1">
+        <span class="installed-search-icon">🔍</span>
+        <input type="text" id="installed-search" class="installed-search-input" placeholder="Search installed skills by name, path, or description...">
+      </div>
+      <div class="installed-tabs-container flex-shrink-0 self-center sm:self-auto">
+        <button type="button" data-filter="all" class="installed-filter-tab active">All</button>
+        <button type="button" data-filter="catalog" class="installed-filter-tab">Catalog</button>
+        <button type="button" data-filter="orphan" class="installed-filter-tab">Orphans</button>
+      </div>
+    </div>
+  </div>
 
   <div id="installed-sections">
     {% for t in targets %}
