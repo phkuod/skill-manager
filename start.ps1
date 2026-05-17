@@ -27,6 +27,17 @@ if (-not $Root) {
 if ($Mode -eq "dev") { $Mode = "development" }
 elseif ($Mode -eq "prod") { $Mode = "production" }
 
+# ── genkey: print a fresh SECRET_KEY and exit ─────────────────────────────────
+if ($Mode -eq "genkey") {
+    $WinPy = Join-Path $Root "venv\Scripts\python.exe"
+    $UnixPy = Join-Path $Root "venv\bin\python"
+    if (Test-Path $WinPy)      { $Py = $WinPy }
+    elseif (Test-Path $UnixPy) { $Py = $UnixPy }
+    else                       { $Py = "python" }
+    & $Py -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+    exit $LASTEXITCODE
+}
+
 # ── Load env file for the selected mode ───────────────────────────────────────
 $EnvFile = Join-Path $Root ".env.$Mode"
 if (Test-Path $EnvFile) {

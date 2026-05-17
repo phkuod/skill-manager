@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # start.sh — Start the Skill Market service
-# Usage: ./start.sh [dev|development|prod|production]  (default: development)
+# Usage: ./start.sh [dev|development|prod|production|genkey]  (default: development)
+#   genkey — print a fresh SECRET_KEY suitable for .env.production and exit
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,6 +12,18 @@ case "$MODE" in
   dev)  MODE="development" ;;
   prod) MODE="production"  ;;
 esac
+
+# ── genkey: print a fresh SECRET_KEY and exit ─────────────────────────────────
+if [ "$MODE" = "genkey" ]; then
+  if [ -x "$ROOT/venv/bin/python" ]; then
+    PY="$ROOT/venv/bin/python"
+  elif [ -x "$ROOT/venv/Scripts/python.exe" ]; then
+    PY="$ROOT/venv/Scripts/python.exe"
+  else
+    PY=python3
+  fi
+  exec "$PY" -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+fi
 
 # ── Load env file for the selected mode ───────────────────────────────────────
 ENV_FILE="$ROOT/.env.$MODE"
