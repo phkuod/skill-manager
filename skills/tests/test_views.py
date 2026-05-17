@@ -251,18 +251,16 @@ def test_detail_install_paths(client, version_fixture):
     assert paths['opencode'] == '~/.opencode/skills/pdf'
 
 
-def test_detail_repo_path(client, version_fixture):
+def test_detail_does_not_leak_repo_path(client, version_fixture):
     res = client.get('/api/skills/pdf')
-    repo_path = res.json()['repoPath']
-    assert 'skill_repo' in repo_path
-    assert 'pdf' in repo_path
+    assert 'repoPath' not in res.json()
 
 
 def test_detail_all_metadata(client, version_fixture):
     res = client.get('/api/skills/frontend-design')
     data = res.json()
     for field in ['name', 'description', 'icon', 'license', 'fileCount',
-                  'lastUpdated', 'content', 'installPaths', 'repoPath']:
+                  'lastUpdated', 'content', 'installPaths']:
         assert field in data, f"Missing field: {field}"
 
 

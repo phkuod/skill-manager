@@ -24,15 +24,29 @@ def test_options_allows_post_method():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.django_db
-def test_wildcard_with_origin_echoes_origin_and_sets_credentials(settings):
+def test_wildcard_with_safe_origin_echoes_and_sets_credentials(settings):
+    """Same-host dev Origin: echo + credentials so cookie-bearing fetch works."""
     settings.CORS_ALLOWED_ORIGINS = '*'
     resp = Client().options(
         '/api/skills/x/install',
-        HTTP_ORIGIN='http://frontend.intra.example',
+        HTTP_ORIGIN='http://localhost:8888',
     )
     assert resp.status_code == 204
-    assert resp.headers['Access-Control-Allow-Origin'] == 'http://frontend.intra.example'
+    assert resp.headers['Access-Control-Allow-Origin'] == 'http://localhost:8888'
     assert resp.headers['Access-Control-Allow-Credentials'] == 'true'
+
+
+@pytest.mark.django_db
+def test_wildcard_with_attacker_origin_omits_credentials(settings):
+    """H1 — cross-origin Origin under '*' must NOT receive Allow-Credentials."""
+    settings.CORS_ALLOWED_ORIGINS = '*'
+    resp = Client().options(
+        '/api/skills/x/install',
+        HTTP_ORIGIN='http://attacker.example',
+    )
+    assert resp.status_code == 204
+    assert resp.headers['Access-Control-Allow-Origin'] == '*'
+    assert 'Access-Control-Allow-Credentials' not in resp.headers
 
 
 @pytest.mark.django_db
@@ -57,9 +71,9 @@ def test_post_response_includes_credentials_header(settings):
     settings.INSTALL_TARGETS = {}  # endpoint will reject but headers still set
     resp = Client().get(
         '/api/install/targets',
-        HTTP_ORIGIN='http://frontend.intra.example',
+        HTTP_ORIGIN='http://localhost:8888',
     )
-    assert resp.headers['Access-Control-Allow-Origin'] == 'http://frontend.intra.example'
+    assert resp.headers['Access-Control-Allow-Origin'] == 'http://localhost:8888'
     assert resp.headers['Access-Control-Allow-Credentials'] == 'true'
 
 
@@ -71,3 +85,18 @@ def test_no_origin_header_falls_back_to_configured_value(settings):
     settings.CORS_ALLOWED_ORIGINS = '*'
     resp = Client().options('/api/skills/x/install')  # no Origin header
     assert resp.headers['Access-Control-Allow-Origin'] == '*'
+
+
+# ---------------------------------------------------------------------------
+# M1 — Dev CURRENT_USER_NAME cookie must be HttpOnly
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+def test_dev_current_user_cookie_is_httponly(settings):
+    settings.DEBUG = True
+    client = Client()
+    # No cookie set → middleware should issue one on this GET.
+    resp = client.get('/api/health')
+    cookie = resp.cookies.get('CURRENT_USER_NAME')
+    assert cookie is not None
+    assert cookie['httponly']

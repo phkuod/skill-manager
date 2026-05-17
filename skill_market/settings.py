@@ -6,9 +6,24 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env', override=True)
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-insecure-key-change-in-production')
-DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1')
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1')
+
+SECRET_KEY = os.environ.get('SECRET_KEY') or (
+    'dev-insecure-key-change-in-production' if DEBUG else None
+)
+if not SECRET_KEY:
+    raise RuntimeError(
+        'SECRET_KEY env var is required when DEBUG=False'
+    )
+
+_raw_hosts = os.environ.get('ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(',') if h.strip()]
+if not DEBUG and (not ALLOWED_HOSTS or '*' in ALLOWED_HOSTS):
+    raise RuntimeError(
+        "ALLOWED_HOSTS must be set to explicit hosts (no '*') when DEBUG=False"
+    )
+if DEBUG and not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.staticfiles',
@@ -53,6 +68,12 @@ WHITENOISE_MANIFEST_STRICT = False
 SKILL_REPO_PATH = os.environ.get('SKILL_REPO_PATH', str(BASE_DIR / 'skill_repo'))
 
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '*')
+if not DEBUG and CORS_ALLOWED_ORIGINS.strip() in ('', '*'):
+    raise RuntimeError(
+        "CORS_ALLOWED_ORIGINS must be set to an explicit origin (not '*') "
+        "when DEBUG=False — wildcard + credentials lets any site issue "
+        "credentialed cross-origin requests."
+    )
 
 INSTALL_TARGETS = {}
 _install_target_re = re.compile(r'^INSTALL_TARGET_([A-Z0-9]+)_(.+)$')
@@ -62,7 +83,40 @@ for _k, _v in os.environ.items():
         _name, _field = _m.group(1), _m.group(2).lower()
         INSTALL_TARGETS.setdefault(_name, {})[_field] = _v
 
+# Reject shell-injectable SSH target config at startup. ssh_key flows through
+# rsync's `-e` (shell-expanded); host/user flow through argv but a malformed
+# value still produces broken or wrong-host connections.
+_ssh_user_re = re.compile(r'^[A-Za-z0-9_][A-Za-z0-9_.-]*$')
+_ssh_host_re = re.compile(r'^[A-Za-z0-9][A-Za-z0-9.-]*$')
+_ssh_key_bad_chars = set('\t\n\r"\'$\\|;&<>()*?{}[] `')
+for _tname, _cfg in INSTALL_TARGETS.items():
+    if _cfg.get('type') != 'ssh':
+        continue
+    for _required in ('host', 'user', 'ssh_key'):
+        if not _cfg.get(_required):
+            raise RuntimeError(
+                f"INSTALL_TARGET_{_tname}_{_required.upper()} is required for ssh targets"
+            )
+    if not _ssh_host_re.match(_cfg['host']):
+        raise RuntimeError(
+            f"INSTALL_TARGET_{_tname}_HOST has invalid characters: {_cfg['host']!r}"
+        )
+    if not _ssh_user_re.match(_cfg['user']):
+        raise RuntimeError(
+            f"INSTALL_TARGET_{_tname}_USER has invalid characters: {_cfg['user']!r}"
+        )
+    if any(c in _ssh_key_bad_chars for c in _cfg['ssh_key']):
+        raise RuntimeError(
+            f"INSTALL_TARGET_{_tname}_SSH_KEY contains shell metacharacters; "
+            f"path must be free of whitespace and shell special chars"
+        )
+
 INSTALL_TIMEOUT_SECONDS = int(os.environ.get('INSTALL_TIMEOUT_SECONDS', '60'))
+
+# Only trust X-Forwarded-For when an upstream reverse proxy is enforcing it.
+# When False, the install rate-limiter keys off REMOTE_ADDR so a direct caller
+# cannot spoof their bucket via the header.
+TRUST_PROXY = os.environ.get('TRUST_PROXY', 'False').lower() in ('true', '1')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

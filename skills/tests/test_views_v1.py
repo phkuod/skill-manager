@@ -123,7 +123,7 @@ def test_v1_skill_detail_envelope(client):
     body = res.json()
     assert body['data']['name'] == 'pdf'
     assert 'installPaths' in body['data']
-    assert 'repoPath' in body['data']
+    assert 'repoPath' not in body['data']
 
 
 def test_v1_skill_files_envelope(client):

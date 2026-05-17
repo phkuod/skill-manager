@@ -55,6 +55,31 @@ def _validate_skill_name(skill_name):
         )
 
 
+def _ensure_inside_base(dst, base):
+    """Resolve dst with realpath and verify it stays under base.
+
+    Shared by _install_local and _uninstall_local. Raises
+    InstallError(http_status=409) on escape, missing base, or resolve failure.
+    """
+    try:
+        base_real = os.path.realpath(base)
+        dst_real = os.path.realpath(dst)
+        common = os.path.commonpath([dst_real, base_real])
+    except (ValueError, OSError) as exc:
+        raise InstallError(
+            f'Path resolution failed: {exc}',
+            http_status=409,
+            code=e.UNINSTALL_PATH_OUTSIDE_BASE,
+        )
+
+    if common != base_real or dst_real == base_real:
+        raise InstallError(
+            f'Resolved path escapes target base: {dst_real}',
+            http_status=409,
+            code=e.UNINSTALL_PATH_OUTSIDE_BASE,
+        )
+
+
 def _resolve_target(target_name):
     cfg = settings.INSTALL_TARGETS.get(target_name)
     if cfg is None:
@@ -110,7 +135,7 @@ def install_skill(src_dir, target_name, user_name, skill_name=None):
 
     try:
         if ttype == 'local':
-            _install_local(src_dir, dst)
+            _install_local(src_dir, dst, base)
         elif ttype == 'ssh':
             _install_ssh(src_dir, dst, cfg)
         else:
@@ -128,7 +153,7 @@ def install_skill(src_dir, target_name, user_name, skill_name=None):
     return {'target': target_name, 'path': dst}
 
 
-def _install_local(src_dir, dst):
+def _install_local(src_dir, dst, base):
     if not os.path.isdir(src_dir):
         raise InstallError(
             f'Source not found: {src_dir}',
@@ -137,6 +162,9 @@ def _install_local(src_dir, dst):
         )
     parent = os.path.dirname(dst)
     os.makedirs(parent, exist_ok=True)
+    # After parent is materialized (so realpath can resolve symlinks on it),
+    # verify the destination stays inside the configured base.
+    _ensure_inside_base(dst, base)
     if os.path.exists(dst):
         shutil.rmtree(dst, ignore_errors=False)
     _version_pattern = re.compile(r'^(\d{8})-.+$')
@@ -170,7 +198,7 @@ def _install_ssh(src_dir, dst, cfg):
             )
 
     ssh_cmd = (
-        f"ssh -i {cfg['ssh_key']} -o BatchMode=yes "
+        f"ssh -i {shlex.quote(cfg['ssh_key'])} -o BatchMode=yes "
         f"-o StrictHostKeyChecking=accept-new"
     )
     src_arg = src_dir.rstrip('/\\') + '/'
@@ -267,23 +295,7 @@ def _uninstall_local(dst, base):
             code=e.UNINSTALL_TARGET_PATH_NOT_FOUND,
         )
 
-    try:
-        base_real = os.path.realpath(base)
-        dst_real = os.path.realpath(dst)
-        common = os.path.commonpath([dst_real, base_real])
-    except (ValueError, OSError) as exc:
-        raise InstallError(
-            f'Path resolution failed: {exc}',
-            http_status=409,
-            code=e.UNINSTALL_PATH_OUTSIDE_BASE,
-        )
-
-    if common != base_real or dst_real == base_real:
-        raise InstallError(
-            f'Resolved path escapes target base: {dst_real}',
-            http_status=409,
-            code=e.UNINSTALL_PATH_OUTSIDE_BASE,
-        )
+    _ensure_inside_base(dst, base)
 
     try:
         shutil.rmtree(dst)

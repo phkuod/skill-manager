@@ -247,7 +247,6 @@ def api_skill_detail(request, name):
 
     data = dict(skill)
     data['installPaths'] = _install_paths(name)
-    data['repoPath'] = _skill_dir(name)
     return JsonResponse(data)
 
 
@@ -303,7 +302,6 @@ def api_version_detail(request, name, version):
 
     data = dict(ver_skill)
     data['installPaths'] = _install_paths(name)
-    data['repoPath'] = ver_dir
     return JsonResponse(data)
 
 

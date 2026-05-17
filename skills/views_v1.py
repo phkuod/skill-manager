@@ -127,7 +127,6 @@ def api_v1_skill_detail(request, name):
         return err_resp
     data = dict(skill)
     data['installPaths'] = _install_paths(name)
-    data['repoPath'] = _skill_dir(name)
     return e.ok(data)
 
 
@@ -178,7 +177,6 @@ def api_v1_version_detail(request, name, version):
         return e.err(e.VERSION_NOT_FOUND, f"Version '{version}' not found", status=404)
     data = dict(ver_skill)
     data['installPaths'] = _install_paths(name)
-    data['repoPath'] = ver_dir
     return e.ok(data)
 
 

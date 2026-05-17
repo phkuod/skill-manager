@@ -1,3 +1,4 @@
+import re
 import time
 import threading
 from collections import defaultdict
@@ -6,30 +7,30 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 
 
+# Same-host dev origins safe to echo with credentials. Any other Origin gets
+# a non-credentialed `*` response, which browsers reject for credentialed
+# requests — neutralizing CSRF on /install from arbitrary visited sites.
+_DEV_SAFE_ORIGIN_RE = re.compile(r'^https?://(localhost|127\.0\.0\.1)(:\d+)?$')
+
+
 class ApiCorsMiddleware:
-    """Permissive CORS for /api/* so the frontend can be deployed on a
-    different origin (host/port) from the Django backend.
+    """CORS for /api/*.
 
-    Origin is controlled by the CORS_ALLOWED_ORIGINS env var (read from
-    settings.CORS_ALLOWED_ORIGINS each request, so tests can override it).
+    Configured via CORS_ALLOWED_ORIGINS (read from settings each request).
 
-    - Default '*' allows any origin (fine for an unauthenticated internal
-      tool).
-    - For a locked-down deploy, set a single origin like
-      'https://skills.example.com'. Browsers do not support a comma-separated
-      list here; run a reverse proxy or extend this middleware if you need
-      per-request logic.
+    Two modes:
+    - Explicit origin (prod): CORS_ALLOWED_ORIGINS='https://skills.example.com'.
+      That literal is returned and Allow-Credentials is set unconditionally.
+      Browsers do not support comma-separated lists here.
+    - Wildcard (dev only): CORS_ALLOWED_ORIGINS='*'. The request Origin is
+      echoed with Allow-Credentials ONLY when it matches the safe same-host
+      pattern (localhost/127.0.0.1 — see _DEV_SAFE_ORIGIN_RE). Any other
+      Origin gets Allow-Origin: '*' with NO Allow-Credentials header, which
+      browsers reject for credentialed requests — blocking CSRF on /install
+      from arbitrary visited sites in dev.
 
-    Credentialed requests: the install POST sends the CURRENT_USER_NAME
-    cookie via fetch(..., {credentials:'include'}). Browsers reject
-    credentialed responses that return Access-Control-Allow-Origin: '*' or
-    omit Access-Control-Allow-Credentials. So when CORS_ALLOWED_ORIGINS='*'
-    and the request carries an Origin header, we echo that exact origin back
-    instead of '*' and always set Allow-Credentials. The trade-off: any site
-    can issue credentialed cross-origin calls, including CSRF-style triggers
-    of /install (which only writes to the cookie owner's user dir, but still
-    something to be aware of). Lock down by setting CORS_ALLOWED_ORIGINS to
-    your actual frontend origin in deployment.
+    Settings.py refuses to boot when DEBUG=False and CORS_ALLOWED_ORIGINS is
+    '*' (or empty), so the wildcard branch only runs in dev.
     """
 
     def __init__(self, get_response):
@@ -47,12 +48,18 @@ class ApiCorsMiddleware:
             configured = getattr(settings, 'CORS_ALLOWED_ORIGINS', '*')
             request_origin = request.META.get('HTTP_ORIGIN', '')
 
-            if configured == '*' and request_origin:
-                response['Access-Control-Allow-Origin'] = request_origin
+            credentialed = True
+            if configured == '*':
+                if request_origin and _DEV_SAFE_ORIGIN_RE.match(request_origin):
+                    response['Access-Control-Allow-Origin'] = request_origin
+                else:
+                    response['Access-Control-Allow-Origin'] = '*'
+                    credentialed = False
             else:
                 response['Access-Control-Allow-Origin'] = configured
 
-            response['Access-Control-Allow-Credentials'] = 'true'
+            if credentialed:
+                response['Access-Control-Allow-Credentials'] = 'true'
             response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
             response['Access-Control-Allow-Headers'] = 'Content-Type'
             response['Vary'] = 'Origin'
@@ -84,7 +91,7 @@ class SecurityHeadersMiddleware:
         if set_cookie:
             import os
             dev_user = os.environ.get('DEV_USER_NAME', 'dev')
-            response.set_cookie('CURRENT_USER_NAME', dev_user, path='/', samesite='Lax')
+            response.set_cookie('CURRENT_USER_NAME', dev_user, path='/', samesite='Lax', httponly=True)
 
         response['X-Content-Type-Options'] = 'nosniff'
         response['X-Frame-Options'] = 'DENY'
@@ -135,7 +142,11 @@ class InstallRateLimitMiddleware:
 
     @staticmethod
     def _get_client_ip(request):
-        forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
-        if forwarded:
-            return forwarded.split(',')[0].strip()
+        # XFF is attacker-controlled unless a trusted reverse proxy is in
+        # front. Only consult it when TRUST_PROXY is set, and take the
+        # right-most entry (the value the trusted proxy itself appended).
+        if getattr(settings, 'TRUST_PROXY', False):
+            forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+            if forwarded:
+                return forwarded.split(',')[-1].strip()
         return request.META.get('REMOTE_ADDR', '')
