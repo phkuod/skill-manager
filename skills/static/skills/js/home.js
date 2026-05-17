@@ -47,33 +47,13 @@
     return out + escapeHtml(text.slice(last));
   }
 
-  function getTargetStyle(tName) {
-    var c = (tName || '').toLowerCase();
-    if (c.indexOf('prod') !== -1 || c.indexOf('f20') !== -1) {
-      return { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.25)', text: '#059669', dot: '#10b981' };
-    } else if (c.indexOf('stage') !== -1 || c.indexOf('f15') !== -1) {
-      return { bg: 'rgba(139, 92, 246, 0.08)', border: 'rgba(139, 92, 246, 0.25)', text: '#6d28d9', dot: '#8b5cf6' };
-    } else {
-      return { bg: 'rgba(14, 165, 233, 0.08)', border: 'rgba(14, 165, 233, 0.25)', text: '#0369a1', dot: '#0ea5e9' };
-    }
-  }
-
   function cardHtml(skill) {
     var q = currentSearch;
     var updated = skill.lastUpdated || '';
     var tgts = window.__installedMap ? (window.__installedMap[skill.name] || []) : [];
     var targetsHtml = '';
-    var uninstallHtml = '';
     if (tgts.length > 0) {
-      uninstallHtml = '<button type="button" class="quick-uninstall-btn px-2 py-1 text-xs font-semibold rounded-lg border cursor-pointer transition-all hover:bg-red-50 dark:hover:bg-red-950/20" style="color:#b42318;border-color:rgba(180,35,24,0.3);background-color:transparent;" data-skill="' + escapeHtml(skill.name) + '" data-target="' + escapeHtml(tgts[0]) + '">Uninstall</button>';
-      tgts.forEach(function(t) {
-        var ts = getTargetStyle(t);
-        targetsHtml += '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all hover:scale-105" style="background-color:' + ts.bg + ';border:1px solid ' + ts.border + ';color:' + ts.text + ';font-size:0.72rem;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,0.03);margin-right:6px;">' +
-          '<span class="inline-block w-2 h-2 rounded-full" style="background-color:' + ts.dot + ';box-shadow:0 0 8px ' + ts.dot + ';"></span>' +
-          '<span style="opacity:0.75;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;">Target</span>' +
-          '<span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">' + escapeHtml(t) + '</span>' +
-        '</span>';
-      });
+      tgts.forEach(function (t) { targetsHtml += targetPillHtml(skill.name, t); });
     }
     var installHtml = '';
     if (tgts.length === 0) {
@@ -91,12 +71,12 @@
             '<div class="skill-card-targets flex flex-wrap gap-1.5 items-center min-w-0 empty:hidden ml-1" data-skill-targets="' + escapeHtml(skill.name) + '">' + targetsHtml + '</div>' +
           '</div>' +
           '<div class="inline-flex items-center gap-1.5 shrink-0 z-10" onclick="event.preventDefault(); event.stopPropagation();">' +
-            uninstallHtml +
             installHtml +
           '</div>' +
         '</div>' +
         '<h3 class="font-semibold mb-1 truncate" style="color:var(--text-primary)">' + highlight(skill.name, q) + '</h3>' +
         '<p class="text-sm mb-3 line-clamp-2" style="color:var(--text-secondary)">' + highlight(skill.description, q) + '</p>' +
+        '<div class="inline-confirm-row hidden" data-confirm-slot="' + escapeHtml(skill.name) + '"></div>' +
         '<div class="pt-2 border-t flex items-center justify-between text-xs" style="color:var(--text-secondary);border-color:var(--border)">' +
           '<span>' + skill.fileCount + ' file' + (skill.fileCount === 1 ? '' : 's') + '</span>' +
           '<span>' + escapeHtml(relativeTime(updated) || updated.slice(0, 10)) + '</span>' +
@@ -370,174 +350,27 @@
       });
   }
 
-  function openHomeUninstallModal(skillName) {
-    currentActionSkill = skillName;
-    var modal = document.getElementById('uninstall-target-modal');
-    if (!modal) return;
-    var titleEl = document.getElementById('uninstall-target-modal-title');
-    var targetsEl = document.getElementById('uninstall-target-modal-targets');
-    var resultEl = document.getElementById('uninstall-target-modal-result');
-    var cancelBtn = document.getElementById('uninstall-target-modal-cancel');
-    var closeBtn = document.getElementById('uninstall-target-modal-close');
+  // Pill click → inline confirm row in same card. Removes one target at a time.
+  function handlePillClick(pill) {
+    var skillName = pill.dataset.skill;
+    var targetName = pill.dataset.target;
+    if (!skillName || !targetName) return;
+    var card = pill.closest('.skill-card');
+    if (!card) return;
+    var slot = card.querySelector('.inline-confirm-row[data-confirm-slot]');
+    if (!slot) return;
 
-    if (titleEl) titleEl.textContent = skillName;
-    if (resultEl) {
-      resultEl.classList.add('hidden');
-      resultEl.classList.remove('is-ok', 'is-err');
-      resultEl.textContent = '';
-    }
-    if (cancelBtn) {
-      cancelBtn.textContent = 'Cancel';
-      cancelBtn.disabled = false;
-    }
-    if (targetsEl) targetsEl.innerHTML = '';
-
-    var tgts = window.__installedMap ? (window.__installedMap[skillName] || []) : [];
-    if (!tgts.length) {
-      if (targetsEl) targetsEl.innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;margin:0;">Not installed on any targets.</p>';
-    } else {
-      tgts.forEach(function(tName) {
-        var row = document.createElement('button');
-        row.type = 'button';
-        row.className = 'uninstall-target-btn';
-        row.innerHTML =
-          '<span class="install-target-name" style="color:#b42318;">' + escapeHtml(tName) + '</span>' +
-          '<span class="install-target-path" style="color:var(--text-secondary);">Remove from this target</span>' +
-          '<span class="install-target-go" style="color:#b42318;font-size:1.25rem;">&times;</span>';
-        row.onclick = function() { confirmHomeUninstallSelection(tName); };
-        targetsEl.appendChild(row);
-      });
-    }
-
-    if (cancelBtn) cancelBtn.onclick = closeHomeUninstallModal;
-    if (closeBtn) closeBtn.onclick = closeHomeUninstallModal;
-    modal.classList.remove('hidden');
-    requestAnimationFrame(function () { modal.classList.add('is-open'); });
-    modal._focusRelease = typeof focusTrap === 'function' ? focusTrap(modal) : function(){};
-  }
-
-  function confirmHomeUninstallSelection(targetName) {
-    var targetsEl = document.getElementById('uninstall-target-modal-targets');
-    var resultEl = document.getElementById('uninstall-target-modal-result');
-    if (!targetsEl) return;
-
-    if (resultEl) {
-      resultEl.classList.add('hidden');
-      resultEl.classList.remove('is-ok', 'is-err');
-      resultEl.textContent = '';
-    }
-
-    targetsEl.innerHTML =
-      '<div style="padding:16px; background-color:var(--bg-secondary); border:1px solid var(--border); border-radius:12px;">' +
-        '<p style="margin:0 0 8px; font-size:0.95rem; font-weight:600; color:var(--text-primary);">Remove from <span style="color:#b42318;font-family:monospace;">' + escapeHtml(targetName) + '</span>?</p>' +
-        '<p style="margin:0 0 12px; font-size:0.82rem; color:var(--text-secondary);">This action cannot be undone. Please type <strong style="color:var(--text-primary);">' + escapeHtml(currentActionSkill) + '</strong> to confirm.</p>' +
-        '<input type="text" id="home-uninstall-confirm-input" autocomplete="off" spellcheck="false" placeholder="Type skill name..." style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--bg-primary); color:var(--text-primary); font-size:0.85rem; margin-bottom:14px; box-sizing:border-box; outline:none;">' +
-        '<div style="display:flex; justify-content:flex-end; gap:8px;">' +
-          '<button type="button" id="home-uninstall-back-btn" style="padding:8px 14px; border:1px solid var(--border); border-radius:8px; background:transparent; color:var(--text-secondary); font-size:0.82rem; font-weight:600; cursor:pointer;">Back</button>' +
-          '<button type="button" id="home-uninstall-go-btn" disabled style="padding:8px 14px; border:none; border-radius:8px; background:#b42318; color:#ffffff; font-size:0.82rem; font-weight:600; cursor:pointer; opacity:0.5; transition:opacity 0.15s;">Remove</button>' +
-        '</div>' +
-      '</div>';
-
-    var inputEl = document.getElementById('home-uninstall-confirm-input');
-    var backBtn = document.getElementById('home-uninstall-back-btn');
-    var goBtn = document.getElementById('home-uninstall-go-btn');
-
-    if (backBtn) {
-      backBtn.onclick = function() {
-        openHomeUninstallModal(currentActionSkill);
-      };
-    }
-
-    if (inputEl && goBtn) {
-      inputEl.oninput = function() {
-        if (inputEl.value.trim() === currentActionSkill) {
-          goBtn.disabled = false;
-          goBtn.style.opacity = '1';
-          goBtn.style.cursor = 'pointer';
-        } else {
-          goBtn.disabled = true;
-          goBtn.style.opacity = '0.5';
-          goBtn.style.cursor = 'not-allowed';
-        }
-      };
-
-      goBtn.onclick = function() {
-        performHomeUninstallSelection(targetName);
-      };
-
-      setTimeout(function() { inputEl.focus(); }, 50);
-    }
-  }
-
-  function closeHomeUninstallModal() {
-    var modal = document.getElementById('uninstall-target-modal');
-    if (!modal) return;
-    if (modal._focusRelease) {
-      modal._focusRelease();
-      modal._focusRelease = null;
-    }
-    modal.classList.remove('is-open');
-    setTimeout(function () { modal.classList.add('hidden'); }, 220);
-  }
-
-  function performHomeUninstallSelection(targetName) {
-    var resultEl = document.getElementById('uninstall-target-modal-result');
-    var cancelBtn = document.getElementById('uninstall-target-modal-cancel');
-    var targetsEl = document.getElementById('uninstall-target-modal-targets');
-    
-    var goBtn = document.getElementById('home-uninstall-go-btn');
-    var backBtn = document.getElementById('home-uninstall-back-btn');
-    var inputEl = document.getElementById('home-uninstall-confirm-input');
-    
-    if (goBtn) { goBtn.disabled = true; goBtn.textContent = 'Removing...'; }
-    if (backBtn) backBtn.disabled = true;
-    if (inputEl) inputEl.disabled = true;
-
-    fetch('/api/install/targets/' + encodeURIComponent(targetName) + '/skills/' + encodeURIComponent(currentActionSkill) + '/uninstall', {
-      method: 'POST',
-      credentials: 'include'
-    })
-    .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
-    .then(function(r) {
-      if (r.ok && r.data && r.data.status === 'ok') {
-        var okMsg = '✓ Uninstalled from ' + targetName;
-        if (resultEl) {
-          resultEl.textContent = okMsg;
-          resultEl.classList.add('is-ok');
-          resultEl.classList.remove('hidden');
-        }
-        toast(okMsg, 'success');
-        if (window.__installedMap[currentActionSkill]) {
-          window.__installedMap[currentActionSkill] = window.__installedMap[currentActionSkill].filter(function(tgt) { return tgt !== targetName; });
+    openInlineUninstallConfirm(slot, skillName, targetName, function () {
+      return performUninstall(skillName, targetName).then(function (ok) {
+        if (!ok) return false;
+        if (window.__installedMap && window.__installedMap[skillName]) {
+          window.__installedMap[skillName] = window.__installedMap[skillName].filter(function (t) {
+            return t !== targetName;
+          });
         }
         decorateVisibleCards();
-        setTimeout(closeHomeUninstallModal, 600);
-      } else {
-        var errMsg = '✗ Uninstall failed: ' + (r.data ? r.data.error : '');
-        if (resultEl) {
-          resultEl.textContent = errMsg;
-          resultEl.classList.add('is-err');
-          resultEl.classList.remove('hidden');
-        }
-        toast(errMsg, 'error');
-        if (goBtn) { goBtn.disabled = false; goBtn.textContent = 'Remove'; }
-        if (backBtn) backBtn.disabled = false;
-        if (inputEl) inputEl.disabled = false;
-      }
-      if (cancelBtn) cancelBtn.textContent = 'Close';
-    })
-    .catch(function(err) {
-      var netMsg = '✗ Network error';
-      if (resultEl) {
-        resultEl.textContent = netMsg;
-        resultEl.classList.add('is-err');
-        resultEl.classList.remove('hidden');
-      }
-      if (cancelBtn) cancelBtn.textContent = 'Close';
-      toast(netMsg, 'error');
-      if (goBtn) { goBtn.disabled = false; goBtn.textContent = 'Remove'; }
-      if (backBtn) backBtn.disabled = false;
-      if (inputEl) inputEl.disabled = false;
+        return true;
+      });
     });
   }
 
@@ -570,58 +403,52 @@
 
   function decorateVisibleCards() {
     var cards = document.querySelectorAll('.skill-card');
-    Array.prototype.forEach.call(cards, function(card) {
-      // Find quick buttons
+    Array.prototype.forEach.call(cards, function (card) {
       var installBtn = card.querySelector('.quick-install-btn');
-      var uninstallBtn = card.querySelector('.quick-uninstall-btn');
       var targetsContainer = card.querySelector('.skill-card-targets');
-      
-      // Determine skill name
+
       var sName = '';
       if (installBtn) sName = installBtn.dataset.skill;
-      else if (uninstallBtn) sName = uninstallBtn.dataset.skill;
       else if (targetsContainer) sName = targetsContainer.dataset.skillTargets;
-      
       if (!sName) return;
+
       var tgts = window.__installedMap[sName] || [];
-      
+
       if (installBtn) {
-        if (tgts.length === 0) {
-          installBtn.classList.remove('hidden');
-        } else {
-          installBtn.classList.add('hidden');
-        }
-      }
-      if (uninstallBtn) {
-        if (tgts.length > 0) {
-          uninstallBtn.classList.remove('hidden');
-          uninstallBtn.dataset.target = tgts[0];
-        } else {
-          uninstallBtn.classList.add('hidden');
-        }
+        installBtn.classList.toggle('hidden', tgts.length > 0);
       }
       if (targetsContainer) {
         if (tgts.length > 0) {
           var html = '';
-          tgts.forEach(function(t) {
-            var ts = getTargetStyle(t);
-            html += '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all hover:scale-105" style="background-color:' + ts.bg + ';border:1px solid ' + ts.border + ';color:' + ts.text + ';font-size:0.72rem;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,0.03);margin-right:6px;">' +
-              '<span class="inline-block w-2 h-2 rounded-full" style="background-color:' + ts.dot + ';box-shadow:0 0 8px ' + ts.dot + ';"></span>' +
-              '<span style="opacity:0.75;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;">Target</span>' +
-              '<span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">' + escapeHtml(t) + '</span>' +
-            '</span>';
-          });
+          tgts.forEach(function (t) { html += targetPillHtml(sName, t); });
           targetsContainer.innerHTML = html;
         } else {
           targetsContainer.innerHTML = '';
         }
       }
+      // Ensure the inline-confirm-row slot exists on server-rendered cards
+      // (the server template doesn't include it; only JS-rendered cards do).
+      if (!card.querySelector('.inline-confirm-row[data-confirm-slot]')) {
+        var slot = document.createElement('div');
+        slot.className = 'inline-confirm-row hidden';
+        slot.setAttribute('data-confirm-slot', sName);
+        var footer = card.querySelector('.pt-2.border-t');
+        if (footer) card.insertBefore(slot, footer);
+        else card.appendChild(slot);
+      }
     });
   }
 
-  // Handle click events via event delegation on skillGrid to keep event handlers fast and decoupled
+  // Handle click events via event delegation on skillGrid.
   if (skillGrid) {
-    skillGrid.addEventListener('click', function(ev) {
+    skillGrid.addEventListener('click', function (ev) {
+      var pill = ev.target.closest('.target-pill');
+      if (pill) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        handlePillClick(pill);
+        return;
+      }
       var installBtn = ev.target.closest('.quick-install-btn');
       if (installBtn) {
         ev.preventDefault();
@@ -630,18 +457,10 @@
         if (sName) openHomeInstallModal(sName);
         return;
       }
-      var uninstallBtn = ev.target.closest('.quick-uninstall-btn');
-      if (uninstallBtn) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        var sNameU = uninstallBtn.dataset.skill;
-        if (sNameU) openHomeUninstallModal(sNameU);
-        return;
-      }
     });
   }
 
-  // Esc listener on open modal closes it
+  // Esc closes an open install modal (uninstall is inline; its own listener handles Esc).
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
       var openModal = document.getElementById('install-modal');
@@ -649,12 +468,6 @@
         e.preventDefault();
         e.stopPropagation();
         closeHomeInstallModal();
-      }
-      var openUninstallModal = document.getElementById('uninstall-target-modal');
-      if (openUninstallModal && !openUninstallModal.classList.contains('hidden')) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeHomeUninstallModal();
       }
     }
   });

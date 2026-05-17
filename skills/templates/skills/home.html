@@ -73,12 +73,12 @@
             <div class="skill-card-targets flex flex-wrap gap-1.5 items-center min-w-0 empty:hidden ml-1" data-skill-targets="{{ skill.name }}"></div>
           </div>
           <div class="inline-flex items-center gap-1.5 shrink-0 z-10" onclick="event.preventDefault(); event.stopPropagation();">
-            <button type="button" class="quick-uninstall-btn px-2 py-1 text-xs font-semibold rounded-lg border cursor-pointer transition-all hover:bg-red-50 dark:hover:bg-red-950/20 hidden" style="color:#b42318;border-color:rgba(180,35,24,0.3);background-color:transparent;" data-skill="{{ skill.name }}">Uninstall</button>
             <button type="button" class="quick-install-btn px-2.5 py-1 text-xs font-semibold rounded-lg border cursor-pointer transition-all hover:scale-105 hidden" style="color:var(--accent);border-color:var(--accent);background-color:var(--bg-primary);" data-skill="{{ skill.name }}">Install</button>
           </div>
         </div>
         <h3 class="font-semibold mb-1 truncate" style="color:var(--text-primary)">{{ skill.name }}</h3>
         <p class="text-sm mb-3 line-clamp-2" style="color:var(--text-secondary)">{{ skill.description }}</p>
+        <div class="inline-confirm-row hidden" data-confirm-slot="{{ skill.name }}"></div>
         <div class="pt-2 border-t flex items-center justify-between text-xs" style="color:var(--text-secondary);border-color:var(--border)">
           <span>{{ skill.fileCount }} file{{ skill.fileCount|pluralize }}</span>
           <span>{{ skill.lastUpdated|slice:":10" }}</span>
@@ -113,19 +113,6 @@
   </div>
 </div>
 
-<div id="uninstall-target-modal" class="install-modal hidden" role="dialog" aria-modal="true" aria-labelledby="uninstall-target-modal-title">
-  <div class="uninstall-target-modal-card">
-    <button id="uninstall-target-modal-close" class="install-modal-close" type="button" aria-label="Close">×</button>
-    <p class="install-modal-kicker" style="color:#b42318;">Uninstall</p>
-    <h3 id="uninstall-target-modal-title" class="install-modal-title"></h3>
-    <p class="install-modal-section">Select target to remove from</p>
-    <div id="uninstall-target-modal-targets" class="install-modal-targets"></div>
-    <div id="uninstall-target-modal-result" class="install-modal-result hidden"></div>
-    <div class="install-modal-actions">
-      <button id="uninstall-target-modal-cancel" class="install-modal-btn" type="button">Cancel</button>
-    </div>
-  </div>
-</div>
 {% endblock %}
 
 {% block footer %}<span id="footer-count">{{ skills|length }}</span> skills available{% endblock %}
