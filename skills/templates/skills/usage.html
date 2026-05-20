@@ -1,0 +1,246 @@
+{% extends "skills/base.html" %}
+{% load static %}
+
+{% block title %}Usage — Skill Market{% endblock %}
+
+{% block header %}
+<header class="sticky top-0 z-50 border-b px-6 py-4 flex items-center gap-4"
+        style="background-color:var(--bg-secondary);border-color:var(--border)">
+  <a href="/" class="flex items-center gap-2 text-sm font-medium flex-shrink-0"
+     style="color:var(--text-secondary);text-decoration:none">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back
+  </a>
+  <div class="flex items-center gap-2 flex-shrink-0">
+    <span class="text-2xl">📊</span>
+    <span class="font-bold text-lg hidden sm:inline" style="color:var(--text-primary)">Usage</span>
+  </div>
+  <div class="flex-1"></div>
+  <button id="theme-toggle" class="p-2 rounded-lg border flex-shrink-0"
+          style="border-color:var(--border)" aria-label="Toggle theme">
+    <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 5a7 7 0 100 14 7 7 0 000-14z"/>
+    </svg>
+    <svg id="icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+    </svg>
+  </button>
+</header>
+{% endblock %}
+
+{% block content %}
+<style>
+  .usage-wrap { max-width: 72rem; margin: 0 auto; padding: 2rem 1.5rem; }
+  .usage-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .usage-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+  .usage-subtitle { font-size: 0.875rem; color: var(--text-secondary); }
+  .usage-ranges { display: inline-flex; gap: 2px; padding: 4px; border-radius: 10px; border: 1px solid var(--border); background-color: var(--bg-secondary); }
+  .usage-range-btn { padding: 6px 14px; font-size: 0.8rem; font-weight: 500; border-radius: 8px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer; text-decoration: none; transition: all 0.15s ease; }
+  .usage-range-btn:hover { color: var(--text-primary); }
+  .usage-range-btn.active { background-color: var(--bg-primary); color: var(--accent); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .usage-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .usage-card { border: 1px solid var(--border); border-radius: 0.75rem; padding: 1rem 1.25rem; background-color: var(--bg-card); }
+  .usage-card-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.5rem; }
+  .usage-card-value { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); line-height: 1; font-variant-numeric: tabular-nums; }
+  .usage-card-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem; }
+  .usage-grid-2 { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  @media (min-width: 900px) { .usage-grid-2 { grid-template-columns: 1fr 1fr; } }
+  .usage-panel { border: 1px solid var(--border); border-radius: 0.75rem; background-color: var(--bg-card); overflow: hidden; }
+  .usage-panel-header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.9rem; color: var(--text-primary); background-color: var(--bg-secondary); }
+  .usage-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .usage-table th, .usage-table td { padding: 0.5rem 1rem; text-align: left; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+  .usage-table th { font-weight: 600; color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; background-color: var(--bg-secondary); }
+  .usage-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .usage-table tr:last-child td { border-bottom: 0; }
+  .usage-empty { padding: 1.5rem 1rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem; }
+  .usage-pill { display: inline-block; padding: 1px 8px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+  .usage-pill-ok { background-color: var(--result-ok-bg); color: var(--result-ok-text); }
+  .usage-pill-err { background-color: var(--result-err-bg); color: var(--result-err-text); }
+  .usage-pill-mid { background-color: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border); }
+  .usage-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; }
+  .usage-skill-link { color: var(--accent); text-decoration: none; }
+  .usage-skill-link:hover { text-decoration: underline; }
+  #recent-events { scroll-margin-top: 5rem; }
+  .usage-pagination { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem 1rem; border-top: 1px solid var(--border); background-color: var(--bg-secondary); font-size: 0.8rem; color: var(--text-secondary); flex-wrap: wrap; }
+  .usage-pagination-info { font-variant-numeric: tabular-nums; }
+  .usage-pagination-controls { display: inline-flex; gap: 6px; }
+  .usage-page-btn { padding: 4px 10px; font-size: 0.8rem; font-weight: 500; border-radius: 6px; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); cursor: pointer; text-decoration: none; transition: all 0.15s ease; }
+  .usage-page-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .usage-page-btn[aria-disabled="true"] { opacity: 0.45; pointer-events: none; }
+  .usage-pagesize { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); }
+  .usage-pagesize select { padding: 4px 28px 4px 10px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); cursor: pointer; appearance: none; -webkit-appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%), linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%); background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+  .usage-pagesize select:hover { border-color: var(--accent); }
+</style>
+
+<div class="usage-wrap">
+  <div class="usage-heading">
+    <div>
+      <div class="usage-title">Usage dashboard</div>
+      <div class="usage-subtitle">
+        Signed in as <strong>{{ user_name }}</strong> · last {{ range_key }}
+      </div>
+    </div>
+    <div class="usage-ranges" role="tablist" aria-label="Time range">
+      {% for r in range_options %}
+        <a class="usage-range-btn{% if r == range_key %} active{% endif %}"
+           href="?range={{ r }}" role="tab"
+           aria-selected="{% if r == range_key %}true{% else %}false{% endif %}">{{ r }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="usage-cards">
+    <div class="usage-card">
+      <div class="usage-card-label">Installs</div>
+      <div class="usage-card-value">{{ summary.installs }}</div>
+      <div class="usage-card-sub">{{ summary.uninstalls }} uninstall{{ summary.uninstalls|pluralize }}</div>
+    </div>
+    <div class="usage-card">
+      <div class="usage-card-label">Page views</div>
+      <div class="usage-card-value">{{ summary.pageviews }}</div>
+      <div class="usage-card-sub">{{ summary.uniqueSkills }} unique skill{{ summary.uniqueSkills|pluralize }}</div>
+    </div>
+    <div class="usage-card">
+      <div class="usage-card-label">API calls</div>
+      <div class="usage-card-value">{{ summary.apiCalls }}</div>
+      <div class="usage-card-sub">
+        {{ summary.apiErrors }} error{{ summary.apiErrors|pluralize }}
+        {% if summary.apiCalls %} · {{ summary.errorRate }} rate{% endif %}
+      </div>
+    </div>
+    <div class="usage-card">
+      <div class="usage-card-label">Catalog parses</div>
+      <div class="usage-card-value">{{ summary.parseEvents }}</div>
+      <div class="usage-card-sub">
+        {% if summary.parseErrors %}
+          <span class="usage-pill usage-pill-err">{{ summary.parseErrors }} error{{ summary.parseErrors|pluralize }}</span>
+        {% else %}
+          <span class="usage-pill usage-pill-ok">healthy</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="usage-grid-2">
+    <div class="usage-panel">
+      <div class="usage-panel-header">Top installed skills</div>
+      {% if installs.rows %}
+        <table class="usage-table">
+          <thead><tr><th>Skill</th><th>Primary target</th><th class="num">Installs</th></tr></thead>
+          <tbody>
+            {% for row in installs.rows %}
+              <tr>
+                <td><a class="usage-skill-link" href="/skills/{{ row.skill }}/">{{ row.skill }}</a></td>
+                <td><span class="usage-pill usage-pill-mid">{{ row.primaryTarget|default:"—" }}</span></td>
+                <td class="num">{{ row.count }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="usage-empty">No installs in this range.</div>
+      {% endif %}
+    </div>
+
+    <div class="usage-panel">
+      <div class="usage-panel-header">Top viewed skills</div>
+      {% if pageviews.rows %}
+        <table class="usage-table">
+          <thead><tr><th>Skill</th><th class="num">Views</th></tr></thead>
+          <tbody>
+            {% for row in pageviews.rows %}
+              <tr>
+                <td><a class="usage-skill-link" href="/skills/{{ row.skill }}/">{{ row.skill }}</a></td>
+                <td class="num">{{ row.count }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="usage-empty">No page views in this range.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="usage-panel" style="margin-bottom:1.5rem;">
+    <div class="usage-panel-header">Health</div>
+    <table class="usage-table">
+      <tbody>
+        <tr>
+          <th style="width:30%">Last parse</th>
+          <td>
+            {% if health.lastParse %}
+              {{ health.lastParse.skillCount|default:"?" }} skills in
+              {{ health.lastParse.latencyMs|default:"?" }} ms
+            {% else %}
+              <span style="color:var(--text-secondary)">no parses recorded</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th>Parse errors (range)</th>
+          <td>
+            {% if health.parseErrors %}
+              <span class="usage-pill usage-pill-err">{{ health.parseErrors }}</span>
+            {% else %}
+              <span class="usage-pill usage-pill-ok">0</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th>HTTP status (range)</th>
+          <td>
+            <span class="usage-pill usage-pill-ok">2xx · {{ health.statusBuckets.2xx }}</span>
+            <span class="usage-pill usage-pill-mid">3xx · {{ health.statusBuckets.3xx }}</span>
+            <span class="usage-pill usage-pill-mid">4xx · {{ health.statusBuckets.4xx }}</span>
+            <span class="usage-pill usage-pill-err">5xx · {{ health.statusBuckets.5xx }}</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="usage-panel" id="recent-events">
+    <div class="usage-panel-header">Recent events</div>
+    {% if recent_total %}
+      {% include "skills/_usage_recent_pagination.html" %}
+      <table class="usage-table">
+        <thead>
+          <tr>
+            <th>Time</th><th>Type</th><th>Skill</th><th>Target</th>
+            <th>User</th><th>IP</th><th class="num">Status</th><th class="num">ms</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in recent %}
+            <tr>
+              <td class="usage-mono">{{ e.ts|date:"Y-m-d H:i:s" }}</td>
+              <td><span class="usage-pill usage-pill-mid">{{ e.type }}</span></td>
+              <td>{% if e.skill %}<a class="usage-skill-link" href="/skills/{{ e.skill }}/">{{ e.skill }}</a>{% else %}—{% endif %}</td>
+              <td>{{ e.target|default:"—" }}</td>
+              <td>{{ e.user|default:"—" }}</td>
+              <td class="usage-mono">{{ e.ip|default:"—" }}</td>
+              <td class="num">
+                {% if e.status and e.status >= 500 %}<span class="usage-pill usage-pill-err">{{ e.status }}</span>
+                {% elif e.status and e.status >= 400 %}<span class="usage-pill usage-pill-err">{{ e.status }}</span>
+                {% elif e.status %}<span class="usage-pill usage-pill-ok">{{ e.status }}</span>
+                {% else %}—{% endif %}
+              </td>
+              <td class="num">{{ e.latencyMs|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% include "skills/_usage_recent_pagination.html" %}
+    {% else %}
+      <div class="usage-empty">No events recorded yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block footer %}<a href="/" style="color:inherit;text-decoration:none">← back to catalog</a>{% endblock %}

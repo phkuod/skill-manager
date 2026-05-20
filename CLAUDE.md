@@ -79,6 +79,26 @@ Structured rotating-file + console logging via Django's `LOGGING` dict in `setti
 
 The file handler uses `delay=True` — the log file is not created until the first message is written, so `pytest` runs don't produce a `logs/skill-market.log`.
 
+## Usage dashboard
+
+Admin-gated `/usage` page + `/api/usage/*` JSON endpoints in `skills/views.py`,
+backed by a file-backed SQLite event log (`skills/usage.py`). The DB lives at
+`USAGE_DB_PATH` (default `<repo>/data/usage.sqlite3`); the events table is
+auto-pruned to `USAGE_RETENTION_DAYS` (default 90) on startup and once a day.
+Events are recorded by `UsageRecordingMiddleware` (pageviews + API) and from
+`views._do_install` / `_do_uninstall` (install outcomes) and `watcher._reload`
+(parse / parse_error).
+
+Access is gated by the `CURRENT_USER_NAME` cookie against the
+`USAGE_ADMIN_USERS` allowlist (comma-separated env var). Empty allowlist means
+the dashboard is forbidden for everyone — fail-closed.
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `USAGE_ADMIN_USERS` | *(empty)* | Comma-separated cookie usernames allowed to view `/usage` |
+| `USAGE_DB_PATH` | `data/usage.sqlite3` | File path for the events DB |
+| `USAGE_RETENTION_DAYS` | `90` | Rolling retention; rows older than this are pruned |
+
 ## Skill repository contract
 
 `SKILL_REPO_PATH` (env, default `<repo>/skill_repo`) is the source of truth. Layout:

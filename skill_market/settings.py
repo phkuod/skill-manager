@@ -36,6 +36,7 @@ MIDDLEWARE = [
     'skills.middleware.SecurityHeadersMiddleware',
     'skills.middleware.ApiCorsMiddleware',
     'skills.middleware.InstallRateLimitMiddleware',
+    'skills.middleware.UsageRecordingMiddleware',
     'django.middleware.common.CommonMiddleware',
 ]
 
@@ -112,6 +113,19 @@ for _tname, _cfg in INSTALL_TARGETS.items():
         )
 
 INSTALL_TIMEOUT_SECONDS = int(os.environ.get('INSTALL_TIMEOUT_SECONDS', '60'))
+
+# Usage dashboard. `USAGE_ADMIN_USERS` gates /usage and /api/usage/* against
+# the CURRENT_USER_NAME cookie. Empty set ⇒ dashboard forbidden for everyone
+# (fail closed). Events are written to a file-backed SQLite DB separate from
+# Django's :memory: default.
+USAGE_ADMIN_USERS = {
+    u.strip() for u in os.environ.get('USAGE_ADMIN_USERS', '').split(',') if u.strip()
+}
+USAGE_DB_PATH = os.environ.get('USAGE_DB_PATH', str(BASE_DIR / 'data' / 'usage.sqlite3'))
+try:
+    USAGE_RETENTION_DAYS = int(os.environ.get('USAGE_RETENTION_DAYS', '90'))
+except ValueError:
+    USAGE_RETENTION_DAYS = 90
 
 # Only trust X-Forwarded-For when an upstream reverse proxy is enforcing it.
 # When False, the install rate-limiter keys off REMOTE_ADDR so a direct caller

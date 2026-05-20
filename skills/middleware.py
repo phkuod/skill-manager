@@ -1,3 +1,4 @@
+import logging
 import re
 import time
 import threading
@@ -6,11 +7,30 @@ from collections import defaultdict
 from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 
+from . import usage
+
+_usage_logger = logging.getLogger('skills.usage')
+
 
 # Same-host dev origins safe to echo with credentials. Any other Origin gets
 # a non-credentialed `*` response, which browsers reject for credentialed
 # requests — neutralizing CSRF on /install from arbitrary visited sites.
 _DEV_SAFE_ORIGIN_RE = re.compile(r'^https?://(localhost|127\.0\.0\.1)(:\d+)?$')
+
+
+def get_client_ip(request) -> str:
+    """Return the best-guess client IP for the request.
+
+    Honors settings.TRUST_PROXY: when True, takes the right-most entry of
+    X-Forwarded-For (the value the trusted upstream proxy itself appended),
+    otherwise falls back to REMOTE_ADDR. XFF is attacker-controlled when
+    no trusted proxy is in front, so we ignore it by default.
+    """
+    if getattr(settings, 'TRUST_PROXY', False):
+        forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+        if forwarded:
+            return forwarded.split(',')[-1].strip()
+    return request.META.get('REMOTE_ADDR', '') or ''
 
 
 class ApiCorsMiddleware:
@@ -150,3 +170,83 @@ class InstallRateLimitMiddleware:
             if forwarded:
                 return forwarded.split(',')[-1].strip()
         return request.META.get('REMOTE_ADDR', '')
+
+
+# Path prefixes the usage middleware skips entirely (no point storing them).
+_USAGE_SKIP_PREFIXES = ('/static/', '/favicon')
+
+# Detail routes whose URL kwargs include the skill name — used to pull the
+# skill out of the resolved match without re-parsing the path.
+_USAGE_DETAIL_VIEWS = {
+    'skill_detail', 'skill_detail_version',
+    'api_skill_detail', 'api_skill_zip', 'api_skill_files',
+    'api_skill_install', 'api_versions', 'api_version_detail',
+    'api_version_install', 'api_version_zip', 'api_version_files',
+    'api_v1_skill_detail', 'api_v1_skill_zip', 'api_v1_skill_files',
+    'api_v1_skill_install', 'api_v1_versions', 'api_v1_version_detail',
+    'api_v1_version_install', 'api_v1_version_zip', 'api_v1_version_files',
+}
+
+
+class UsageRecordingMiddleware:
+    """Capture pageview + api events for the usage dashboard.
+
+    Must NOT raise: usage tracking is a side-channel and must never affect
+    the response a user sees. All work is wrapped in try/except with a
+    WARNING log on failure.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # Skip noisy static asset traffic before timing anything.
+        path = request.path or ''
+        if path.startswith(_USAGE_SKIP_PREFIXES):
+            return self.get_response(request)
+
+        t0 = time.monotonic()
+        response = self.get_response(request)
+        latency_ms = int((time.monotonic() - t0) * 1000)
+
+        try:
+            self._record(request, response, latency_ms)
+        except Exception as exc:
+            _usage_logger.warning('usage middleware record failed: %s', exc)
+
+        return response
+
+    @staticmethod
+    def _record(request, response, latency_ms):
+        path = request.path or ''
+        is_api = path.startswith('/api/')
+        match = getattr(request, 'resolver_match', None)
+
+        # Unmatched non-API paths produce no useful signal.
+        if match is None and not is_api:
+            return
+
+        event_type = 'api' if is_api else 'pageview'
+        skill = None
+        version = None
+        if match is not None:
+            kwargs = match.kwargs or {}
+            if match.url_name in _USAGE_DETAIL_VIEWS:
+                skill = kwargs.get('name')
+                version = kwargs.get('version')
+            else:
+                skill = kwargs.get('name')
+
+        user = (request.COOKIES.get('CURRENT_USER_NAME') or '').strip() or None
+        ip = get_client_ip(request) or None
+
+        usage.record_event(
+            event_type,
+            skill=skill,
+            version=version,
+            user=user,
+            status=response.status_code,
+            latency_ms=latency_ms,
+            extra={'path': path[:200], 'method': request.method},
+            ip=ip,
+        )

@@ -1,15 +1,18 @@
 import json
 import os
+from datetime import datetime, timezone
 
 from django.conf import settings
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 # (from .classifier import get_categories) - removed dependency
+from . import usage
 from .file_reader import read_skill_files
 from .installer import install_skill, InstallError, uninstall_skill
 from .inventory import list_installed_skills, InventoryError
+from .middleware import get_client_ip
 from .parser import parse_skill, parse_skill_from_dir
 from .zipper import create_zip_response
 from .watcher import get_skills
@@ -365,11 +368,29 @@ def _do_install(request, src_dir, skill_name):
     if not target:
         return JsonResponse({'error': "Missing 'target' in body"}, status=400)
 
+    ip = get_client_ip(request) or None
     try:
         result = install_skill(src_dir, target, user_name, skill_name=skill_name)
     except InstallError as e:
+        usage.record_event(
+            'install',
+            skill=skill_name,
+            target=target,
+            user=user_name,
+            status=e.http_status,
+            extra={'error': str(e)[:200]},
+            ip=ip,
+        )
         return JsonResponse({'error': str(e)}, status=e.http_status)
 
+    usage.record_event(
+        'install',
+        skill=skill_name,
+        target=target,
+        user=user_name,
+        status=200,
+        ip=ip,
+    )
     return JsonResponse({'status': 'ok', **result})
 
 
@@ -450,13 +471,182 @@ def _do_uninstall(request, target_name, name):
             {'error': 'Missing or invalid CURRENT_USER_NAME cookie'},
             status=400,
         )
+    ip = get_client_ip(request) or None
     try:
         result = uninstall_skill(target_name, user_name, name)
     except InstallError as exc:
+        usage.record_event(
+            'uninstall',
+            skill=name,
+            target=target_name,
+            user=user_name,
+            status=exc.http_status,
+            extra={'error': str(exc)[:200]},
+            ip=ip,
+        )
         return JsonResponse({'error': str(exc)}, status=exc.http_status)
+    usage.record_event(
+        'uninstall',
+        skill=name,
+        target=target_name,
+        user=user_name,
+        status=200,
+        ip=ip,
+    )
     return JsonResponse({'status': 'ok', **result})
 
 
 @require_POST
 def api_installed_uninstall(request, target_name, name):
     return _do_uninstall(request, target_name, name)
+
+
+# ---------------------------------------------------------------------------
+# Usage dashboard (admin-gated)
+# ---------------------------------------------------------------------------
+
+_USAGE_RANGES = {
+    '24h': 24 * 60 * 60,
+    '7d': 7 * 24 * 60 * 60,
+    '30d': 30 * 24 * 60 * 60,
+    '90d': 90 * 24 * 60 * 60,
+}
+_USAGE_DEFAULT_RANGE = '7d'
+_USAGE_RECENT_PAGE_SIZE = 50
+_USAGE_RECENT_PAGE_SIZES = (25, 50, 100, 200)
+
+
+def _usage_recent_page(request) -> int:
+    raw = (request.GET.get('page') or '1').strip()
+    try:
+        page = int(raw)
+    except ValueError:
+        page = 1
+    return max(1, page)
+
+
+def _usage_recent_page_size(request) -> int:
+    raw = (request.GET.get('per_page') or '').strip()
+    try:
+        size = int(raw)
+    except ValueError:
+        size = _USAGE_RECENT_PAGE_SIZE
+    if size not in _USAGE_RECENT_PAGE_SIZES:
+        size = _USAGE_RECENT_PAGE_SIZE
+    return size
+
+
+def _require_usage_admin(request):
+    """Allowlist check against USAGE_ADMIN_USERS (CURRENT_USER_NAME cookie).
+
+    Returns the user name when authorised, or an HttpResponseForbidden
+    when not. Empty allowlist ⇒ forbidden for everyone (fail closed).
+    """
+    user = (request.COOKIES.get('CURRENT_USER_NAME') or '').strip()
+    admins = getattr(settings, 'USAGE_ADMIN_USERS', set()) or set()
+    if not user or user not in admins:
+        return HttpResponseForbidden('Forbidden')
+    return user
+
+
+def _usage_range_seconds(request):
+    raw = (request.GET.get('range') or _USAGE_DEFAULT_RANGE).strip()
+    if raw not in _USAGE_RANGES:
+        raw = _USAGE_DEFAULT_RANGE
+    return raw, _USAGE_RANGES[raw]
+
+
+@require_GET
+def usage_page(request):
+    gate = _require_usage_admin(request)
+    if isinstance(gate, HttpResponseForbidden):
+        return gate
+    range_key, range_seconds = _usage_range_seconds(request)
+    summary = usage.query_summary(range_seconds)
+    installs = usage.query_installs(range_seconds, group_by='skill')
+    pageviews = usage.query_pageviews(range_seconds)
+    health = usage.query_health(range_seconds)
+
+    page = _usage_recent_page(request)
+    page_size = _usage_recent_page_size(request)
+    recent_result = usage.query_recent(limit=page_size, offset=(page - 1) * page_size)
+    recent_rows = recent_result['rows']
+    recent_total = recent_result['total']
+    total_pages = max(1, (recent_total + page_size - 1) // page_size)
+    if page > total_pages:
+        page = total_pages
+        recent_result = usage.query_recent(limit=page_size, offset=(page - 1) * page_size)
+        recent_rows = recent_result['rows']
+    for e in recent_rows:
+        ts = e.get('ts')
+        if ts:
+            e['ts'] = datetime.fromtimestamp(ts, tz=timezone.utc)
+
+    return render(request, 'skills/usage.html', {
+        'user_name': gate,
+        'range_key': range_key,
+        'range_options': list(_USAGE_RANGES.keys()),
+        'summary': summary,
+        'installs': installs,
+        'pageviews': pageviews,
+        'health': health,
+        'recent': recent_rows,
+        'recent_page': page,
+        'recent_page_size': page_size,
+        'recent_page_size_options': list(_USAGE_RECENT_PAGE_SIZES),
+        'recent_total': recent_total,
+        'recent_total_pages': total_pages,
+        'recent_has_prev': page > 1,
+        'recent_has_next': page < total_pages,
+        'recent_prev_page': page - 1,
+        'recent_next_page': page + 1,
+        'recent_start': 0 if recent_total == 0 else (page - 1) * page_size + 1,
+        'recent_end': min(page * page_size, recent_total),
+    })
+
+
+@require_GET
+def api_usage_summary(request):
+    gate = _require_usage_admin(request)
+    if isinstance(gate, HttpResponseForbidden):
+        return gate
+    range_key, range_seconds = _usage_range_seconds(request)
+    data = usage.query_summary(range_seconds)
+    data['range'] = range_key
+    return JsonResponse(data)
+
+
+@require_GET
+def api_usage_installs(request):
+    gate = _require_usage_admin(request)
+    if isinstance(gate, HttpResponseForbidden):
+        return gate
+    range_key, range_seconds = _usage_range_seconds(request)
+    group_by = (request.GET.get('group') or 'skill').strip()
+    if group_by not in ('skill', 'target', 'day'):
+        group_by = 'skill'
+    data = usage.query_installs(range_seconds, group_by=group_by)
+    data['range'] = range_key
+    return JsonResponse(data)
+
+
+@require_GET
+def api_usage_pageviews(request):
+    gate = _require_usage_admin(request)
+    if isinstance(gate, HttpResponseForbidden):
+        return gate
+    range_key, range_seconds = _usage_range_seconds(request)
+    data = usage.query_pageviews(range_seconds)
+    data['range'] = range_key
+    return JsonResponse(data)
+
+
+@require_GET
+def api_usage_health(request):
+    gate = _require_usage_admin(request)
+    if isinstance(gate, HttpResponseForbidden):
+        return gate
+    range_key, range_seconds = _usage_range_seconds(request)
+    data = usage.query_health(range_seconds)
+    data['range'] = range_key
+    return JsonResponse(data)

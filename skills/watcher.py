@@ -5,6 +5,7 @@ import time
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
+from . import usage
 from .parser import parse_all_skills
 
 logger = logging.getLogger('skills.watcher')
@@ -25,11 +26,26 @@ def _reload():
     if _skill_repo_path is None:
         return
     t0 = time.monotonic()
-    new_skills = parse_all_skills(_skill_repo_path)
+    try:
+        new_skills = parse_all_skills(_skill_repo_path)
+    except Exception as exc:
+        elapsed = int((time.monotonic() - t0) * 1000)
+        logger.error('parse_all_skills failed in %dms: %s', elapsed, exc)
+        usage.record_event(
+            'parse_error',
+            latency_ms=elapsed,
+            extra={'error': str(exc)[:200]},
+        )
+        return
     with _lock:
         _skills = new_skills
     elapsed = int((time.monotonic() - t0) * 1000)
     logger.info('parse_all_skills completed (%d skills in %dms)', len(new_skills), elapsed)
+    usage.record_event(
+        'parse',
+        latency_ms=elapsed,
+        extra={'skillCount': len(new_skills)},
+    )
 
 
 class _SkillEventHandler(FileSystemEventHandler):

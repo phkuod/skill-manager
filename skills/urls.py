@@ -7,6 +7,13 @@ urlpatterns = [
     path('skills/<str:name>/', views.skill_detail, name='skill_detail'),
     path('skills/<str:name>/v/<str:version>/', views.skill_detail_version, name='skill_detail_version'),
     path('installed/', views.installed_page, name='installed_page'),
+    path('usage/', views.usage_page, name='usage_page'),
+
+    # Usage dashboard JSON (admin-gated)
+    path('api/usage/summary', views.api_usage_summary, name='api_usage_summary'),
+    path('api/usage/installs', views.api_usage_installs, name='api_usage_installs'),
+    path('api/usage/pageviews', views.api_usage_pageviews, name='api_usage_pageviews'),
+    path('api/usage/health', views.api_usage_health, name='api_usage_health'),
 
     # Discovery (top-level, not v1-prefixed)
     path('api/version', views.api_version, name='api_version'),
