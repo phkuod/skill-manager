@@ -336,6 +336,62 @@ def query_health(range_seconds: int) -> dict:
     }
 
 
+def query_timeseries(range_seconds: int) -> dict:
+    """Bucketed event counts grouped by event type.
+
+    Bucket width auto-picks 1 hour for ranges ≤ 24h, 1 day otherwise — so
+    24h renders ~24 bars, 7d renders 7, 30d renders 30, 90d renders 90.
+
+    Returns:
+        {
+            'bucketSeconds': int,
+            'maxTotal': int,     # tallest stack across buckets, for y-scale
+            'buckets': [{'ts': float, 'pageview': int, 'api': int,
+                         'install': int, 'uninstall': int,
+                         'parse_error': int, 'total': int}, ...]
+        }
+    """
+    range_seconds = max(int(range_seconds), 1)
+    bucket_seconds = 3600 if range_seconds <= 86400 else 86400
+    since = time.time() - range_seconds
+
+    rows = _fetchall(
+        "SELECT CAST(ts/? AS INTEGER) bucket, type, COUNT(*) "
+        "FROM events WHERE ts >= ? "
+        "GROUP BY bucket, type ORDER BY bucket ASC",
+        (bucket_seconds, since),
+    )
+
+    types_tracked = ('pageview', 'api', 'install', 'uninstall', 'parse_error')
+    buckets_map: dict[int, dict] = {}
+    for bucket, type_, count in rows:
+        entry = buckets_map.setdefault(int(bucket), {t: 0 for t in types_tracked})
+        if type_ in entry:
+            entry[type_] = int(count)
+
+    now_bucket = int(time.time()) // bucket_seconds
+    start_bucket = int(since) // bucket_seconds + 1
+
+    buckets: list[dict] = []
+    max_total = 0
+    for b in range(start_bucket, now_bucket + 1):
+        counts = buckets_map.get(b, {t: 0 for t in types_tracked})
+        total = sum(counts.values())
+        buckets.append({
+            'ts': float(b * bucket_seconds),
+            **counts,
+            'total': total,
+        })
+        if total > max_total:
+            max_total = total
+
+    return {
+        'bucketSeconds': bucket_seconds,
+        'maxTotal': max_total,
+        'buckets': buckets,
+    }
+
+
 def query_recent(limit: int = 50, offset: int = 0) -> dict:
     """Return a window of recent events plus the total row count.
 

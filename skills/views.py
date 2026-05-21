@@ -515,6 +515,90 @@ _USAGE_DEFAULT_RANGE = '7d'
 _USAGE_RECENT_PAGE_SIZE = 50
 _USAGE_RECENT_PAGE_SIZES = (25, 50, 100, 200)
 
+# Colors chosen to stay legible against both --bg-card (light) and dark
+# theme equivalents. Order is the stacking order from bottom up.
+_USAGE_EVENT_SERIES = (
+    ('api',         'API calls',   '#3b82f6'),
+    ('pageview',    'Page views',  '#10b981'),
+    ('install',     'Installs',    '#f59e0b'),
+    ('uninstall',   'Uninstalls',  '#94a3b8'),
+    ('parse_error', 'Parse error', '#ef4444'),
+)
+_USAGE_STATUS_SERIES = (
+    ('2xx', '#10b981'),
+    ('3xx', '#3b82f6'),
+    ('4xx', '#f59e0b'),
+    ('5xx', '#ef4444'),
+)
+
+
+def _build_timeseries_chart(timeseries: dict) -> dict:
+    """Pre-compute segment heights so the template stays dumb."""
+    buckets_raw = timeseries.get('buckets') or []
+    max_total = timeseries.get('maxTotal') or 0
+    bucket_seconds = timeseries.get('bucketSeconds') or 86400
+    fmt = '%H:00' if bucket_seconds == 3600 else '%m-%d'
+    denom = max(max_total, 1)
+
+    series_meta = [
+        {'type': t, 'label': lbl, 'color': c}
+        for t, lbl, c in _USAGE_EVENT_SERIES
+    ]
+
+    n = len(buckets_raw)
+    label_every = 1
+    if n > 16:
+        label_every = max(1, n // 10)
+
+    out_buckets = []
+    for idx, b in enumerate(buckets_raw):
+        total = int(b.get('total') or 0)
+        segments = []
+        for type_, _label, color in _USAGE_EVENT_SERIES:
+            value = int(b.get(type_) or 0)
+            if value <= 0:
+                continue
+            segments.append({
+                'type': type_,
+                'color': color,
+                'value': value,
+                'heightPct': round(value / denom * 100, 3),
+            })
+        ts = datetime.fromtimestamp(b['ts'], tz=timezone.utc)
+        out_buckets.append({
+            'ts': b['ts'],
+            'isoLabel': ts.strftime('%Y-%m-%d %H:%M UTC'),
+            'shortLabel': ts.strftime(fmt),
+            'showLabel': (idx % label_every == 0) or (idx == n - 1),
+            'total': total,
+            'segments': segments,
+        })
+
+    return {
+        'bucketSeconds': bucket_seconds,
+        'maxTotal': max_total,
+        'buckets': out_buckets,
+        'series': series_meta,
+        'hasData': max_total > 0,
+    }
+
+
+def _build_status_chart(health: dict) -> dict:
+    """Stacked horizontal bar segments for HTTP 2xx/3xx/4xx/5xx mix."""
+    buckets = (health.get('statusBuckets') or {}) if isinstance(health, dict) else {}
+    total = sum(int(buckets.get(k, 0) or 0) for k, _ in _USAGE_STATUS_SERIES)
+    segments = []
+    for key, color in _USAGE_STATUS_SERIES:
+        count = int(buckets.get(key, 0) or 0)
+        pct = 0 if total <= 0 else round(count / total * 100, 2)
+        segments.append({
+            'key': key,
+            'count': count,
+            'color': color,
+            'widthPct': pct,
+        })
+    return {'total': total, 'segments': segments, 'hasData': total > 0}
+
 
 def _usage_recent_page(request) -> int:
     raw = (request.GET.get('page') or '1').strip()
@@ -566,6 +650,8 @@ def usage_page(request):
     installs = usage.query_installs(range_seconds, group_by='skill')
     pageviews = usage.query_pageviews(range_seconds)
     health = usage.query_health(range_seconds)
+    timeseries_chart = _build_timeseries_chart(usage.query_timeseries(range_seconds))
+    status_chart = _build_status_chart(health)
 
     page = _usage_recent_page(request)
     page_size = _usage_recent_page_size(request)
@@ -590,6 +676,8 @@ def usage_page(request):
         'installs': installs,
         'pageviews': pageviews,
         'health': health,
+        'timeseries_chart': timeseries_chart,
+        'status_chart': status_chart,
         'recent': recent_rows,
         'recent_page': page,
         'recent_page_size': page_size,

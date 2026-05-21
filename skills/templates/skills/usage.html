@@ -74,6 +74,25 @@
   .usage-pagesize { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); }
   .usage-pagesize select { padding: 4px 28px 4px 10px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); cursor: pointer; appearance: none; -webkit-appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%), linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%); background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
   .usage-pagesize select:hover { border-color: var(--accent); }
+  /* Charts (zero-dep, pure CSS/HTML) */
+  .usage-chart-body { padding: 1rem 1.25rem; }
+  .usage-chart-meta { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+  .usage-chart-legend { display: inline-flex; gap: 0.75rem; flex-wrap: wrap; font-size: 0.75rem; color: var(--text-secondary); }
+  .usage-chart-legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .usage-chart-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+  .usage-chart-bars { display: flex; align-items: stretch; gap: 3px; height: 170px; padding-top: 4px; }
+  .usage-chart-col { flex: 1 1 0; display: flex; flex-direction: column; min-width: 0; }
+  .usage-chart-stack { flex: 1 1 auto; display: flex; flex-direction: column-reverse; min-height: 0; position: relative; border-radius: 3px; overflow: hidden; }
+  .usage-chart-stack::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background-color: var(--border); opacity: 0.5; }
+  .usage-chart-seg { width: 100%; transition: opacity 0.15s ease; }
+  .usage-chart-col:hover .usage-chart-seg { opacity: 0.85; }
+  .usage-chart-axis { display: flex; gap: 3px; margin-top: 4px; }
+  .usage-chart-axis > div { flex: 1 1 0; min-width: 0; text-align: center; font-size: 0.65rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+  .usage-statbar { display: flex; height: 18px; border-radius: 4px; overflow: hidden; background-color: var(--bg-secondary); border: 1px solid var(--border); }
+  .usage-statbar > div { transition: opacity 0.15s ease; }
+  .usage-statbar > div:hover { opacity: 0.85; }
+  .usage-statbar-legend { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary); }
+  .usage-statbar-legend span { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
 </style>
 
 <div class="usage-wrap">
@@ -122,6 +141,44 @@
           <span class="usage-pill usage-pill-ok">healthy</span>
         {% endif %}
       </div>
+    </div>
+  </div>
+
+  <div class="usage-panel" style="margin-bottom:1.5rem;">
+    <div class="usage-panel-header">Events over time</div>
+    <div class="usage-chart-body">
+      <div class="usage-chart-meta">
+        <div class="usage-chart-legend" aria-label="Series">
+          {% for s in timeseries_chart.series %}
+            <span><span class="usage-chart-swatch" style="background-color:{{ s.color }}"></span>{{ s.label }}</span>
+          {% endfor %}
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-secondary);font-variant-numeric:tabular-nums;">
+          peak {{ timeseries_chart.maxTotal }} / {% if timeseries_chart.bucketSeconds == 3600 %}hour{% else %}day{% endif %}
+        </div>
+      </div>
+      {% if timeseries_chart.hasData %}
+        <div class="usage-chart-bars" role="img" aria-label="Events over time">
+          {% for b in timeseries_chart.buckets %}
+            <div class="usage-chart-col" title="{{ b.isoLabel }} — {{ b.total }} event{{ b.total|pluralize }}">
+              <div class="usage-chart-stack">
+                {% for seg in b.segments %}
+                  <div class="usage-chart-seg"
+                       style="height:{{ seg.heightPct }}%;background-color:{{ seg.color }}"
+                       title="{{ seg.type }}: {{ seg.value }}"></div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="usage-chart-axis" aria-hidden="true">
+          {% for b in timeseries_chart.buckets %}
+            <div>{% if b.showLabel %}{{ b.shortLabel }}{% endif %}</div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="usage-empty">No events in this range.</div>
+      {% endif %}
     </div>
   </div>
 
@@ -194,10 +251,24 @@
         <tr>
           <th>HTTP status (range)</th>
           <td>
-            <span class="usage-pill usage-pill-ok">2xx · {{ health.statusBuckets.2xx }}</span>
-            <span class="usage-pill usage-pill-mid">3xx · {{ health.statusBuckets.3xx }}</span>
-            <span class="usage-pill usage-pill-mid">4xx · {{ health.statusBuckets.4xx }}</span>
-            <span class="usage-pill usage-pill-err">5xx · {{ health.statusBuckets.5xx }}</span>
+            {% if status_chart.hasData %}
+              <div class="usage-statbar" role="img"
+                   aria-label="HTTP status distribution: {% for s in status_chart.segments %}{{ s.key }} {{ s.count }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+                {% for s in status_chart.segments %}
+                  {% if s.count %}
+                    <div style="width:{{ s.widthPct }}%;background-color:{{ s.color }}"
+                         title="{{ s.key }}: {{ s.count }} ({{ s.widthPct }}%)"></div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+              <div class="usage-statbar-legend">
+                {% for s in status_chart.segments %}
+                  <span><span class="usage-chart-swatch" style="background-color:{{ s.color }}"></span>{{ s.key }} · {{ s.count }}</span>
+                {% endfor %}
+              </div>
+            {% else %}
+              <span style="color:var(--text-secondary);font-size:0.85rem;">no HTTP traffic in this range</span>
+            {% endif %}
           </td>
         </tr>
       </tbody>
