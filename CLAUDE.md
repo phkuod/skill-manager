@@ -2,34 +2,37 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Stack note (README is stale)
+## Stack
 
-`README.md` describes a Node/Express + React/Vite stack with `node manage.js` commands. That stack has been replaced. The running app is **Django 5.x** (4.x on Python 3.8/3.9) backed by static HTML + vanilla JS in `frontend/`. There is no frontend build step — vendored Tailwind/highlight.js/marked live in `frontend/vendor/`.
-
-The `frontend/` directory is **deployable on its own**: the same HTML works whether served by Django (via WhiteNoise + the URL routes below) or pushed to a plain static host that talks to the Django backend over `/api/*` (CORS is permissive by default — see middleware).
+The running app is **Django 5.x** with frontend served via Django templates from the `skills` app (`skills/templates/skills/{base,home,skill_detail,404}.html`). Static assets live under `skills/static/skills/...` and are picked up by Django's `APP_DIRS=True` static finder, then served by WhiteNoise. There is no frontend build step — vendored Tailwind and highlight.js live in `skills/static/skills/vendor/`. SKILL.md markdown is pre-rendered to HTML in `parser.py` (the `contentHtml` field) and emitted in templates via `{{ skill.contentHtml|safe }}`.
 
 ## Commands
 
-All day-to-day operation goes through `./backend/start.sh`, which picks a requirements file based on `python3 --version` (3.12+ → `requirements_py3.12.txt`, 3.10–3.11 → `requirements_py3.10_plus.txt`, else `requirements_py3.8_3.9.txt`) and expects a venv at `backend/venv`.
+All day-to-day operation goes through `./start.sh`, which picks a requirements file based on `python3 --version` (3.12+ → `requirements_py3.12.txt`, 3.10–3.11 → `requirements_py3.10_plus.txt`, else `requirements_py3.8_3.9.txt`) and expects a venv at `venv/`.
 
 ```bash
-# First-time setup
-python3 -m venv backend/venv
-backend/venv/bin/pip install -r backend/requirements-dev.txt   # dev (includes pytest)
-# or backend/requirements.txt for prod-only
+# First-time setup (start.sh picks the right requirements file automatically)
+python3 -m venv venv
+./start.sh   # sources .env.development and runs collectstatic on first run
+
+# Or install manually — pick the file matching your Python version:
+#   Python 3.12+:      pip install -r requirements_py3.12.txt
+#   Python 3.10–3.11:  pip install -r requirements_py3.10_plus.txt
+#   Python 3.8–3.9:    pip install -r requirements_py3.8_3.9.txt
+# For dev (adds pytest):  also pip install pytest pytest-django
 
 # Run
-./backend/start.sh            # dev — Django runserver; PORT defaults to 3000, overridden by backend/.env.development (currently 8888)
-./backend/start.sh prod       # prod — gunicorn, DEBUG=False (PORT from backend/.env.production)
+./start.sh            # dev — Django runserver; PORT defaults to 3000, overridden by .env.development (currently 8888)
+./start.sh prod       # prod — gunicorn, DEBUG=False (PORT from .env.production)
 
-# Tests (from backend/ with venv active)
+# Tests (from repo root with venv active)
 pytest                                       # all unit tests
 pytest skills/tests/test_parser.py           # one file
 pytest skills/tests/test_parser.py::test_x   # one test
 pytest e2e/                                  # Playwright E2E (see caveat below)
 ```
 
-`backend/start.sh` sources `backend/.env.<mode>` if present, then runs `collectstatic` before launching. Production is also wired via PM2 (`backend/ecosystem.config.cjs`) and a Linux-only Dockerfile at the repo root (`docker build -t skill-market . && docker run -p 9419:9419 skill-market`). **Docker is only for simulating prod locally — the real production deployment uses the gunicorn/PM2 path, not the container.**
+`start.sh` sources `.env.<mode>` if present, then runs `collectstatic` before launching. Production is also wired via PM2 (`ecosystem.config.cjs`) and a Linux-only Dockerfile at the repo root (`docker build -t skill-market . && docker run -p 9419:9419 skill-market`). **Docker is only for simulating prod locally — the real production deployment uses the gunicorn/PM2 path, not the container.**
 
 ## Architecture
 
@@ -38,29 +41,63 @@ pytest e2e/                                  # Playwright E2E (see caveat below)
 **Single Django app: `skills`.** Module responsibilities:
 
 - `watcher.py` — owns the global `_skills` dict. `init_watcher()` runs a full `parse_all_skills()` on startup, then a `watchdog` observer re-parses with a 300ms debounce on any FS event under `SKILL_REPO_PATH`. `views.get_skills()` reads from this dict per request.
-- `apps.py::SkillsConfig.ready()` — connects a `request_started` signal handler that lazy-inits the watcher on the first HTTP request (guarded by a module-level `_initialized` flag). This guarantees exactly one init regardless of launcher (runserver autoreload parent vs. child, `--noreload`, gunicorn worker) and skips management commands (`collectstatic`/`migrate`/`pytest`/`shell`). **Don't move init back into `ready()` directly — autoreload + `backend/start.sh`'s pre-launch `collectstatic` would each trigger their own `parse_all_skills()`.** Trade-off: first request pays the parse cost synchronously. Note: with `gunicorn --workers 2` each worker keeps its own `_skills` dict and watchdog observer; that's a known limitation of the in-process design.
+- `apps.py::SkillsConfig.ready()` — connects a `request_started` signal handler that lazy-inits the watcher on the first HTTP request (guarded by a module-level `_initialized` flag). This guarantees exactly one init regardless of launcher (runserver autoreload parent vs. child, `--noreload`, gunicorn worker) and skips management commands (`collectstatic`/`migrate`/`pytest`/`shell`). **Don't move init back into `ready()` directly — autoreload + `start.sh`'s pre-launch `collectstatic` would each trigger their own `parse_all_skills()`.** Trade-off: first request pays the parse cost synchronously. **Single-worker constraint:** the in-process `_skills` dict is per-worker, so prod is pinned to `gunicorn --workers 1` in `start.sh`. PM2's `instances: 1` enforces a single PM2 instance, but the gunicorn `--workers` flag is the actual serialization point — if you raise it, consecutive requests can hit different workers and see catalog drift during reloads. Verify with `ps -ef | grep gunicorn` (one master + one worker).
 - `parser.py` — reads `SKILL.md` frontmatter (`python-frontmatter`). Handles **versioning**: any subdirectory matching `^(\d{8})-.+` that contains a `SKILL.md` is a version. When present, the newest by date becomes the active content; the top-level skill dir becomes the synthetic `"original"` version.
 - `classifier.py` — `CATEGORY_MAP` is a **hardcoded** `skill_name → {category, icon}` table. Adding a new well-known skill requires an entry here; unknowns fall into `"Other" / 📦`.
 - `file_reader.py` — recursive text-file walk for the detail view. Skips binaries (null-byte probe in first 8 KB); files >500 KB return `{content: None, truncated: True}`. Sort order: `SKILL.md` first, then alphabetical.
 - `zipper.py` — builds the download ZIP in-memory (`io.BytesIO`); nothing is staged on disk.
+- `installer.py` — one-click install transport. `install_skill(src_dir, target_name, user_name)` validates the username (regex `[A-Za-z0-9_.-]+`), resolves the target from `INSTALL_TARGETS` settings, and dispatches to `_install_local` (shutil.copytree) or `_install_ssh` (rsync over SSH). Raises `InstallError(message, http_status)` on failure; views map `http_status` straight onto the JSON response.
 - `middleware.py::ApiCorsMiddleware` — adds permissive CORS (`Access-Control-Allow-Origin: *` by default) and short-circuits OPTIONS preflights, **only on `/api/*`**. Lock down for shared-host deploys via `CORS_ALLOWED_ORIGINS` (single origin only — browsers don't accept comma lists).
-- `views.py` — three HTML shell routes (`/`, `/index.html`, `/skill.html`) that just `read()` and return the matching file from `FRONTEND_DIR` with no templating; the skill name on the detail page is read client-side from the URL hash. Plus the `/api/*` JSON surface (see `skills/urls.py`). Server-side search on `/api/skills` ranks name-matches > description-matches > content-matches.
+- `views.py` — HTML template views (`home` at `/`, `skill_detail` at `/skills/<name>/`, `skill_detail_version` at `/skills/<name>/v/<version>/`) that server-render the catalog and skill detail pages using data from the in-memory `_skills` dict. Plus the `/api/*` JSON surface (see `skills/urls.py`). Server-side search on `/api/skills` ranks name-matches > description-matches > content-matches.
 
-**Env loading.** `settings.py:7` calls `load_dotenv(backend/.env)` *before* any `os.environ.get(...)`. `backend/.env` is gitignored, so its existence isn't obvious from a clean checkout — but if present, it silently overrides `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and `INSTALL_TARGET_*`. Note this is **separate** from `backend/.env.development` / `backend/.env.production`, which are sourced by `backend/start.sh` *before* Django boots. If a split-deploy mysteriously gets blocked by CORS even though `backend/.env.development` looks right, check `backend/.env` first.
+**Env loading.** `settings.py:7` calls `load_dotenv(.env)` *before* any `os.environ.get(...)`. `.env` is gitignored, so its existence isn't obvious from a clean checkout — but if present, it silently overrides `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and `INSTALL_TARGET_*`. Note this is **separate** from `.env.development` / `.env.production`, which are sourced by `start.sh` *before* Django boots. If a deploy mysteriously gets blocked by CORS even though `.env.development` looks right, check `.env` first.
 
-**URL conventions.** `APPEND_SLASH = False` in `settings.py` — endpoints are `/api/skills`, not `/api/skills/`. Keep that in mind when adding routes or tests.
+**URL conventions.** `APPEND_SLASH = False` in `settings.py` — endpoints are `/api/skills`, not `/api/skills/`. Keep that in mind when adding routes or tests. HTML routes are `/`, `/skills/<name>/`, `/skills/<name>/v/<version>/`. The `/index.html` and `/skill.html` shell routes were removed in the Django-templates migration.
 
 **No CSRF middleware.** `MIDDLEWARE` (`settings.py:18-23`) deliberately omits `CsrfViewMiddleware`, so cross-origin `POST /api/install/run` works without a CSRF token. Auth on the install POST is by the `CURRENT_USER_NAME` cookie (the fetch sets `credentials: 'include'`). If you re-add CSRF, the cookie's SameSite policy becomes a split-deploy concern.
 
-**Statics & frontend.** `STATICFILES_DIRS = [FRONTEND_DIR]` (default `<repo>/frontend`, override via the `FRONTEND_DIR` env var) — the same files end up in `staticfiles/` after `collectstatic` and are served by WhiteNoise. `urls.py` also wires `re_path(r'^(vendor|assets)/...|config\.js$')` to serve those paths directly out of `FRONTEND_DIR` so the HTML's relative paths (`vendor/tailwind.min.css`, `assets/app.css`, `config.js`) work whether Django or a plain static host serves them. **Do not reintroduce a bundler** — third-party CSS/JS are vendored under `frontend/vendor/`. For a split deploy, the *only* file to edit on the frontend side is `frontend/config.js` — set `window.API_BASE` to the backend origin (e.g. `'http://localhost:8888'` or `'https://api.example.com'`); leave it as `''` for same-origin Django deploys.
+**Statics & frontend.** Static assets live in `skills/static/skills/` and are picked up by `django.contrib.staticfiles` via `APP_DIRS=True`. WhiteNoise serves them in production after `collectstatic` populates `staticfiles/`. Templates live in `skills/templates/skills/`. There is no `FRONTEND_DIR` environment variable, no `config.js`, and no separate static deploy — all paths resolve through `{% static %}`.
 
 ## Tests
 
-- Unit tests live in `backend/skills/tests/` (pytest-django, config in `backend/pytest.ini`). They read the real `skill_repo/` at the repo root; some (e.g. `test_views.py`) create and remove temporary version-subdirectory fixtures inside it.
-- `backend/e2e/` uses Playwright against a subprocess-launched `runserver` on port 8799. By default it uses Playwright's bundled Chromium; set `CHROMIUM_EXEC=/abs/path/to/chrome` to point at a system browser (useful for sandboxed/Linux CI environments where Playwright's download didn't run). The venv detection is OS-aware (`Scripts/python.exe` on Windows, `bin/python` elsewhere) and falls back to `sys.executable`.
-- **Install modal UI smoke test**: `frontend/dev/install-modal-ui-audit.js`. After ANY change to `skill.html` modal markup or `skill.js` modal logic, open `/skill.html#<some-skill>` in a browser, paste the file contents into DevTools console, and run. Must return `{passed: 64+, failed: 0}`. Catches the JIT-purged Tailwind trap (utility class missing from `frontend/vendor/tailwind.min.css`), modal positioning regressions, theme-contrast failures, and click-flow regressions. Also embeds well in the test plan for any install-feature PR.
+- Unit tests live in `skills/tests/` (pytest-django, config in `pytest.ini`). They read the real `skill_repo/` at the repo root; some (e.g. `test_views.py`) create and remove temporary version-subdirectory fixtures inside it.
+- `e2e/` uses Playwright against a subprocess-launched `runserver` on port 8799. By default it uses Playwright's bundled Chromium; set `CHROMIUM_EXEC=/abs/path/to/chrome` to point at a system browser (useful for sandboxed/Linux CI environments where Playwright's download didn't run). The venv detection is OS-aware (`Scripts/python.exe` on Windows, `bin/python` elsewhere) and falls back to `sys.executable`.
+- **Install modal UI smoke test**: `skills/static/skills/dev/install-modal-ui-audit.js`. After ANY change to `skill_detail.html` modal markup or `skill.js` modal logic, open `/skills/<some-skill>/` in a browser, paste the file contents into DevTools console, and run. Must return `{passed: 64+, failed: 0}`. Catches the JIT-purged Tailwind trap (utility class missing from `skills/static/skills/vendor/tailwind.min.css`), modal positioning regressions, theme-contrast failures, and click-flow regressions. Also embeds well in the test plan for any install-feature PR.
 
-**JIT-purged Tailwind warning:** `frontend/vendor/tailwind.min.css` is a frozen JIT-purged build — only utilities that some element on the site uses at the time of the build are present. Adding a new element with a class that no other element uses (e.g. `.fixed`, `.inset-0`, `.max-w-md`, `.p-6` — all confirmed missing) silently breaks layout. When introducing a new utility, either verify it's already in the bundle or use an inline `style=""`. The audit script above tests this for the install modal specifically.
+**JIT-purged Tailwind warning:** `skills/static/skills/vendor/tailwind.min.css` is a frozen JIT-purged build — only utilities that some element on the site uses at the time of the build are present. Adding a new element with a class that no other element uses (e.g. `.fixed`, `.inset-0`, `.max-w-md`, `.p-6` — all confirmed missing) silently breaks layout. When introducing a new utility, either verify it's already in the bundle or use an inline `style=""`. The audit script above tests this for the install modal specifically.
+
+## Logging
+
+Structured rotating-file + console logging via Django's `LOGGING` dict in `settings.py`. Each module uses `logging.getLogger('skills.<module>')`. Key events logged: watcher init + parse timing, FS events (DEBUG), parser errors (WARNING), install request/success/error (INFO/ERROR).
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `LOG_FILE` | `logs/skill-market.log` | Log file path (`logs/` is gitignored; `logs/.gitkeep` is tracked) |
+| `LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` |
+| `LOG_MAX_BYTES` | `10485760` (10 MB) | Max size before rotation |
+| `LOG_BACKUP_COUNT` | `5` | Rotated files to keep |
+
+The file handler uses `delay=True` — the log file is not created until the first message is written, so `pytest` runs don't produce a `logs/skill-market.log`.
+
+## Usage dashboard
+
+Admin-gated `/usage` page + `/api/usage/*` JSON endpoints in `skills/views.py`,
+backed by a file-backed SQLite event log (`skills/usage.py`). The DB lives at
+`USAGE_DB_PATH` (default `<repo>/data/usage.sqlite3`); the events table is
+auto-pruned to `USAGE_RETENTION_DAYS` (default 90) on startup and once a day.
+Events are recorded by `UsageRecordingMiddleware` (pageviews + API) and from
+`views._do_install` / `_do_uninstall` (install outcomes) and `watcher._reload`
+(parse / parse_error).
+
+Access is gated by the `CURRENT_USER_NAME` cookie against the
+`USAGE_ADMIN_USERS` allowlist (comma-separated env var). Empty allowlist means
+the dashboard is forbidden for everyone — fail-closed.
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `USAGE_ADMIN_USERS` | *(empty)* | Comma-separated cookie usernames allowed to view `/usage` |
+| `USAGE_DB_PATH` | `data/usage.sqlite3` | File path for the events DB |
+| `USAGE_RETENTION_DAYS` | `90` | Rolling retention; rows older than this are pruned |
 
 ## Skill repository contract
 
