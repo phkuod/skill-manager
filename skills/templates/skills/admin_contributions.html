@@ -1,0 +1,90 @@
+{% extends "skills/base.html" %}
+{% load static %}
+
+{% block title %}Contribution queue — Skill Market{% endblock %}
+
+{% block header %}
+<header class="sticky top-0 z-50 border-b px-6 py-4 flex items-center gap-4"
+        style="background-color:var(--bg-secondary);border-color:var(--border)">
+  <a href="/" class="flex items-center gap-2 text-sm font-medium flex-shrink-0"
+     style="color:var(--text-secondary);text-decoration:none">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back
+  </a>
+  <div class="flex items-center gap-2 flex-shrink-0">
+    <span class="text-2xl">🛡️</span>
+    <span class="font-bold text-lg hidden sm:inline" style="color:var(--text-primary)">Review queue</span>
+  </div>
+  <div class="flex-1"></div>
+  <a href="/usage/" class="text-sm font-medium px-3 py-2 rounded-lg border flex-shrink-0"
+     style="color:var(--text-primary);border-color:var(--border);text-decoration:none">Usage</a>
+</header>
+{% endblock %}
+
+{% block content %}
+<style>
+  .admin-wrap { max-width: 64rem; margin: 0 auto; padding: 2rem 1.5rem; }
+  .admin-filter { display: inline-flex; gap: 2px; padding: 4px; border-radius: 10px; border: 1px solid var(--border); background-color: var(--bg-secondary); margin-bottom: 1rem; flex-wrap: wrap; }
+  .admin-filter a { padding: 6px 12px; font-size: 0.8rem; border-radius: 8px; color: var(--text-secondary); text-decoration: none; }
+  .admin-filter a.active { background-color: var(--bg-primary); color: var(--accent); font-weight: 600; }
+  .contrib-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; }
+  .contrib-table th, .contrib-table td { padding: 0.6rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+  .contrib-table th { font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); background-color: var(--bg-secondary); }
+  .contrib-table tr:last-child td { border-bottom: 0; }
+  .contrib-status { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
+  .contrib-status.submitted { background-color: rgba(59,130,246,0.15); color: #2563eb; }
+  .contrib-status.under_review { background-color: rgba(245,158,11,0.15); color: #b45309; }
+  .contrib-status.changes_requested { background-color: rgba(239,68,68,0.15); color: #b91c1c; }
+  .contrib-status.approved { background-color: rgba(16,185,129,0.15); color: #047857; }
+  .contrib-status.rejected { background-color: rgba(120,113,108,0.15); color: #57534e; }
+  .contrib-status.published { background-color: rgba(124,58,237,0.15); color: #6d28d9; }
+  .contrib-link { color: var(--accent); text-decoration: none; }
+  .contrib-link:hover { text-decoration: underline; }
+  .contrib-empty { text-align: center; padding: 2rem 1rem; color: var(--text-secondary); border: 1px dashed var(--border); border-radius: 0.75rem; }
+</style>
+
+<div class="admin-wrap">
+  <h1 style="font-size:1.5rem;font-weight:700;color:var(--text-primary);margin-bottom:0.25rem;">Contribution queue</h1>
+  <div style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:1rem;">
+    Signed in as <strong>{{ user_name }}</strong> · {{ total }} submission{{ total|pluralize }}
+  </div>
+
+  <div class="admin-filter" role="tablist" aria-label="Status filter">
+    <a href="/admin/contributions/" class="{% if status_filter == 'all' %}active{% endif %}">all</a>
+    {% for st in statuses %}
+      <a href="/admin/contributions/?status={{ st }}" class="{% if status_filter == st %}active{% endif %}">{{ st }}</a>
+    {% endfor %}
+  </div>
+
+  {% if rows %}
+    <table class="contrib-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Title</th><th>Submitter</th><th>IP</th>
+          <th>Status</th><th>Updated</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in rows %}
+          <tr>
+            <td>{{ s.id }}</td>
+            <td>
+              <a class="contrib-link" href="/contributions/{{ s.id }}/">{{ s.title }}</a>
+              <div style="color:var(--text-secondary);font-size:0.7rem;">{{ s.slug }}</div>
+            </td>
+            <td>{{ s.submitter|default:"—" }}</td>
+            <td style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.75rem;color:var(--text-secondary);">{{ s.submitterIp|default:"—" }}</td>
+            <td><span class="contrib-status {{ s.status }}">{{ s.status }}</span></td>
+            <td style="color:var(--text-secondary);font-variant-numeric:tabular-nums;font-size:0.8rem;">{{ s.updatedTsIso }}</td>
+            <td style="text-align:right;"><a class="contrib-link" href="/contributions/{{ s.id }}/">review →</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="contrib-empty">No submissions in this filter.</div>
+  {% endif %}
+</div>
+{% endblock %}

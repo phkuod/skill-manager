@@ -1,0 +1,930 @@
+/* CSS variables — light mode */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-card: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569; /* Increased contrast from #64748b (WCAG AA compliant) */
+  --border: #e2e8f0;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --result-ok-bg: #dcfce7;
+  --result-ok-text: #166534;
+  --result-err-bg: #fee2e2;
+  --result-err-text: #991b1b;
+  --highlight-bg: #fef08a;
+  --highlight-text: #854d0e;
+  /* High-quality system font stack - no network dependencies */
+  --font-main: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI', 'Inter', system-ui, sans-serif;
+}
+
+/* Dark mode */
+.dark {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --border: #334155;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --result-ok-bg: #14532d;
+  --result-ok-text: #86efac;
+  --result-err-bg: #7f1d1d;
+  --result-err-text: #fca5a5;
+  --highlight-bg: #854d0e;
+  --highlight-text: #fef08a;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Screen-reader-only fallback — the Tailwind .sr-only class is missing from
+   the JIT-purged bundle, so we provide our own via inline styles in the
+   template and this CSS class for any future usage. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Copy-to-clipboard button (install command blocks) */
+.copy-btn {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+.copy-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.copy-btn.copied {
+  color: var(--result-ok-text);
+  border-color: var(--result-ok-text);
+}
+
+/* Skill card hover */
+.skill-card {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.skill-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15), 0 0 0 2px var(--accent);
+  border-color: var(--accent) !important;
+}
+.dark .skill-card:hover {
+  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4), 0 0 0 2px var(--accent);
+}
+
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.skill-card:hover .icon-wrapper {
+  background-color: var(--bg-primary);
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+/* Install tabs */
+.install-tab {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.install-tab.active {
+  background-color: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+/* Markdown content styling */
+.skill-markdown h1 { font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.75rem; color: var(--text-primary); }
+.skill-markdown h2 { font-size: 1.25rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--text-primary); }
+.skill-markdown h3 { font-size: 1.1rem; font-weight: 600; margin: 1rem 0 0.5rem; color: var(--text-primary); }
+.skill-markdown h4 { font-size: 1rem; font-weight: 600; margin: 0.75rem 0 0.25rem; color: var(--text-primary); }
+.skill-markdown p { margin: 0.5rem 0; line-height: 1.6; color: var(--text-primary); }
+.skill-markdown ul, .skill-markdown ol { margin: 0.5rem 0; padding-left: 1.5rem; }
+.skill-markdown li { margin: 0.25rem 0; color: var(--text-primary); }
+.skill-markdown ul li { list-style-type: disc; }
+.skill-markdown ol li { list-style-type: decimal; }
+.skill-markdown code {
+  font-size: 0.85em;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.skill-markdown pre {
+  margin: 0.75rem 0;
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--border);
+}
+.skill-markdown pre code {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.skill-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.85rem;
+}
+.skill-markdown th, .skill-markdown td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  color: var(--text-primary);
+}
+.skill-markdown th {
+  font-weight: 600;
+  background-color: var(--bg-secondary);
+}
+.skill-markdown a { color: var(--accent); text-decoration: underline; }
+.skill-markdown blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  color: var(--text-secondary);
+}
+.skill-markdown strong { font-weight: 600; }
+.skill-markdown hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+/* File blocks */
+.file-block pre {
+  margin: 0;
+  border-radius: 0;
+  background-color: var(--bg-primary) !important;
+}
+.file-block pre code {
+  background: none;
+}
+
+/* Hide the `/` shortcut hint once the search box is focused */
+#search-input:focus ~ #search-shortcut-hint {
+  opacity: 0;
+}
+
+/* Line clamp */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Version selector badge */
+.version-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+}
+
+.version-select {
+  appearance: none;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 28px 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.4;
+  outline: none;
+}
+
+.version-select:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+}
+
+.version-badge::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 45%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid var(--text-secondary);
+  border-bottom: 1.5px solid var(--text-secondary);
+  pointer-events: none;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.version-badge:hover::after {
+  opacity: 1;
+  border-color: var(--accent);
+}
+
+/* Detail page layout */
+.detail-layout-grid {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .detail-layout-grid {
+    flex-direction: row !important;
+    align-items: flex-start !important;
+  }
+  
+  #files-section {
+    flex: 0 0 300px !important;
+    position: sticky;
+    top: 5.5rem;
+    max-height: calc(100vh - 7.5rem);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  #file-explorer-container {
+    flex: 1;
+    max-height: none !important;
+    overflow-y: auto;
+  }
+
+  #content-section {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Collapsed state handling */
+#files-section.collapsed #file-explorer-container {
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  overflow: hidden;
+}
+#files-section.collapsed #file-explorer-chevron {
+  transform: rotate(180deg) !important;
+}
+
+/* Better scrollbars */
+#file-explorer-container::-webkit-scrollbar {
+  width: 5px;
+}
+#file-explorer-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+#file-explorer-container::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+#file-explorer-container:hover::-webkit-scrollbar-thumb {
+  background: var(--text-secondary);
+}
+
+#file-explorer-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* ===========================================================================
+ * Install modal — fully self-contained styles. Doesn't rely on Tailwind
+ * utility classes (vendor bundle is JIT-purged; many utilities are absent).
+ * Theme-aware via the existing CSS variables.
+ * =========================================================================== */
+
+.install-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+/* When hidden, fully remove from layout — without this the fixed overlay
+ * stays at opacity:0 over the viewport and intercepts clicks (back link
+ * etc. become unreachable). The .hidden Tailwind utility sets display:none
+ * but its rule loses to .install-modal in the cascade because app.css
+ * loads later, so we override explicitly here. */
+.install-modal[hidden], .install-modal.hidden { display: none !important; }
+.dark .install-modal { background-color: rgba(0, 0, 0, 0.65); }
+.install-modal.is-open { opacity: 1; }
+
+.install-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 26px 26px 22px;
+  box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.45);
+  transform: scale(0.96) translateY(10px);
+  opacity: 0;
+  transition: transform 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.15), opacity 0.22s ease;
+}
+.install-modal.is-open .install-modal-card {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+.install-modal-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.install-modal-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 30px; height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+  font-family: inherit;
+}
+.install-modal-close:hover {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em; /* Subtle modern touch for system fonts */
+}
+
+.hero-section {
+  padding: 6rem 1.5rem;
+  text-align: center;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: 3.75rem; /* Slightly larger to compensate for system font plainness */
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 1.25rem;
+  letter-spacing: -0.04em; /* Tighter tracking for that premium "Display" look */
+  color: var(--text-primary);
+  text-wrap: balance; /* Ensures even distribution of words across lines */
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 700px;
+  margin: 0 auto;
+  opacity: 0.8;
+  text-wrap: balance; /* Prevents single words from being orphaned on a new line */
+}
+
+mark {
+  background-color: var(--highlight-bg);
+  color: var(--highlight-text);
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: inherit;
+}
+
+/* Site header gradient. Scoped to `body > header` so any future
+ * <article><header>…</header></article> blocks (or other semantic
+ * headers) won't pick up the page-chrome gradient. */
+body > header {
+  background: linear-gradient(to bottom, var(--bg-secondary), var(--bg-primary)) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.install-modal-kicker {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.install-modal-title {
+  margin: 0 0 16px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.install-modal-userline {
+  margin: 0 0 16px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.install-modal-userchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background-color: var(--badge-content-bg);
+  color: var(--badge-content-text);
+  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.install-modal-userchip::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.install-modal-warning {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background-color: var(--result-err-bg);
+  color: var(--result-err-text);
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.install-modal-section {
+  margin: 18px 0 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.install-modal-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Each target is a clickable row that triggers install for that target. */
+.install-target-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, transform 0.1s;
+}
+.install-target-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background-color: var(--bg-secondary);
+}
+.install-target-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.install-target-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.install-target-name {
+  flex-shrink: 0;
+  min-width: 36px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+.install-target-path {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.install-target-go {
+  flex-shrink: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  transition: color 0.15s, transform 0.15s;
+}
+.install-target-btn:hover:not(:disabled) .install-target-go {
+  color: var(--accent);
+  transform: translateX(2px);
+}
+.install-target-btn[data-state="busy"] .install-target-go {
+  color: var(--accent);
+  animation: install-spin 0.9s linear infinite;
+}
+.install-target-btn[data-state="ok"] .install-target-go {
+  color: var(--result-ok-text);
+}
+.install-target-btn[data-state="err"] .install-target-go {
+  color: var(--result-err-text);
+}
+
+.uninstall-target-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, transform 0.1s;
+}
+.uninstall-target-btn:hover:not(:disabled) {
+  border-color: #b42318;
+  background-color: rgba(180, 35, 24, 0.04);
+}
+.uninstall-target-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.uninstall-target-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.uninstall-target-btn:hover:not(:disabled) .install-target-go {
+  color: #b42318;
+  transform: translateX(2px);
+}
+.uninstall-target-btn[data-state="busy"] .install-target-go {
+  color: #b42318;
+  animation: install-spin 0.9s linear infinite;
+}
+.uninstall-target-btn[data-state="ok"] .install-target-go {
+  color: var(--result-ok-text);
+}
+.uninstall-target-btn[data-state="err"] .install-target-go {
+  color: var(--result-err-text);
+}
+
+.uninstall-target-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 26px 26px 22px;
+  box-shadow: 0 24px 60px -16px rgba(180, 35, 24, 0.25);
+  transform: scale(0.96) translateY(10px);
+  opacity: 0;
+  transition: transform 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.15), opacity 0.22s ease;
+}
+.install-modal.is-open .uninstall-target-modal-card {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+.uninstall-target-modal-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #b42318 0%, #ef4444 100%);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+@keyframes install-spin {
+  to { transform: rotate(360deg); }
+}
+
+.install-modal-result {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  word-break: break-all;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.install-modal-result.is-ok {
+  background-color: var(--result-ok-bg);
+  color: var(--result-ok-text);
+}
+.install-modal-result.is-err {
+  background-color: var(--result-err-bg);
+  color: var(--result-err-text);
+}
+
+.install-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+.install-modal-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+}
+.install-modal-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+}
+
+@media (max-width: 480px) {
+  .install-modal { padding: 12px; }
+  .install-modal-card { padding: 22px 20px 18px; }
+  .install-modal-title { font-size: 1.15rem; }
+}
+
+/* ---------- Installed page ---------- */
+.installed-target {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.installed-target-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: transparent;
+  border: 0;
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.installed-target-header:hover {
+  background: rgba(127,127,127,0.08);
+}
+.installed-target-caret { width: 1ch; opacity: 0.7; }
+.installed-target-name { font-weight: 600; }
+.installed-target-type {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.installed-target-host { font-size: 0.75rem; color: var(--text-secondary); }
+.installed-target-base {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.installed-target-spacer { flex: 1; }
+.installed-target-refresh {
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.installed-target-body {
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+.installed-group { margin-top: 8px; }
+.installed-group:first-child { margin-top: 0; }
+.installed-group-title {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 4px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.installed-card {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-primary);
+  margin-bottom: 8px;
+}
+.installed-card-orphan { opacity: 0.85; }
+.installed-card-icon {
+  width: 48px; height: 48px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.75rem;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+}
+.installed-card-name { font-weight: 600; color: var(--text-primary); }
+.installed-card-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  margin-left: 8px;
+}
+.installed-card-desc { font-size: 0.9rem; color: var(--text-secondary); margin-top: 2px; }
+.installed-card-meta { font-size: 0.8rem; color: var(--text-secondary); margin-top: 6px; }
+.installed-card-path {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  margin-top: 2px;
+  word-break: break-all;
+}
+.installed-uninstall-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #b42318;
+  background: transparent;
+  color: #b42318;
+  font-weight: 600;
+  cursor: pointer;
+}
+.installed-uninstall-btn:hover { background: rgba(180, 35, 24, 0.08); }
+.installed-empty { color: var(--text-secondary); font-size: 0.9rem; padding: 8px; }
+.installed-skeleton {
+  height: 64px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(127,127,127,0.08), rgba(127,127,127,0.16), rgba(127,127,127,0.08));
+  background-size: 200% 100%;
+  animation: installed-skel 1.4s ease-in-out infinite;
+  margin-bottom: 8px;
+}
+@keyframes installed-skel {
+  0% { background-position: 0% 0; }
+  100% { background-position: -200% 0; }
+}
+.installed-error {
+  display: flex; gap: 12px; align-items: center;
+  padding: 12px; border-radius: 10px;
+  background: rgba(180, 35, 24, 0.08);
+  color: #b42318;
+}
+
+#nav-installed[aria-current="page"] {
+  background: rgba(127,127,127,0.08);
+  color: var(--text-primary);
+}
+
+/* ---------- Uninstall modal ---------- */
+.uninstall-modal {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.45);
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+  z-index: 9999;
+}
+.uninstall-modal[hidden], .uninstall-modal.hidden { display: none !important; }
+.uninstall-modal.is-open { opacity: 1; }
+.uninstall-modal-card {
+  width: min(520px, calc(100% - 32px));
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  position: relative;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  transform: translateY(8px);
+  transition: transform 120ms ease-out;
+}
+.uninstall-modal.is-open .uninstall-modal-card { transform: translateY(0); }
+.uninstall-modal-close {
+  position: absolute; top: 10px; right: 12px;
+  background: transparent; border: 0; cursor: pointer;
+  font-size: 1.4rem; color: var(--text-secondary); line-height: 1;
+}
+.uninstall-modal-title { font-size: 1.15rem; font-weight: 700; margin: 0 0 12px; }
+.uninstall-modal-details {
+  display: grid; grid-template-columns: 90px 1fr; gap: 4px 12px;
+  font-size: 0.9rem;
+  margin: 0 0 12px;
+}
+.uninstall-modal-details dt { color: var(--text-secondary); }
+.uninstall-modal-details dd {
+  margin: 0; word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+.uninstall-modal-warning { color: #b42318; font-weight: 600; margin: 4px 0 12px; }
+.uninstall-modal-confirm-label {
+  display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px;
+}
+.uninstall-modal-confirm-input {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+.uninstall-modal-result {
+  margin-top: 12px; padding: 8px 12px; border-radius: 8px; font-size: 0.9rem;
+}
+.uninstall-modal-result.is-err { background: rgba(180,35,24,0.08); color: #b42318; }
+.uninstall-modal-result.is-ok  { background: rgba(34,134,58,0.10); color: #22863a; }
+.uninstall-modal-actions {
+  display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px;
+}
+.btn-secondary {
+  padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; color: var(--text-primary); cursor: pointer;
+}
+.btn-danger {
+  padding: 8px 14px; border-radius: 8px; border: 1px solid #b42318;
+  background: #b42318; color: #fff; font-weight: 600; cursor: pointer;
+}
+.btn-danger:disabled {
+  opacity: 0.55; cursor: not-allowed;
+}

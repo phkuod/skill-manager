@@ -1,0 +1,30 @@
+<div class="usage-pagination">
+  <div class="usage-pagination-info">
+    Showing {{ recent_start }}–{{ recent_end }} of {{ recent_total }}
+    · page {{ recent_page }} of {{ recent_total_pages }}
+  </div>
+  <form method="get" action="#recent-events" class="usage-pagesize" aria-label="Rows per page">
+    <input type="hidden" name="range" value="{{ range_key }}">
+    <input type="hidden" name="page" value="1">
+    <label>Rows
+      <select name="per_page" onchange="this.form.submit()">
+        {% for size in recent_page_size_options %}
+          <option value="{{ size }}"{% if size == recent_page_size %} selected{% endif %}>{{ size }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <noscript><button type="submit" class="usage-page-btn">Apply</button></noscript>
+  </form>
+  <div class="usage-pagination-controls">
+    <a class="usage-page-btn"
+       href="?range={{ range_key }}&amp;per_page={{ recent_page_size }}&amp;page={{ recent_prev_page }}#recent-events"
+       {% if not recent_has_prev %}aria-disabled="true" tabindex="-1"{% endif %}>
+      ← Prev
+    </a>
+    <a class="usage-page-btn"
+       href="?range={{ range_key }}&amp;per_page={{ recent_page_size }}&amp;page={{ recent_next_page }}#recent-events"
+       {% if not recent_has_next %}aria-disabled="true" tabindex="-1"{% endif %}>
+      Next →
+    </a>
+  </div>
+</div>
