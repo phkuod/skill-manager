@@ -1,0 +1,123 @@
+{% extends "skills/base.html" %}
+{% load static %}
+
+{% block title %}Contribute a skill — Skill Market{% endblock %}
+
+{% block header %}
+<header class="sticky top-0 z-50 border-b px-6 py-4 flex items-center gap-4"
+        style="background-color:var(--bg-secondary);border-color:var(--border)">
+  <a href="/" class="flex items-center gap-2 text-sm font-medium flex-shrink-0"
+     style="color:var(--text-secondary);text-decoration:none">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back
+  </a>
+  <div class="flex items-center gap-2 flex-shrink-0">
+    <span class="text-2xl">📤</span>
+    <span class="font-bold text-lg hidden sm:inline" style="color:var(--text-primary)">Contribute</span>
+  </div>
+  <div class="flex-1"></div>
+  <a href="/contributions/" class="text-sm font-medium px-3 py-2 rounded-lg border flex-shrink-0"
+     style="color:var(--text-primary);border-color:var(--border);text-decoration:none"
+     title="View your submissions">My submissions</a>
+</header>
+{% endblock %}
+
+{% block content %}
+<style>
+  .contrib-wrap { max-width: 48rem; margin: 0 auto; padding: 2rem 1.5rem; }
+  .contrib-card { border: 1px solid var(--border); border-radius: 0.75rem; background-color: var(--bg-card); padding: 1.5rem; margin-bottom: 1rem; }
+  .contrib-h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem; }
+  .contrib-sub { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem; }
+  .contrib-list { margin: 0.5rem 0 0 1.25rem; color: var(--text-secondary); font-size: 0.875rem; }
+  .contrib-list li { margin-bottom: 0.25rem; }
+  .contrib-input { width: 100%; padding: 0.5rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); font-size: 0.9rem; }
+  .contrib-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .contrib-btn { padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid var(--accent); background-color: var(--accent); color: white; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+  .contrib-btn[disabled] { opacity: 0.55; cursor: progress; }
+  .contrib-msg { padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; margin-top: 0.75rem; }
+  .contrib-msg.err { background-color: var(--result-err-bg); color: var(--result-err-text); }
+  .contrib-msg.ok { background-color: var(--result-ok-bg); color: var(--result-ok-text); }
+  .contrib-meta { display: flex; gap: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem; }
+</style>
+
+<div class="contrib-wrap">
+  <div class="contrib-card">
+    <div class="contrib-h1">Contribute a skill</div>
+    <div class="contrib-sub">
+      Upload a ZIP containing your skill bundle. An admin will review,
+      leave comments, and (after approval) publish it to the catalog.
+    </div>
+    <ul class="contrib-list">
+      <li>The ZIP must contain a <code>SKILL.md</code> at the root or inside a single top-level folder.</li>
+      <li><code>SKILL.md</code> frontmatter requires a <code>name</code> and <code>description</code>; <code>license</code> is recommended.</li>
+      <li>Maximum upload size: {{ max_zip_bytes|filesizeformat }}.</li>
+      <li>You are submitting as <strong>{{ user_name|default:"(unknown — set the CURRENT_USER_NAME cookie)" }}</strong>.</li>
+    </ul>
+  </div>
+
+  <form id="contrib-form" class="contrib-card" enctype="multipart/form-data">
+    <label for="contrib-file" style="display:block;font-weight:600;margin-bottom:0.5rem;color:var(--text-primary)">Skill bundle (.zip)</label>
+    <input type="file" id="contrib-file" name="file" accept=".zip,application/zip,application/x-zip-compressed" required class="contrib-input">
+    <div class="contrib-meta" id="contrib-meta" hidden></div>
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-top:1rem;">
+      <button type="submit" id="contrib-submit" class="contrib-btn">Submit for review</button>
+      <a href="/contributions/" style="color:var(--text-secondary);font-size:0.875rem;text-decoration:none;">View my submissions →</a>
+    </div>
+    <div id="contrib-result" class="contrib-msg" hidden></div>
+  </form>
+</div>
+
+<script>
+(function(){
+  var form = document.getElementById('contrib-form');
+  var fileInput = document.getElementById('contrib-file');
+  var meta = document.getElementById('contrib-meta');
+  var result = document.getElementById('contrib-result');
+  var submit = document.getElementById('contrib-submit');
+  var maxBytes = {{ max_zip_bytes }};
+
+  function showMessage(kind, text) {
+    result.hidden = false;
+    result.className = 'contrib-msg ' + kind;
+    result.textContent = text;
+  }
+
+  fileInput.addEventListener('change', function() {
+    var f = fileInput.files && fileInput.files[0];
+    if (!f) { meta.hidden = true; return; }
+    meta.hidden = false;
+    var size = f.size > 1024*1024 ? (f.size/1048576).toFixed(2) + ' MB' : (f.size/1024).toFixed(1) + ' KB';
+    meta.textContent = f.name + ' · ' + size;
+    if (f.size > maxBytes) {
+      showMessage('err', 'File is larger than the ' + (maxBytes/1048576).toFixed(1) + ' MB limit.');
+    } else {
+      result.hidden = true;
+    }
+  });
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var f = fileInput.files && fileInput.files[0];
+    if (!f) { showMessage('err', 'Pick a ZIP file first.'); return; }
+    if (f.size > maxBytes) { showMessage('err', 'File too large.'); return; }
+    var data = new FormData();
+    data.append('file', f);
+    submit.disabled = true;
+    showMessage('ok', 'Uploading…');
+    fetch('/api/contribute/submit', { method: 'POST', body: data, credentials: 'include' })
+      .then(function(r){ return r.json().then(function(j){ return {ok: r.ok, status: r.status, body: j}; }); })
+      .then(function(res){
+        if (res.ok && res.body && res.body.submission) {
+          window.location.href = '/contributions/' + res.body.submission.id + '/';
+        } else {
+          showMessage('err', (res.body && res.body.error) || ('HTTP ' + res.status));
+          submit.disabled = false;
+        }
+      })
+      .catch(function(err){ showMessage('err', String(err)); submit.disabled = false; });
+  });
+})();
+</script>
+{% endblock %}

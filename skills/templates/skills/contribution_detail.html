@@ -1,0 +1,227 @@
+{% extends "skills/base.html" %}
+{% load static %}
+
+{% block title %}{{ submission.title }} · review — Skill Market{% endblock %}
+
+{% block header %}
+<header class="sticky top-0 z-50 border-b px-6 py-4 flex items-center gap-4"
+        style="background-color:var(--bg-secondary);border-color:var(--border)">
+  <a href="{% if is_admin %}/admin/contributions/{% else %}/contributions/{% endif %}"
+     class="flex items-center gap-2 text-sm font-medium flex-shrink-0"
+     style="color:var(--text-secondary);text-decoration:none">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+    Back
+  </a>
+  <div class="flex items-center gap-2 flex-shrink-0">
+    <span class="text-2xl">🧪</span>
+    <span class="font-bold text-lg hidden sm:inline" style="color:var(--text-primary)">Submission #{{ submission.id }}</span>
+  </div>
+  <div class="flex-1"></div>
+  {% if is_admin %}<span style="font-size:0.75rem;color:var(--accent);font-weight:600;">ADMIN VIEW</span>{% endif %}
+</header>
+{% endblock %}
+
+{% block content %}
+<style>
+  .detail-wrap { max-width: 56rem; margin: 0 auto; padding: 2rem 1.5rem; display: grid; gap: 1rem; }
+  .detail-card { border: 1px solid var(--border); border-radius: 0.75rem; background-color: var(--bg-card); padding: 1.25rem 1.5rem; }
+  .detail-h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+  .detail-meta { display: flex; flex-wrap: wrap; gap: 0.75rem; color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.5rem; }
+  .detail-meta span { display: inline-flex; gap: 4px; align-items: center; }
+  .contrib-status { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; }
+  .contrib-status.submitted { background-color: rgba(59,130,246,0.15); color: #2563eb; }
+  .contrib-status.under_review { background-color: rgba(245,158,11,0.15); color: #b45309; }
+  .contrib-status.changes_requested { background-color: rgba(239,68,68,0.15); color: #b91c1c; }
+  .contrib-status.approved { background-color: rgba(16,185,129,0.15); color: #047857; }
+  .contrib-status.rejected { background-color: rgba(120,113,108,0.15); color: #57534e; }
+  .contrib-status.published { background-color: rgba(124,58,237,0.15); color: #6d28d9; }
+  .panel-h { font-weight: 600; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.6rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+  .filetree { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; max-height: 14rem; overflow: auto; }
+  .filetree li { padding: 1px 0; color: var(--text-secondary); }
+  .filetree .skill-md { color: var(--accent); font-weight: 600; }
+  .timeline { display: grid; gap: 0.6rem; }
+  .timeline .entry { border-left: 3px solid var(--border); padding: 0.4rem 0.75rem; }
+  .timeline .entry.system { border-color: rgba(120,113,108,0.6); color: var(--text-secondary); font-style: italic; font-size: 0.8rem; }
+  .timeline .entry.admin { border-color: #6d28d9; }
+  .timeline .entry.submitter { border-color: var(--accent); }
+  .timeline .entry.ai_reviewer { border-color: #06b6d4; }
+  .timeline .meta { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .timeline .body { white-space: pre-wrap; color: var(--text-primary); font-size: 0.9rem; }
+  textarea.detail-input { width: 100%; min-height: 4rem; padding: 0.5rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit; font-size: 0.9rem; resize: vertical; }
+  select.detail-input { padding: 0.4rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); font-size: 0.85rem; }
+  .detail-btn { padding: 0.4rem 0.9rem; border-radius: 0.5rem; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+  .detail-btn.primary { border-color: var(--accent); background-color: var(--accent); color: white; }
+  .detail-btn.danger { border-color: #ef4444; color: #b91c1c; background-color: rgba(239,68,68,0.05); }
+  .detail-btn[disabled] { opacity: 0.55; cursor: progress; }
+  .row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+</style>
+
+<div class="detail-wrap">
+  <div class="detail-card">
+    <div class="row" style="justify-content:space-between;">
+      <h1 class="detail-h1">{{ submission.title }}</h1>
+      <span class="contrib-status {{ submission.status }}">{{ submission.status }}</span>
+    </div>
+    <div class="detail-meta">
+      <span>by <strong style="color:var(--text-primary);">{{ submission.submitter|default:"—" }}</strong></span>
+      {% if is_admin %}<span>· ip <span style="font-family:ui-monospace,Menlo,monospace;">{{ submission.submitterIp|default:"—" }}</span></span>{% endif %}
+      <span>· slug <code>{{ submission.slug }}</code></span>
+      <span>· license {{ submission.license|default:"—" }}</span>
+      <span>· created {{ submission.createdTsIso }}</span>
+      <span>· updated {{ submission.updatedTsIso }}</span>
+      <span>· file {{ submission.fileSize|filesizeformat }}</span>
+    </div>
+    {% if submission.description %}
+      <p style="margin-top:0.8rem;color:var(--text-primary);white-space:pre-wrap;">{{ submission.description }}</p>
+    {% endif %}
+    {% if submission.publishedSkillDir %}
+      <div style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-secondary);">
+        Published into <code>{{ submission.publishedSkillDir }}</code>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="detail-card">
+    <div class="panel-h">Bundle</div>
+    <div class="row" style="margin-bottom:0.5rem;">
+      <a href="/api/contributions/{{ submission.id }}/zip" class="detail-btn">⬇ Download ZIP ({{ submission.originalFilename|default:"skill.zip" }})</a>
+    </div>
+    <ul class="filetree">
+      {% for f in submission.files %}
+        <li class="{% if f.name == 'SKILL.md' %}skill-md{% endif %}">{{ f.relPath }} · {{ f.size|filesizeformat }}</li>
+      {% empty %}
+        <li>(empty)</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  {% if is_admin %}
+    <div class="detail-card" id="admin-actions">
+      <div class="panel-h">Admin actions</div>
+      <form id="status-form" class="row" style="align-items:flex-end;gap:0.6rem;">
+        <div style="display:flex;flex-direction:column;gap:0.25rem;">
+          <label for="status-select" style="font-size:0.75rem;color:var(--text-secondary);">Move to</label>
+          <select id="status-select" class="detail-input">
+            {% for st in statuses %}
+              <option value="{{ st }}" {% if st == submission.status %}selected{% endif %}>{{ st }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="flex:1 1 18rem;display:flex;flex-direction:column;gap:0.25rem;min-width:14rem;">
+          <label for="status-comment" style="font-size:0.75rem;color:var(--text-secondary);">Comment (optional)</label>
+          <textarea id="status-comment" class="detail-input" placeholder="Reason / changes requested / approval notes…"></textarea>
+        </div>
+        <button type="submit" class="detail-btn primary">Apply</button>
+      </form>
+      <div class="row" style="margin-top:0.75rem;">
+        <button type="button" id="publish-btn" class="detail-btn primary"
+                {% if submission.status != "approved" %}disabled title="only available when status=approved"{% endif %}>
+          🚀 Publish to skill_repo
+        </button>
+        {% if submission.status != "published" %}
+          <button type="button" id="delete-btn" class="detail-btn danger">Delete submission</button>
+        {% endif %}
+      </div>
+      <div id="action-msg" style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-secondary);"></div>
+    </div>
+  {% endif %}
+
+  <div class="detail-card">
+    <div class="panel-h">Discussion</div>
+    <div class="timeline">
+      {% for c in submission.comments %}
+        <div class="entry {{ c.authorRole }}">
+          <div class="meta">
+            {{ c.authorRole }} ·
+            {{ c.author|default:"—" }} ·
+            <span style="font-family:ui-monospace,Menlo,monospace;text-transform:none;">{{ c.createdTsIso }}</span>
+          </div>
+          <div class="body">{{ c.body }}</div>
+        </div>
+      {% empty %}
+        <div style="color:var(--text-secondary);font-size:0.85rem;">No comments yet.</div>
+      {% endfor %}
+    </div>
+    <form id="comment-form" style="margin-top:0.9rem;">
+      <textarea id="comment-body" class="detail-input" placeholder="Add a comment…"></textarea>
+      <div class="row" style="justify-content:flex-end;margin-top:0.5rem;">
+        <button type="submit" class="detail-btn primary">Post comment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  var subId = {{ submission.id }};
+  function api(path, body) {
+    return fetch(path, {
+      method: 'POST', credentials: 'include', body: body,
+    }).then(function(r){
+      return r.json().then(function(j){ return { ok: r.ok, status: r.status, body: j }; });
+    });
+  }
+
+  function setMsg(text, kind) {
+    var el = document.getElementById('action-msg');
+    if (!el) return;
+    el.textContent = text;
+    el.style.color = kind === 'err' ? '#b91c1c' : 'var(--text-secondary)';
+  }
+
+  var commentForm = document.getElementById('comment-form');
+  if (commentForm) {
+    commentForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var body = document.getElementById('comment-body').value;
+      var fd = new FormData(); fd.append('body', body);
+      api('/api/contributions/' + subId + '/comment', fd).then(function(res){
+        if (res.ok) { window.location.reload(); }
+        else { alert((res.body && res.body.error) || 'failed'); }
+      });
+    });
+  }
+
+  var statusForm = document.getElementById('status-form');
+  if (statusForm) {
+    statusForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var fd = new FormData();
+      fd.append('status', document.getElementById('status-select').value);
+      var c = document.getElementById('status-comment').value;
+      if (c.trim()) fd.append('comment', c);
+      api('/api/contributions/' + subId + '/status', fd).then(function(res){
+        if (res.ok) { window.location.reload(); }
+        else { setMsg((res.body && res.body.error) || 'failed', 'err'); }
+      });
+    });
+  }
+
+  var publishBtn = document.getElementById('publish-btn');
+  if (publishBtn) {
+    publishBtn.addEventListener('click', function(){
+      if (!confirm('Publish this submission into skill_repo/? This is one-way (no automatic unpublish).')) return;
+      publishBtn.disabled = true; setMsg('Publishing…');
+      api('/api/contributions/' + subId + '/publish', new FormData()).then(function(res){
+        if (res.ok) { window.location.reload(); }
+        else { setMsg((res.body && res.body.error) || 'failed', 'err'); publishBtn.disabled = false; }
+      });
+    });
+  }
+
+  var deleteBtn = document.getElementById('delete-btn');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', function(){
+      if (!confirm('Delete this submission and its files? Cannot be undone.')) return;
+      deleteBtn.disabled = true; setMsg('Deleting…');
+      api('/api/contributions/' + subId + '/delete', new FormData()).then(function(res){
+        if (res.ok) { window.location.href = '/admin/contributions/'; }
+        else { setMsg((res.body && res.body.error) || 'failed', 'err'); deleteBtn.disabled = false; }
+      });
+    });
+  }
+})();
+</script>
+{% endblock %}

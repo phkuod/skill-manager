@@ -9,6 +9,26 @@ urlpatterns = [
     path('installed/', views.installed_page, name='installed_page'),
     path('usage/', views.usage_page, name='usage_page'),
 
+    # Skill contributions (phase 1: human-reviewed; phase 2 layers AI review)
+    path('contribute/', views.contribute_page, name='contribute_page'),
+    path('contributions/', views.my_contributions_page, name='my_contributions_page'),
+    path('contributions/<int:submission_id>/',
+         views.contribution_detail_page, name='contribution_detail_page'),
+    path('admin/contributions/',
+         views.admin_contributions_page, name='admin_contributions_page'),
+
+    path('api/contribute/submit', views.api_contribute_submit, name='api_contribute_submit'),
+    path('api/contributions/<int:submission_id>/zip',
+         views.api_contribution_zip, name='api_contribution_zip'),
+    path('api/contributions/<int:submission_id>/status',
+         views.api_contribution_status, name='api_contribution_status'),
+    path('api/contributions/<int:submission_id>/comment',
+         views.api_contribution_comment, name='api_contribution_comment'),
+    path('api/contributions/<int:submission_id>/publish',
+         views.api_contribution_publish, name='api_contribution_publish'),
+    path('api/contributions/<int:submission_id>/delete',
+         views.api_contribution_delete, name='api_contribution_delete'),
+
     # Usage dashboard JSON (admin-gated)
     path('api/usage/summary', views.api_usage_summary, name='api_usage_summary'),
     path('api/usage/installs', views.api_usage_installs, name='api_usage_installs'),

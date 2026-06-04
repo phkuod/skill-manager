@@ -99,6 +99,43 @@ the dashboard is forbidden for everyone — fail-closed.
 | `USAGE_DB_PATH` | `data/usage.sqlite3` | File path for the events DB |
 | `USAGE_RETENTION_DAYS` | `90` | Rolling retention; rows older than this are pruned |
 
+## Skill contributions
+
+Users upload skill ZIPs at `/contribute/`; admins review them in
+`/admin/contributions/` (filter by status), leave comments on the detail
+page `/contributions/<id>/`, walk the state machine
+(`submitted → under_review → approved | changes_requested | rejected`),
+and finally trigger a **separate Publish step** that copies the extracted
+bundle into `SKILL_REPO_PATH`. The watcher picks the new skill up live
+without a restart.
+
+State is persisted in `skills/contributions.py` (sibling to `usage.py`):
+SQLite at `SUBMISSIONS_DB_PATH` for rows + comments, plus a per-submission
+blob dir at `SUBMISSIONS_BLOB_DIR/<id>/` that keeps the original `skill.zip`
+verbatim alongside an `extracted/` subtree. Auth: submit needs only the
+`CURRENT_USER_NAME` cookie; review / approve / publish / delete are gated
+by `SKILL_REVIEW_ADMINS` (falls back to `USAGE_ADMIN_USERS` when unset —
+fail-closed, empty allowlist forbids everyone).
+
+ZIP validation lives in `_safe_extract` (rejects absolute paths, `..`,
+symlinks, zip-bomb uncompressed-size overflow) and `_validate_extracted`
+(`SKILL.md` at root or inside one top-level dir; frontmatter `name` +
+`description` required). Publish copies to `skill_repo/<slug>/` with a
+numeric suffix if the slug collides with an existing live entry.
+
+Comments carry an `author_role` of `submitter`, `admin`, `ai_reviewer`,
+or `system`. The `ai_reviewer` role is reserved for **phase 2** (Agentic
+AI review): when a phase-2 reviewer auto-posts a comment, the data model
+already supports it and the submitter — not the admin — is intended to
+click Publish on `approved` submissions.
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `SUBMISSIONS_DB_PATH` | `data/submissions.sqlite3` | SQLite file for submissions + comments |
+| `SUBMISSIONS_BLOB_DIR` | `data/submissions` | Per-submission upload + extracted/ tree |
+| `SUBMISSIONS_MAX_ZIP_BYTES` | `5242880` (5 MB) | Upload cap enforced server-side and client-side |
+| `SKILL_REVIEW_ADMINS` | *(falls back to `USAGE_ADMIN_USERS`)* | Cookie usernames allowed to moderate/publish |
+
 ## Skill repository contract
 
 `SKILL_REPO_PATH` (env, default `<repo>/skill_repo`) is the source of truth. Layout:

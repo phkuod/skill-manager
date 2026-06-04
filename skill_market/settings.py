@@ -132,6 +132,34 @@ except ValueError:
 # cannot spoof their bucket via the header.
 TRUST_PROXY = os.environ.get('TRUST_PROXY', 'False').lower() in ('true', '1')
 
+# Skill contributions. Users submit skill ZIPs that admins review, comment on,
+# approve, and then publish. Phase 1: human review/approve, then a separate
+# Publish step (admin-clicked). Phase 2 will layer AI review and let the
+# submitter click Publish once their submission is approved.
+SUBMISSIONS_DB_PATH = os.environ.get(
+    'SUBMISSIONS_DB_PATH', str(BASE_DIR / 'data' / 'submissions.sqlite3')
+)
+SUBMISSIONS_BLOB_DIR = os.environ.get(
+    'SUBMISSIONS_BLOB_DIR', str(BASE_DIR / 'data' / 'submissions')
+)
+try:
+    SUBMISSIONS_MAX_ZIP_BYTES = int(
+        os.environ.get('SUBMISSIONS_MAX_ZIP_BYTES', str(5 * 1024 * 1024))
+    )
+except ValueError:
+    SUBMISSIONS_MAX_ZIP_BYTES = 5 * 1024 * 1024
+
+# Admins for the contribution queue. Falls back to USAGE_ADMIN_USERS so the
+# same operator-level cookie names that view /usage also moderate /contribute
+# by default. Empty set ⇒ admin endpoints forbidden for everyone (fail closed).
+_skill_review_raw = os.environ.get('SKILL_REVIEW_ADMINS', '').strip()
+if _skill_review_raw:
+    SKILL_REVIEW_ADMINS = {
+        u.strip() for u in _skill_review_raw.split(',') if u.strip()
+    }
+else:
+    SKILL_REVIEW_ADMINS = set(USAGE_ADMIN_USERS)
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 _LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()

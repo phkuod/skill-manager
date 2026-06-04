@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 import json
 import os
 from datetime import datetime, timezone
 
 from django.conf import settings
-from django.http import Http404, HttpResponseForbidden, JsonResponse
+from django.http import (
+    FileResponse, Http404, HttpResponseForbidden, JsonResponse,
+)
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 # (from .classifier import get_categories) - removed dependency
-from . import usage
+from . import contributions, usage
+from .contributions import ContributionError
 from .file_reader import read_skill_files
 from .installer import install_skill, InstallError, uninstall_skill
 from .inventory import list_installed_skills, InventoryError
@@ -738,3 +743,276 @@ def api_usage_health(request):
     data = usage.query_health(range_seconds)
     data['range'] = range_key
     return JsonResponse(data)
+
+
+# ---------------------------------------------------------------------------
+# Skill contributions
+# ---------------------------------------------------------------------------
+
+def _current_user(request) -> str | None:
+    """Cookie-based identity (matches the install flow)."""
+    name = (request.COOKIES.get('CURRENT_USER_NAME') or '').strip()
+    return name or None
+
+
+def _is_skill_admin(request) -> str | None:
+    """Return the admin name when the request is from an allowlisted user.
+
+    Phase 1: admins do everything. SKILL_REVIEW_ADMINS falls back to
+    USAGE_ADMIN_USERS at settings load time.
+    """
+    user = _current_user(request)
+    admins = getattr(settings, 'SKILL_REVIEW_ADMINS', set()) or set()
+    return user if (user and user in admins) else None
+
+
+def _serialize_submission(sub: dict, *, include_files: bool = False) -> dict:
+    """Render a submission row as the JSON / template-friendly shape."""
+    out = dict(sub)
+    for k in ('createdTs', 'updatedTs'):
+        v = out.get(k)
+        if isinstance(v, (int, float)):
+            out[k + 'Iso'] = datetime.fromtimestamp(v, tz=timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+    comments_raw = out.get('comments') or []
+    out['comments'] = [_serialize_comment(c) for c in comments_raw]
+    if include_files:
+        out['files'] = contributions.list_extracted_files(sub['id'])
+    return out
+
+
+def _serialize_comment(c: dict) -> dict:
+    out = dict(c)
+    v = out.get('createdTs')
+    if isinstance(v, (int, float)):
+        out['createdTsIso'] = datetime.fromtimestamp(v, tz=timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+    return out
+
+
+def _contrib_error_response(exc: ContributionError):
+    return JsonResponse({'error': str(exc)}, status=exc.http_status)
+
+
+@require_GET
+def contribute_page(request):
+    """Public landing page with the upload form."""
+    user = _current_user(request)
+    return render(request, 'skills/contribute.html', {
+        'user_name': user,
+        'max_zip_bytes': getattr(settings, 'SUBMISSIONS_MAX_ZIP_BYTES', 5 * 1024 * 1024),
+    })
+
+
+@require_POST
+def api_contribute_submit(request):
+    """Accept a multipart ZIP from the contribute form.
+
+    Auth model: anyone with a CURRENT_USER_NAME cookie. Empty cookie ⇒ 401
+    so the form can prompt the user to set one (matches the install path).
+    """
+    user = _current_user(request)
+    if not user:
+        return JsonResponse(
+            {'error': 'set a CURRENT_USER_NAME cookie before contributing'},
+            status=401,
+        )
+    uploaded = request.FILES.get('file')
+    if uploaded is None:
+        return JsonResponse({'error': 'missing `file` form field'}, status=400)
+    max_bytes = getattr(settings, 'SUBMISSIONS_MAX_ZIP_BYTES', 5 * 1024 * 1024)
+    if uploaded.size > max_bytes:
+        return JsonResponse(
+            {'error': f'upload exceeds {max_bytes} bytes'}, status=413,
+        )
+
+    data = uploaded.read()
+    ip = get_client_ip(request) or None
+    try:
+        sub = contributions.create_submission(
+            submitter=user,
+            submitter_ip=ip,
+            zip_bytes=data,
+            original_filename=uploaded.name,
+        )
+    except ContributionError as exc:
+        return _contrib_error_response(exc)
+
+    usage.record_event(
+        'contribution_submit',
+        skill=sub['slug'],
+        user=user,
+        status=200,
+        extra={'submissionId': sub['id'], 'fileSize': sub['fileSize']},
+        ip=ip,
+    )
+    return JsonResponse({'status': 'ok', 'submission': sub}, status=201)
+
+
+@require_GET
+def my_contributions_page(request):
+    """A submitter's own queue (cookie identity)."""
+    user = _current_user(request)
+    if not user:
+        return render(request, 'skills/my_contributions.html', {
+            'user_name': None, 'rows': [], 'total': 0,
+        })
+    result = contributions.list_submissions(submitter_filter=user, limit=100)
+    rows = [_serialize_submission(r) for r in result['rows']]
+    return render(request, 'skills/my_contributions.html', {
+        'user_name': user,
+        'rows': rows,
+        'total': result['total'],
+    })
+
+
+@require_GET
+def contribution_detail_page(request, submission_id: int):
+    """Single-submission view. Submitter sees their own; admins see any."""
+    sub = contributions.get_submission(submission_id, include_comments=True)
+    if sub is None:
+        raise Http404()
+    user = _current_user(request)
+    admin = _is_skill_admin(request)
+    if not admin and sub['submitter'] != user:
+        return HttpResponseForbidden('Forbidden')
+    serialized = _serialize_submission(sub, include_files=True)
+    return render(request, 'skills/contribution_detail.html', {
+        'user_name': user,
+        'is_admin': bool(admin),
+        'submission': serialized,
+        'statuses': contributions.ALL_STATUSES,
+    })
+
+
+@require_GET
+def api_contribution_zip(request, submission_id: int):
+    """Stream back the original uploaded ZIP for review."""
+    sub = contributions.get_submission(submission_id, include_comments=False)
+    if sub is None:
+        raise Http404()
+    user = _current_user(request)
+    admin = _is_skill_admin(request)
+    if not admin and sub['submitter'] != user:
+        return HttpResponseForbidden('Forbidden')
+    path = sub.get('filePath')
+    if not path or not os.path.isfile(path):
+        raise Http404()
+    response = FileResponse(open(path, 'rb'), content_type='application/zip')
+    download_name = (sub.get('originalFilename') or f"{sub['slug']}.zip").replace('"', '')
+    response['Content-Disposition'] = f'attachment; filename="{download_name}"'
+    return response
+
+
+# Admin (queue + moderation) ---------------------------------------------------
+
+@require_GET
+def admin_contributions_page(request):
+    admin = _is_skill_admin(request)
+    if not admin:
+        return HttpResponseForbidden('Forbidden')
+    status_filter = (request.GET.get('status') or '').strip() or None
+    try:
+        result = contributions.list_submissions(status_filter=status_filter, limit=100)
+    except ContributionError as exc:
+        return _contrib_error_response(exc)
+    return render(request, 'skills/admin_contributions.html', {
+        'user_name': admin,
+        'rows': [_serialize_submission(r) for r in result['rows']],
+        'total': result['total'],
+        'status_filter': status_filter or 'all',
+        'statuses': contributions.ALL_STATUSES,
+    })
+
+
+@require_POST
+def api_contribution_status(request, submission_id: int):
+    """Admin: change a submission's status, optionally with a comment."""
+    admin = _is_skill_admin(request)
+    if not admin:
+        return HttpResponseForbidden('Forbidden')
+    new_status = (request.POST.get('status') or '').strip()
+    comment_body = (request.POST.get('comment') or '').strip() or None
+    try:
+        sub = contributions.update_status(
+            submission_id,
+            new_status=new_status,
+            actor=admin,
+            actor_role=contributions.ROLE_ADMIN,
+            comment_body=comment_body,
+        )
+    except ContributionError as exc:
+        return _contrib_error_response(exc)
+    usage.record_event(
+        'contribution_status',
+        skill=sub['slug'],
+        user=admin,
+        status=200,
+        extra={'submissionId': sub['id'], 'newStatus': new_status},
+        ip=get_client_ip(request) or None,
+    )
+    return JsonResponse({'status': 'ok', 'submission': sub})
+
+
+@require_POST
+def api_contribution_comment(request, submission_id: int):
+    """Submitter or admin adds a comment thread entry."""
+    user = _current_user(request)
+    admin = _is_skill_admin(request)
+    sub = contributions.get_submission(submission_id, include_comments=False)
+    if sub is None:
+        raise Http404()
+    if not admin and sub['submitter'] != user:
+        return HttpResponseForbidden('Forbidden')
+    role = contributions.ROLE_ADMIN if admin else contributions.ROLE_SUBMITTER
+    body = (request.POST.get('body') or '').strip()
+    try:
+        comment = contributions.add_comment(
+            submission_id,
+            author=admin or user,
+            author_role=role,
+            body=body,
+        )
+    except ContributionError as exc:
+        return _contrib_error_response(exc)
+    return JsonResponse({'status': 'ok', 'comment': comment}, status=201)
+
+
+@require_POST
+def api_contribution_publish(request, submission_id: int):
+    """Admin (phase 1) publishes an approved submission into skill_repo/.
+
+    Phase 2 will relax this to also allow the original submitter to publish
+    once status == approved.
+    """
+    admin = _is_skill_admin(request)
+    if not admin:
+        return HttpResponseForbidden('Forbidden')
+    try:
+        sub = contributions.publish_submission(
+            submission_id,
+            actor=admin,
+            skill_repo_path=settings.SKILL_REPO_PATH,
+        )
+    except ContributionError as exc:
+        return _contrib_error_response(exc)
+    usage.record_event(
+        'contribution_publish',
+        skill=sub['slug'],
+        user=admin,
+        status=200,
+        extra={'submissionId': sub['id'], 'publishedTo': sub.get('publishedSkillDir')},
+        ip=get_client_ip(request) or None,
+    )
+    return JsonResponse({'status': 'ok', 'submission': sub})
+
+
+@require_POST
+def api_contribution_delete(request, submission_id: int):
+    """Admin removes a non-published submission and its blob dir."""
+    admin = _is_skill_admin(request)
+    if not admin:
+        return HttpResponseForbidden('Forbidden')
+    try:
+        contributions.delete_submission(submission_id, actor=admin)
+    except ContributionError as exc:
+        return _contrib_error_response(exc)
+    return JsonResponse({'status': 'ok'})

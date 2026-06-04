@@ -22,4 +22,7 @@ logs/
 skill_repo*/
 data/*.sqlite3
 data/*.sqlite3-*
+data/submissions/
 usage-*.png
+contrib-*.png
+tmp_test/
