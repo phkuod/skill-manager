@@ -124,10 +124,12 @@ CREATE TABLE IF NOT EXISTS submissions (
   original_filename     TEXT,
   created_ts            REAL    NOT NULL,
   updated_ts            REAL    NOT NULL,
-  published_skill_dir   TEXT
+  published_skill_dir   TEXT,
+  last_ai_review_ts     REAL
 );
 CREATE INDEX IF NOT EXISTS idx_subs_status_updated ON submissions(status, updated_ts DESC);
 CREATE INDEX IF NOT EXISTS idx_subs_submitter      ON submissions(submitter);
+CREATE INDEX IF NOT EXISTS idx_subs_last_ai_review ON submissions(last_ai_review_ts);
 
 CREATE TABLE IF NOT EXISTS submission_comments (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -171,6 +173,7 @@ def init_submissions(db_path: str, blob_dir: str) -> bool:
             _conn.execute('PRAGMA busy_timeout=2000')
             _conn.execute('PRAGMA foreign_keys=ON')
             _conn.executescript(_SCHEMA)
+            _ensure_last_ai_review_ts_column(_conn)
         except Exception as exc:
             _disabled = True
             _conn = None
@@ -187,6 +190,63 @@ def init_submissions(db_path: str, blob_dir: str) -> bool:
 def _require_ready():
     if _disabled or _conn is None or _blob_dir is None:
         raise ContributionError('contributions storage unavailable', http_status=503)
+
+
+def _ensure_last_ai_review_ts_column(conn: sqlite3.Connection) -> None:
+    """Add the last_ai_review_ts column to pre-existing submission tables.
+
+    SQLite has no IF NOT EXISTS on ALTER TABLE; we treat 'duplicate column'
+    as success so upgrades stay idempotent. Mirrors usage._ensure_ip_column.
+    """
+    try:
+        conn.execute('ALTER TABLE submissions ADD COLUMN last_ai_review_ts REAL')
+    except sqlite3.OperationalError as exc:
+        if 'duplicate column' not in str(exc).lower():
+            raise
+
+
+# ---------------------------------------------------------------------------
+# AI-reviewer integration helpers
+# ---------------------------------------------------------------------------
+#
+# These are tiny query/UPDATE helpers used by skills.ai_review so it never
+# has to open its own connection to this DB. Keeping the boundary here means
+# the ai_review module stays self-contained and the contributions schema
+# stays the single source of truth.
+
+
+def list_orphaned_submission_ids() -> list[int]:
+    """IDs of submissions that need (or need re-asking-for) an AI review.
+
+    Returns submissions whose ``last_ai_review_ts`` is NULL and whose
+    ``status`` is still in flight (``submitted`` or ``under_review``).
+    The AI reviewer uses this on startup to recover work that was queued
+    but not finished before the previous process restart.
+    """
+    _require_ready()
+    with _lock:
+        rows = _conn.execute(  # type: ignore[union-attr]
+            "SELECT id FROM submissions "
+            "WHERE last_ai_review_ts IS NULL "
+            "  AND status IN (?, ?) "
+            "ORDER BY created_ts ASC",
+            (STATUS_SUBMITTED, STATUS_UNDER_REVIEW),
+        ).fetchall()
+    return [r[0] for r in rows]
+
+
+def mark_ai_review_completed(submission_id: int) -> None:
+    """Stamp ``last_ai_review_ts`` so the orphan scan won't re-pick this row.
+
+    Idempotent — a row that's already been stamped just gets a fresher ts.
+    """
+    _require_ready()
+    now = time.time()
+    with _lock:
+        _conn.execute(  # type: ignore[union-attr]
+            'UPDATE submissions SET last_ai_review_ts = ? WHERE id = ?',
+            (now, submission_id),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -559,7 +619,7 @@ def get_submission(submission_id: int, *, include_comments: bool = True) -> dict
         row = _conn.execute(  # type: ignore[union-attr]
             'SELECT id, slug, title, description, license, submitter, submitter_ip, '
             'status, file_path, file_size, original_filename, created_ts, updated_ts, '
-            'published_skill_dir '
+            'published_skill_dir, last_ai_review_ts '
             'FROM submissions WHERE id=?',
             (submission_id,),
         ).fetchone()
@@ -595,7 +655,7 @@ def list_submissions(
     sql = (
         'SELECT id, slug, title, description, license, submitter, submitter_ip, '
         'status, file_path, file_size, original_filename, created_ts, updated_ts, '
-        'published_skill_dir FROM submissions' + clause +
+        'published_skill_dir, last_ai_review_ts FROM submissions' + clause +
         ' ORDER BY updated_ts DESC LIMIT ? OFFSET ?'
     )
     count_sql = 'SELECT COUNT(*) FROM submissions' + clause
@@ -653,6 +713,7 @@ def _row_to_dict(r) -> dict:
         'createdTs': r[11],
         'updatedTs': r[12],
         'publishedSkillDir': r[13],
+        'last_ai_review_ts': r[14] if len(r) > 14 else None,
     }
 
 
