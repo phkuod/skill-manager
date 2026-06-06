@@ -27,8 +27,9 @@ def _init_once(**_):
         return
     _initialized = True
     from django.conf import settings
-    from . import watcher, usage, contributions
+    from . import watcher, usage, contributions, ai_review
     logger.info('initializing skill watcher (skill_repo=%s)', settings.SKILL_REPO_PATH)
     watcher.init_watcher(settings.SKILL_REPO_PATH)
     usage.init_usage(settings.USAGE_DB_PATH, settings.USAGE_RETENTION_DAYS)
     contributions.init_submissions(settings.SUBMISSIONS_DB_PATH, settings.SUBMISSIONS_BLOB_DIR)
+    ai_review.init_reviewer()

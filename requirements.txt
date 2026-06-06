@@ -6,3 +6,7 @@ python-dotenv>=1.0.0
 whitenoise>=6.7.0
 markdown>=3.5,<4.0
 nh3>=0.2.0
+# AI reviewer (phase 2). OpenAI SDK talks to OpenRouter today and any
+# OpenAI-compatible internal endpoint later via env-var swap.
+openai>=1.40,<2.0
+pydantic>=2.5,<3.0

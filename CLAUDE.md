@@ -136,6 +136,39 @@ click Publish on `approved` submissions.
 | `SUBMISSIONS_MAX_ZIP_BYTES` | `5242880` (5 MB) | Upload cap enforced server-side and client-side |
 | `SKILL_REVIEW_ADMINS` | *(falls back to `USAGE_ADMIN_USERS`)* | Cookie usernames allowed to moderate/publish |
 
+## AI reviewer (phase 2 — currently dark)
+
+`skills/ai_review.py` is the async LLM-driven co-pilot for contribution
+review. It is **dark by default** (`AI_REVIEW_ENABLED=false`) and ships
+in stages: M0 is settings + idempotent lifecycle hooks; M1 brings the
+in-memory queue + worker thread; M2 adds bundle gathering; M3 wires the
+real OpenAI-SDK-compatible LLM call (OpenRouter in dev/test, internal
+gateway in prod via env-var swap). The AI annotates with a structured
+`ai_reviewer`-role comment on the submission timeline — it never
+approves, rejects, or publishes. Admin keeps the decision.
+
+Module shape mirrors `usage.py` / `contributions.py`: lazy-init via
+`apps.SkillsConfig.ready` → `_init_once`, module-level `_initialized`
+/ `_disabled` guards, idempotent `init_reviewer()` returning bool, and
+a `_reset_for_tests()` helper. Verdict will be persisted as a comment
+in the existing `submission_comments` table (no schema changes
+beyond an additive `submissions.last_ai_review_ts` column added in M1
+for orphan-scan filtering).
+
+Policy lives in [docs/SKILL_POLICY.md](docs/SKILL_POLICY.md) — both
+admins and the AI prompt cite it. Edits to the policy propagate to
+the next review with no code change.
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `AI_REVIEW_ENABLED` | `false` | Master switch. Off by default. |
+| `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | OpenAI-compatible endpoint. |
+| `LLM_API_KEY` | (falls back to `OPENROUTER_API_KEY`) | Required when enabled. |
+| `AI_REVIEW_MODELS` | `deepseek/deepseek-r1:free,…` | Ordered fallback chain. |
+| `AI_REVIEW_CONFIDENCE_CAP` | `0.8` | Cap rendered confidence on noisier models. |
+| `AI_REVIEW_CATALOG_DETAIL` | `hashes` | `hashes` for external; `full` for internal. |
+| `AI_REVIEW_PRIVACY_NOTICE` | non-empty default | Appended to every AI comment; clear when on internal endpoint. |
+
 ## Skill repository contract
 
 `SKILL_REPO_PATH` (env, default `<repo>/skill_repo`) is the source of truth. Layout:

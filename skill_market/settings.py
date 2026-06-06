@@ -160,6 +160,67 @@ if _skill_review_raw:
 else:
     SKILL_REVIEW_ADMINS = set(USAGE_ADMIN_USERS)
 
+# AI reviewer (phase 2). Dark by default — ops flips AI_REVIEW_ENABLED=true
+# once an API key is in env. One settings block covers OpenRouter today and
+# any OpenAI-compatible internal endpoint later (just swap LLM_BASE_URL +
+# LLM_API_KEY + AI_REVIEW_MODELS).
+AI_REVIEW_ENABLED = os.environ.get('AI_REVIEW_ENABLED', 'False').lower() in ('true', '1')
+LLM_BASE_URL = os.environ.get('LLM_BASE_URL', 'https://openrouter.ai/api/v1')
+LLM_API_KEY = os.environ.get('LLM_API_KEY', '') or os.environ.get('OPENROUTER_API_KEY', '')
+LLM_EXTRA_HEADERS = os.environ.get(
+    'LLM_EXTRA_HEADERS',
+    'HTTP-Referer=https://skills.local,X-Title=Skill Market AI reviewer',
+)
+AI_REVIEW_MODELS = [
+    m.strip() for m in os.environ.get(
+        'AI_REVIEW_MODELS',
+        'deepseek/deepseek-r1:free,qwen/qwen-2.5-72b-instruct:free,'
+        'meta-llama/llama-3.3-70b-instruct:free',
+    ).split(',') if m.strip()
+]
+try:
+    AI_REVIEW_MAX_INPUT_TOKENS = int(os.environ.get('AI_REVIEW_MAX_INPUT_TOKENS', '12000'))
+except ValueError:
+    AI_REVIEW_MAX_INPUT_TOKENS = 12000
+try:
+    AI_REVIEW_TIMEOUT_S = int(os.environ.get('AI_REVIEW_TIMEOUT_S', '120'))
+except ValueError:
+    AI_REVIEW_TIMEOUT_S = 120
+try:
+    AI_REVIEW_RATE_BUDGET_PER_MIN = int(
+        os.environ.get('AI_REVIEW_RATE_BUDGET_PER_MIN', '15')
+    )
+except ValueError:
+    AI_REVIEW_RATE_BUDGET_PER_MIN = 15
+try:
+    AI_REVIEW_CONCURRENT_WORKERS = int(
+        os.environ.get('AI_REVIEW_CONCURRENT_WORKERS', '1')
+    )
+except ValueError:
+    AI_REVIEW_CONCURRENT_WORKERS = 1
+AI_REVIEW_AUTO_NUDGE = os.environ.get('AI_REVIEW_AUTO_NUDGE', 'always')
+try:
+    AI_REVIEW_CONFIDENCE_CAP = float(
+        os.environ.get('AI_REVIEW_CONFIDENCE_CAP', '0.8')
+    )
+except ValueError:
+    AI_REVIEW_CONFIDENCE_CAP = 0.8
+AI_REVIEW_DROP_HALLUCINATED_EVIDENCE = os.environ.get(
+    'AI_REVIEW_DROP_HALLUCINATED_EVIDENCE', 'True'
+).lower() in ('true', '1')
+AI_REVIEW_PRIVACY_NOTICE = os.environ.get(
+    'AI_REVIEW_PRIVACY_NOTICE',
+    'Reviewed by an external LLM; bundle content may be retained '
+    "per the provider's policy.",
+)
+try:
+    AI_REVIEW_RERUN_DAILY_CAP_PER_SUBMISSION = int(
+        os.environ.get('AI_REVIEW_RERUN_DAILY_CAP_PER_SUBMISSION', '3')
+    )
+except ValueError:
+    AI_REVIEW_RERUN_DAILY_CAP_PER_SUBMISSION = 3
+AI_REVIEW_CATALOG_DETAIL = os.environ.get('AI_REVIEW_CATALOG_DETAIL', 'hashes')
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 _LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
