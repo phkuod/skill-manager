@@ -110,6 +110,14 @@ class _Verdict:
     # every stage. Holds the raw model text (truncated) so the admin
     # can see what the model actually said.
     raw_text: Optional[str] = None
+    # Synthesis tag used by the M3c chain wrapper. None when the model
+    # legitimately returned this verdict (including a legitimate
+    # ``needs_human_review`` recommendation); otherwise one of:
+    #   'rate_limit'    — model said 429; cool-off bucket marked.
+    #   'sdk_error'     — auth / connection / 5xx / timeout / etc.
+    #   'parse_failure' — both initial + re-prompt attempts couldn't
+    #                     produce a schema-valid response.
+    error_type: Optional[str] = None
 
 
 # Allowed enums for the LLM's reply. We tell the LLM about these in the
@@ -336,6 +344,8 @@ def init_reviewer():
         _config = cfg
         _queue = queue.Queue()
         _stop = threading.Event()
+        global _rate_budget
+        _rate_budget = _RateBudget(per_min=cfg.rate_budget_per_min)
         for i in range(cfg.concurrent_workers):
             t = threading.Thread(
                 target=_worker_loop,
@@ -387,6 +397,7 @@ def _reset_for_tests():
     next ``init_reviewer`` starts from a pristine state. Idempotent.
     """
     global _initialized, _disabled, _config, _queue, _workers, _client
+    global _rate_budget
     # Trigger graceful shutdown if we're running, without holding the lock
     # across the join (which would deadlock the workers polling _stop).
     if _initialized and not _disabled:
@@ -398,6 +409,7 @@ def _reset_for_tests():
         _queue = None
         _workers = []
         _stop.clear()
+        _rate_budget = None
     with _client_lock:
         _client = None
 
@@ -468,9 +480,14 @@ def _run_review(submission_id):
         return None
 
     prompt = _compose_prompt(submission_id)
+    bundle = _gather_bundle_context(submission_id)
     t0 = time.monotonic()
-    verdict = _call_llm(prompt, _config.models[0] if _config else 'stub')
+    models = list(_config.models) if _config and _config.models else ['stub']
+    verdict = _call_llm_with_fallback(prompt, models)
     verdict.latency_s = time.monotonic() - t0
+    # Strip findings the model invented file refs for (no-op when
+    # disabled via AI_REVIEW_DROP_HALLUCINATED_EVIDENCE=false).
+    verdict = _drop_hallucinated_evidence(verdict, bundle)
 
     body = _render_comment_body(verdict)
     comment = contributions.add_comment(
@@ -556,6 +573,67 @@ _client_lock = threading.Lock()
 _client = None    # cached OpenAI client; rebuilt on _reset_for_tests
 
 
+# Cool-off window after a 429 from an upstream. 30 s matches OpenRouter's
+# typical reset for free-tier rate-limit responses; tightening below 20 s
+# tends to re-trip the limit immediately.
+_COOLOFF_SECONDS = 30
+
+
+class _RateBudget:
+    """Per-model sliding-window counter + cool-off bucket.
+
+    Thread-safe. Two responsibilities:
+
+    * ``take(model)`` — best-effort local rate limit. Returns False if
+      this model has already hit ``per_min`` calls in the trailing
+      60 seconds, otherwise records the call and returns True. The cap
+      is ``per_min``; 0 disables the budget (always True).
+    * ``record_429(model)`` + ``is_cooled(model)`` — when an upstream
+      ``429`` slips past the local budget (or the local budget was
+      disabled), mark this model as cooled for ``_COOLOFF_SECONDS``.
+      ``is_cooled`` is honoured by the chain wrapper.
+
+    State is intentionally per-process and ephemeral. The chain wrapper
+    walks past any cooled model and a fresh process restart starts
+    everyone uncooled — the trade-off is that a crash-loop won't
+    inherit a meaningful budget, but it also won't get stuck in cool-off
+    forever.
+    """
+
+    def __init__(self, per_min: int = 15, cooloff_seconds: int = _COOLOFF_SECONDS):
+        self._per_min = max(int(per_min), 0)
+        self._cooloff_s = cooloff_seconds
+        self._lock = threading.Lock()
+        self._calls: dict = {}        # model → list[monotonic ts]
+        self._cool_until: dict = {}   # model → monotonic ts when cooled
+
+    def take(self, model: str) -> bool:
+        if self._per_min <= 0:
+            return True
+        now = time.monotonic()
+        cutoff = now - 60.0
+        with self._lock:
+            calls = [t for t in self._calls.get(model, []) if t > cutoff]
+            if len(calls) >= self._per_min:
+                self._calls[model] = calls
+                return False
+            calls.append(now)
+            self._calls[model] = calls
+            return True
+
+    def is_cooled(self, model: str) -> bool:
+        with self._lock:
+            until = self._cool_until.get(model, 0.0)
+            return time.monotonic() < until
+
+    def record_429(self, model: str) -> None:
+        with self._lock:
+            self._cool_until[model] = time.monotonic() + self._cooloff_s
+
+
+_rate_budget: Optional[_RateBudget] = None    # initialised in init_reviewer
+
+
 def _get_client():
     """Build (and memoise) the OpenAI-compatible client.
 
@@ -620,6 +698,27 @@ def _llm_chat_completion(model, messages):
         return None, exc
 
 
+def _classify_sdk_error(exc) -> str:
+    """Map an openai SDK exception to a short ``error_type`` tag.
+
+    Used by the chain wrapper to decide whether to cool-off a model
+    (``rate_limit``) vs. just walk to the next one (``sdk_error``).
+    """
+    try:
+        import openai
+    except ImportError:
+        return 'sdk_error'
+    rate_limit_cls = getattr(openai, 'RateLimitError', None)
+    if rate_limit_cls is not None and isinstance(exc, rate_limit_cls):
+        return 'rate_limit'
+    # Some OpenRouter free-tier providers report 429 as a plain
+    # APIStatusError with status_code=429 rather than RateLimitError.
+    status = getattr(exc, 'status_code', None) or getattr(exc, 'http_status', None)
+    if status == 429:
+        return 'rate_limit'
+    return 'sdk_error'
+
+
 def _parse_or_validation_fail(raw, model):
     """Turn raw LLM text into a validated ``_VerdictSchema`` or ``None``."""
     if raw is None:
@@ -654,20 +753,28 @@ def _verdict_from_schema(schema, model):
 
 
 def _call_llm(prompt, model):
-    """Get one verdict for one submission.
+    """Get one verdict from one model.
+
+    Per-model boundary used by ``_call_llm_with_fallback``. The chain
+    wrapper handles model rotation, cool-off, and rate budget; this
+    function handles only the request → parse → validate → reprompt
+    cycle for a single model.
 
     Branches on whether ``LLM_API_KEY`` is configured:
 
     * No key → ``_stub_verdict`` (lets M0–M2 tests keep working without
       a network).
-    * Key set → real ``chat.completions.create`` against
-      ``LLM_BASE_URL`` with the OpenAI SDK. Tolerant JSON parse +
+    * Key set → real ``chat.completions.create``. Tolerant JSON parse +
       Pydantic validate; one re-prompt with an explicit JSON-only
       instruction on first parse/validation failure; ``needs_human_review``
-      with the raw text attached if the second attempt also fails.
+      with ``error_type`` set on:
 
-    Returns a ``_Verdict``. The worker loop's caller fills in
-    ``latency_s`` from a wall-clock around this function.
+        * SDK exception (e.g. 429, 5xx, timeout, auth) → tagged with
+          ``rate_limit`` or ``sdk_error`` so the chain can decide.
+        * Both attempts produced unparseable output →
+          ``error_type='parse_failure'``, ``raw_text`` populated.
+
+    A successful verdict has ``error_type=None``.
     """
     if not _config or not _config.api_key:
         return _stub_verdict(prompt, model)
@@ -678,7 +785,9 @@ def _call_llm(prompt, model):
     ]
 
     # First attempt.
-    raw, _exc = _llm_chat_completion(model, messages)
+    raw, exc = _llm_chat_completion(model, messages)
+    if exc is not None:
+        return _sdk_error_verdict(exc, model)
     schema = _parse_or_validation_fail(raw, model)
     if schema is not None:
         return _verdict_from_schema(schema, model)
@@ -695,13 +804,15 @@ def _call_llm(prompt, model):
             + 'No prose, no Markdown code fences, no commentary.'
         )},
     ]
-    raw2, _exc2 = _llm_chat_completion(model, retry_messages)
+    raw2, exc2 = _llm_chat_completion(model, retry_messages)
+    if exc2 is not None:
+        return _sdk_error_verdict(exc2, model)
     schema2 = _parse_or_validation_fail(raw2, model)
     if schema2 is not None:
         return _verdict_from_schema(schema2, model)
 
-    # Both attempts failed. Surface a needs_human_review verdict with
-    # the raw text (truncated) so the admin can see what the model said.
+    # Both attempts produced unparseable output. Surface the raw text
+    # (truncated) and tag for the chain wrapper.
     raw_for_admin = raw2 or raw
     if raw_for_admin and len(raw_for_admin) > 2000:
         raw_for_admin = raw_for_admin[:2000] + '\n…(truncated)'
@@ -716,7 +827,189 @@ def _call_llm(prompt, model):
         findings=[],
         model=model,
         raw_text=raw_for_admin,
+        error_type='parse_failure',
     )
+
+
+def _sdk_error_verdict(exc, model) -> _Verdict:
+    """Build a needs_human_review verdict tagged with the SDK error kind."""
+    kind = _classify_sdk_error(exc)
+    summary = (
+        'Rate-limited by the LLM provider.'
+        if kind == 'rate_limit'
+        else f'LLM call failed: {type(exc).__name__}: {str(exc)[:200]}'
+    )
+    return _Verdict(
+        overall='needs_human_review',
+        confidence=0.0,
+        summary=summary,
+        findings=[],
+        model=model,
+        raw_text=None,
+        error_type=kind,
+    )
+
+
+def _call_llm_with_fallback(prompt, models):
+    """Walk ``models`` in order, returning the first non-error verdict.
+
+    For each model:
+
+    1. Skip if currently cooled (``_rate_budget.is_cooled``).
+    2. Skip if local rate budget exhausted (``_rate_budget.take``).
+    3. Call ``_call_llm(prompt, model)``.
+    4. If ``error_type == 'rate_limit'``: record cool-off, continue.
+    5. If ``error_type in ('sdk_error', 'parse_failure')``: continue.
+    6. Otherwise return the verdict — including a legitimate
+       ``needs_human_review`` from the model (``error_type=None``).
+
+    If every model is exhausted/cooled/erroring, return a synthesized
+    ``needs_human_review`` whose ``summary`` explains why and whose
+    ``raw_text`` carries the last raw model output (if any).
+    """
+    if not models:
+        return _Verdict(
+            overall='needs_human_review',
+            confidence=0.0,
+            summary='AI reviewer has no models configured.',
+            findings=[],
+            model='',
+            error_type='sdk_error',
+        )
+
+    last_verdict: Optional[_Verdict] = None
+    tried_any = False
+
+    for model in models:
+        if _rate_budget is not None and _rate_budget.is_cooled(model):
+            logger.info('chain: skipping %s (cool-off)', model)
+            continue
+        if _rate_budget is not None and not _rate_budget.take(model):
+            logger.info('chain: skipping %s (rate budget exhausted)', model)
+            continue
+
+        tried_any = True
+        verdict = _call_llm(prompt, model)
+        last_verdict = verdict
+
+        if verdict.error_type is None:
+            return verdict
+        if verdict.error_type == 'rate_limit' and _rate_budget is not None:
+            _rate_budget.record_429(model)
+
+        # Walk to the next model.
+        logger.info(
+            'chain: %s failed with %s, walking to next',
+            model, verdict.error_type,
+        )
+
+    # Chain exhausted.
+    if last_verdict is not None:
+        return _Verdict(
+            overall='needs_human_review',
+            confidence=0.0,
+            summary=(
+                'AI reviewer exhausted the configured model chain '
+                f'({len(models)} model{"s" if len(models) != 1 else ""}). '
+                f'Last failure: {last_verdict.error_type}. '
+                'Admin should review manually.'
+            ),
+            findings=[],
+            model=last_verdict.model,
+            raw_text=last_verdict.raw_text,
+            error_type=last_verdict.error_type,
+        )
+    if not tried_any:
+        return _Verdict(
+            overall='needs_human_review',
+            confidence=0.0,
+            summary=(
+                'AI reviewer skipped all models: every one was either '
+                'cooled or rate-budget-exhausted.'
+            ),
+            findings=[],
+            model=models[0],
+            error_type='rate_limit',
+        )
+    return _Verdict(
+        overall='needs_human_review',
+        confidence=0.0,
+        summary='AI reviewer exhausted model chain with no usable verdict.',
+        findings=[],
+        model=models[0],
+        error_type='sdk_error',
+    )
+
+
+# ── hallucinated-evidence drop (M3c) ───────────────────────────────────────
+
+
+def _drop_hallucinated_evidence(verdict, bundle):
+    """Strip findings whose ``evidence`` cites a path absent from the bundle.
+
+    Free-tier models occasionally invent file paths to support a
+    finding (e.g. "creds in `secrets.py:42`" when there is no
+    `secrets.py`). When ``AI_REVIEW_DROP_HALLUCINATED_EVIDENCE=true``
+    (default), drop those findings before they reach the admin.
+    Findings with ``evidence=None`` are always kept — the model didn't
+    cite anything to hallucinate.
+
+    Mutates and returns ``verdict``.
+    """
+    if not _config or not _config.drop_hallucinated_evidence:
+        return verdict
+    if not verdict.findings:
+        return verdict
+    # An empty / missing bundle is *not* a reason to skip the pass —
+    # findings citing paths must still be dropped because no path could
+    # legitimately be in an empty bundle. The early-return below catches
+    # only the "bundle is None" case (gather function isn't supposed to
+    # return None, but be defensive).
+    if bundle is None:
+        return verdict
+
+    # Build the set of known relPaths from the bundle. We accept either
+    # exact match (the model cited the same relPath we sent it) or a
+    # path that is a *suffix* of a known relPath (the model truncated
+    # the leading folders).
+    known = set()
+    for entry in bundle.get('file_tree') or []:
+        rel = entry.get('relPath')
+        if rel:
+            known.add(rel)
+    for entry in bundle.get('code_excerpts') or []:
+        rel = entry.get('relPath')
+        if rel:
+            known.add(rel)
+
+    def _path_known(evidence: str) -> bool:
+        # Evidence format: "path/relative.py:42" or "path/relative.py".
+        path = evidence.split(':', 1)[0].strip()
+        if not path:
+            return False
+        if path in known:
+            return True
+        return any(k == path or k.endswith('/' + path) for k in known)
+
+    kept = []
+    dropped = 0
+    for f in verdict.findings:
+        evidence = f.get('evidence')
+        if evidence is None:
+            kept.append(f)
+            continue
+        if _path_known(evidence):
+            kept.append(f)
+        else:
+            dropped += 1
+
+    if dropped:
+        logger.info(
+            'dropped %d finding(s) citing paths absent from the bundle '
+            '(submission verdict)', dropped,
+        )
+    verdict.findings = kept
+    return verdict
 
 
 # ── bundle context gathering (M2) ──────────────────────────────────────────
