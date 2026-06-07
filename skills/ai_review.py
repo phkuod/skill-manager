@@ -30,12 +30,17 @@ env-var flip.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import queue
+import re
 import threading
 import time
 from dataclasses import dataclass, field
+from typing import Optional
+
+from pydantic import BaseModel, Field, ValidationError
 
 logger = logging.getLogger('skills.ai_review')
 
@@ -88,8 +93,9 @@ class _Config:
 class _Verdict:
     """Structured AI verdict for one submission.
 
-    M1 ships with a plain dataclass; M3 will swap for a Pydantic model so
-    the LLM response can be schema-validated and re-prompted on failure.
+    M1/M2 used this as a plain dataclass over a stubbed verdict; M3
+    keeps the dataclass for the in-memory passing but the *source* of
+    its values is now Pydantic-validated (see ``_VerdictSchema`` below).
     The on-disk representation is the rendered Markdown comment body —
     this dataclass is only used in-memory between ``_call_llm`` and
     ``_render_comment_body``.
@@ -100,6 +106,72 @@ class _Verdict:
     findings: list = field(default_factory=list)
     model: str = ''       # which model produced this verdict
     latency_s: float = 0.0
+    # Only populated when JSON parsing / Pydantic validation failed at
+    # every stage. Holds the raw model text (truncated) so the admin
+    # can see what the model actually said.
+    raw_text: Optional[str] = None
+
+
+# Allowed enums for the LLM's reply. We tell the LLM about these in the
+# system + user prompts; Pydantic enforces them at validation time.
+_OVERALL_VALUES = ('approve', 'request_changes', 'reject', 'needs_human_review')
+_SEVERITY_VALUES = ('block', 'warn', 'note')
+_CATEGORY_VALUES = (
+    'security', 'content', 'quality', 'duplicate',
+    'policy', 'prompt_injection', 'licence',
+)
+
+
+class _Finding(BaseModel):
+    """One finding inside the LLM verdict — Pydantic-validated."""
+    severity: str = Field(...)
+    category: str = Field(...)
+    title: str = Field(default='(no title)', max_length=200)
+    detail: str = Field(default='', max_length=2000)
+    evidence: Optional[str] = Field(default=None, max_length=200)
+
+    @classmethod
+    def __get_validators__(cls):  # pragma: no cover — pydantic v2 internal
+        yield from super().__get_validators__()
+
+    def model_post_init(self, __context) -> None:  # pragma: no cover — coverage on the assert below
+        if self.severity not in _SEVERITY_VALUES:
+            raise ValueError(
+                f'severity {self.severity!r} not in {_SEVERITY_VALUES!r}'
+            )
+        if self.category not in _CATEGORY_VALUES:
+            raise ValueError(
+                f'category {self.category!r} not in {_CATEGORY_VALUES!r}'
+            )
+
+
+class _VerdictSchema(BaseModel):
+    """LLM reply contract. Validated before promotion to ``_Verdict``."""
+    overall: str = Field(...)
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+    summary: str = Field(default='', max_length=3000)
+    findings: list = Field(default_factory=list, max_length=20)
+    checks_passed: list = Field(default_factory=list)
+
+    def model_post_init(self, __context) -> None:
+        if self.overall not in _OVERALL_VALUES:
+            raise ValueError(
+                f'overall {self.overall!r} not in {_OVERALL_VALUES!r}'
+            )
+        # Promote dicts → _Finding (validates inner enums); pass-through
+        # if the caller already supplied _Finding instances.
+        validated = []
+        for f in self.findings:
+            if isinstance(f, _Finding):
+                validated.append(f)
+            elif isinstance(f, dict):
+                validated.append(_Finding(**f))
+            else:
+                raise ValueError(f'finding must be dict or _Finding, got {type(f).__name__}')
+        # Cannot reassign attributes on a frozen model post-init, but we
+        # can mutate the list in place (lists are not validated on assignment).
+        self.findings.clear()
+        self.findings.extend(validated)
 
 
 # ── M2 prompt-composition constants ─────────────────────────────────────────
@@ -311,10 +383,10 @@ def _reset_for_tests():
     """Wipe module state. Tests only — mirrors ``usage._reset_for_tests``.
 
     Halts the worker thread(s) if any are running and clears every
-    module-level reference so the next ``init_reviewer`` starts from a
-    pristine state. Idempotent.
+    module-level reference (including the cached OpenAI client) so the
+    next ``init_reviewer`` starts from a pristine state. Idempotent.
     """
-    global _initialized, _disabled, _config, _queue, _workers
+    global _initialized, _disabled, _config, _queue, _workers, _client
     # Trigger graceful shutdown if we're running, without holding the lock
     # across the join (which would deadlock the workers polling _stop).
     if _initialized and not _disabled:
@@ -326,6 +398,8 @@ def _reset_for_tests():
         _queue = None
         _workers = []
         _stop.clear()
+    with _client_lock:
+        _client = None
 
 
 # ── enqueue API ─────────────────────────────────────────────────────────────
@@ -417,28 +491,231 @@ def _run_review(submission_id):
 # ── stub LLM (M1) ───────────────────────────────────────────────────────────
 
 
-def _call_llm(prompt, model):
-    """Stub returning a canned ``approve`` verdict.
+# ── tolerant JSON parser (M3) ──────────────────────────────────────────────
 
-    M1/M2 stub. Tests monkey-patch this to drive specific scenarios; M3
-    swaps in the real OpenAI-SDK-against-OpenRouter call. Signature is
-    deliberately the same shape the M3 implementation will take —
-    ``prompt`` is the user message string already composed by
-    ``_compose_prompt``, ``model`` is one entry from
-    ``AI_REVIEW_MODELS``.
+
+def _tolerant_json_load(raw):
+    """Parse JSON out of an LLM response, tolerating common malformations.
+
+    Four stages, returning as soon as one succeeds:
+
+    1. ``json.loads(raw)`` strict.
+    2. Strip a Markdown code fence (\\`\\`\\`json … \\`\\`\\` or generic
+       fence) and try ``json.loads`` on the inner content.
+    3. Regex-extract the *outermost* ``{ … }`` block (greedy, dot-all)
+       and parse that.
+    4. Give up — raise ``ValueError``.
+
+    Free-tier models will sometimes wrap JSON in code fences or prepend
+    a sentence of prose; stronger models almost never do. The 4-stage
+    parser handles both without re-prompting on every call.
     """
-    # M2: signal that the prompt was actually composed and reached the LLM
-    # boundary. Tests can grep `prompt_chars` in the summary to confirm.
+    if raw is None:
+        raise ValueError('empty response (None)')
+    text = raw.strip()
+    if not text:
+        raise ValueError('empty response (whitespace)')
+
+    # Stage 1 — strict.
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Stage 2 — strip a fenced code block (```json … ``` or ``` … ```).
+    fence_match = re.search(
+        r'```(?:json|JSON)?\s*\n?(.*?)\n?```',
+        text,
+        re.DOTALL,
+    )
+    if fence_match:
+        inner = fence_match.group(1).strip()
+        try:
+            return json.loads(inner)
+        except json.JSONDecodeError:
+            pass
+
+    # Stage 3 — extract the *outermost* { … } block. Greedy `.*` with
+    # DOTALL grabs from the first `{` to the last `}`, which works for
+    # any single-JSON-object payload (LLMs don't return multiple top-level
+    # objects when asked for one).
+    brace_match = re.search(r'\{.*\}', text, re.DOTALL)
+    if brace_match:
+        try:
+            return json.loads(brace_match.group(0))
+        except json.JSONDecodeError:
+            pass
+
+    raise ValueError('no parseable JSON in response')
+
+
+# ── LLM call (M3) ──────────────────────────────────────────────────────────
+
+
+_client_lock = threading.Lock()
+_client = None    # cached OpenAI client; rebuilt on _reset_for_tests
+
+
+def _get_client():
+    """Build (and memoise) the OpenAI-compatible client.
+
+    The SDK is import-only when first used so a config with no API key
+    pays nothing at boot. Re-uses one client across worker threads —
+    httpx's connection pool inside the SDK handles concurrency.
+    """
+    global _client
+    with _client_lock:
+        if _client is not None:
+            return _client
+        from openai import OpenAI
+        _client = OpenAI(
+            base_url=_config.base_url,
+            api_key=_config.api_key,
+            default_headers=_config.extra_headers or None,
+            timeout=_config.timeout_s,
+        )
+        return _client
+
+
+def _stub_verdict(prompt, model):
+    """Canned ``approve`` verdict used when no LLM API key is configured.
+
+    Preserves the M0–M2 test behaviour: tests can drive the full worker
+    flow with ``LLM_API_KEY=''`` (or omitted) without making a network
+    call. Production never hits this path because operators flip
+    ``AI_REVIEW_ENABLED=true`` *after* setting an API key.
+    """
     return _Verdict(
         overall='approve',
         confidence=0.85,
         summary=(
-            f'Stub verdict — M2 worker scaffolding. Prompt was composed '
-            f'({len(prompt)} chars). Real review lands once the OpenRouter '
-            f'call is wired in M3.'
+            f'Stub verdict — LLM_API_KEY not configured. Prompt was '
+            f'composed ({len(prompt)} chars). Set LLM_API_KEY (or '
+            f'OPENROUTER_API_KEY) in env to run real reviews.'
         ),
         findings=[],
         model=model,
+    )
+
+
+def _llm_chat_completion(model, messages):
+    """Single chat-completion call. Returns ``(raw_text, error_or_None)``.
+
+    Catches every SDK-level exception (auth, connection, 4xx/5xx, etc.)
+    and converts to a ``(None, exc)`` tuple so the caller can fall
+    through to ``needs_human_review`` instead of crashing the worker.
+    """
+    try:
+        client = _get_client()
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            response_format={'type': 'json_object'},
+            temperature=0.1,
+            max_tokens=1500,
+        )
+        return response.choices[0].message.content, None
+    except Exception as exc:    # noqa: BLE001 — defensive boundary
+        logger.warning('LLM call failed (model=%s): %s', model, exc)
+        return None, exc
+
+
+def _parse_or_validation_fail(raw, model):
+    """Turn raw LLM text into a validated ``_VerdictSchema`` or ``None``."""
+    if raw is None:
+        return None
+    try:
+        obj = _tolerant_json_load(raw)
+    except ValueError as exc:
+        logger.info('LLM verdict JSON parse failed (model=%s): %s', model, exc)
+        return None
+    try:
+        return _VerdictSchema(**obj)
+    except (ValidationError, ValueError) as exc:
+        logger.info(
+            'LLM verdict Pydantic validation failed (model=%s): %s',
+            model, exc,
+        )
+        return None
+
+
+def _verdict_from_schema(schema, model):
+    """Promote a validated ``_VerdictSchema`` into a ``_Verdict``."""
+    return _Verdict(
+        overall=schema.overall,
+        confidence=schema.confidence,
+        summary=schema.summary,
+        findings=[
+            f.model_dump() if isinstance(f, _Finding) else dict(f)
+            for f in schema.findings
+        ],
+        model=model,
+    )
+
+
+def _call_llm(prompt, model):
+    """Get one verdict for one submission.
+
+    Branches on whether ``LLM_API_KEY`` is configured:
+
+    * No key → ``_stub_verdict`` (lets M0–M2 tests keep working without
+      a network).
+    * Key set → real ``chat.completions.create`` against
+      ``LLM_BASE_URL`` with the OpenAI SDK. Tolerant JSON parse +
+      Pydantic validate; one re-prompt with an explicit JSON-only
+      instruction on first parse/validation failure; ``needs_human_review``
+      with the raw text attached if the second attempt also fails.
+
+    Returns a ``_Verdict``. The worker loop's caller fills in
+    ``latency_s`` from a wall-clock around this function.
+    """
+    if not _config or not _config.api_key:
+        return _stub_verdict(prompt, model)
+
+    messages = [
+        {'role': 'system', 'content': _SYSTEM_PROMPT},
+        {'role': 'user', 'content': prompt},
+    ]
+
+    # First attempt.
+    raw, _exc = _llm_chat_completion(model, messages)
+    schema = _parse_or_validation_fail(raw, model)
+    if schema is not None:
+        return _verdict_from_schema(schema, model)
+
+    # Single re-prompt with an explicit JSON-only kicker. Free models
+    # sometimes ignore response_format on the first call but comply on
+    # the retry because the instruction is right next to the schema.
+    retry_messages = [
+        {'role': 'system', 'content': _SYSTEM_PROMPT},
+        {'role': 'user', 'content': (
+            prompt
+            + '\n\n## IMPORTANT\n'
+            + 'Reply with valid JSON only matching the schema above. '
+            + 'No prose, no Markdown code fences, no commentary.'
+        )},
+    ]
+    raw2, _exc2 = _llm_chat_completion(model, retry_messages)
+    schema2 = _parse_or_validation_fail(raw2, model)
+    if schema2 is not None:
+        return _verdict_from_schema(schema2, model)
+
+    # Both attempts failed. Surface a needs_human_review verdict with
+    # the raw text (truncated) so the admin can see what the model said.
+    raw_for_admin = raw2 or raw
+    if raw_for_admin and len(raw_for_admin) > 2000:
+        raw_for_admin = raw_for_admin[:2000] + '\n…(truncated)'
+    return _Verdict(
+        overall='needs_human_review',
+        confidence=0.0,
+        summary=(
+            'AI verdict unavailable — the model response could not be '
+            'parsed as the required JSON schema after one re-prompt. '
+            'Admin should review manually.'
+        ),
+        findings=[],
+        model=model,
+        raw_text=raw_for_admin,
     )
 
 
@@ -765,6 +1042,16 @@ def _render_comment_body(verdict):
     else:
         lines.append('')
         lines.append('_No findings reported._')
+
+    # Raw model text only present when JSON parsing/validation failed
+    # at every stage — surface it so the admin can sanity-check what the
+    # model actually said (truncated to 2 KB by ``_call_llm``).
+    if verdict.raw_text:
+        lines.append('')
+        lines.append('## Raw model response (parse failed)')
+        lines.append('```')
+        lines.append(verdict.raw_text)
+        lines.append('```')
 
     privacy = _config.privacy_notice if _config else ''
     if privacy:
