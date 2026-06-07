@@ -12,12 +12,19 @@ those land in ``test_ai_review_e2e_real.py`` at M3.
 from __future__ import annotations
 
 import io
+import re
 import time
 import zipfile
 
 import pytest
 
 from skills import ai_review, contributions
+
+
+def _id_from_prompt(prompt: str):
+    """Pull the submission id out of the prompt's `- id: N` metadata line."""
+    m = re.search(r'- id: (\d+)', prompt)
+    return int(m.group(1)) if m else None
 
 
 # ── fixtures ────────────────────────────────────────────────────────────────
@@ -71,8 +78,8 @@ def reviewer_running(tmp_path, settings, monkeypatch):
         'calls': [],
     }
 
-    def fake_call(submission_id, model):
-        state['calls'].append(submission_id)
+    def fake_call(prompt, model):
+        state['calls'].append(_id_from_prompt(prompt))
         return state['verdict']
 
     monkeypatch.setattr(ai_review, '_call_llm', fake_call)
@@ -218,7 +225,7 @@ def test_worker_survives_exception_in_call_llm(reviewer_running, monkeypatch):
         zip_bytes=_make_zip(name='boom'), original_filename='m1.zip',
     )
 
-    def fake_call_raises(submission_id, model):
+    def fake_call_raises(prompt, model):
         raise RuntimeError('simulated upstream failure')
 
     monkeypatch.setattr(ai_review, '_call_llm', fake_call_raises)
@@ -266,8 +273,8 @@ def test_orphan_scan_picks_up_pre_existing_submitted_rows(tmp_path, settings, mo
     settings.AI_REVIEW_PRIVACY_NOTICE = ''
 
     calls = []
-    def fake_call(submission_id, model):
-        calls.append(submission_id)
+    def fake_call(prompt, model):
+        calls.append(_id_from_prompt(prompt))
         return ai_review._Verdict(
             overall='approve', confidence=0.9,
             summary='orphan recovered', findings=[], model=model,
@@ -300,8 +307,8 @@ def test_orphan_scan_excludes_already_reviewed_rows(reviewer_running, monkeypatc
     # Reset + re-init. The stamped submission should NOT be re-enqueued.
     ai_review._reset_for_tests()
     calls = []
-    def fake_call(submission_id, model):
-        calls.append(submission_id)
+    def fake_call(prompt, model):
+        calls.append(_id_from_prompt(prompt))
         return ai_review._Verdict(
             overall='approve', confidence=0.9, summary='', findings=[], model=model,
         )

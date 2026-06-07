@@ -14,12 +14,18 @@ test_ai_review_worker.py.
 from __future__ import annotations
 
 import io
+import re
 import time
 import zipfile
 
 import pytest
 
 from skills import ai_review, contributions
+
+
+def _id_from_prompt(prompt: str):
+    m = re.search(r'- id: (\d+)', prompt)
+    return int(m.group(1)) if m else None
 
 
 def _make_zip(name='e2e-test', description='Tiny e2e test skill for M1.'):
@@ -67,7 +73,7 @@ def test_e2e_clean_bundle_approve_no_findings(
     settings.AI_REVIEW_MODELS = ['stub-model']
     settings.AI_REVIEW_PRIVACY_NOTICE = ''
 
-    def fake_call(submission_id, model):
+    def fake_call(prompt, model):
         return ai_review._Verdict(
             overall='approve',
             confidence=0.92,
@@ -115,7 +121,7 @@ def test_e2e_no_ai_action_when_ai_disabled(
     called = []
     monkeypatch.setattr(
         ai_review, '_call_llm',
-        lambda sub_id, model: called.append(sub_id) or ai_review._Verdict(
+        lambda prompt, model: called.append(prompt) or ai_review._Verdict(
             overall='approve', confidence=1.0, summary='', findings=[], model=model,
         ),
     )
@@ -166,8 +172,8 @@ def test_e2e_orphan_recovery_after_simulated_restart(
     settings.AI_REVIEW_PRIVACY_NOTICE = ''
 
     calls = []
-    def fake_call(submission_id, model):
-        calls.append(submission_id)
+    def fake_call(prompt, model):
+        calls.append(_id_from_prompt(prompt))
         return ai_review._Verdict(
             overall='approve', confidence=0.9,
             summary='Recovered after restart.', findings=[], model=model,
