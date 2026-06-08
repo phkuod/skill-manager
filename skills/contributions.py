@@ -249,6 +249,51 @@ def mark_ai_review_completed(submission_id: int) -> None:
         )
 
 
+# Stable marker prefix used by the AI re-run audit comment. The marker
+# is also recognised by ``count_recent_ai_reruns`` so the worker can
+# enforce a per-submission daily quota without a dedicated counter
+# table. Cf. ``api_contribution_rerun_ai`` in skills/views.py.
+AI_RERUN_MARKER = 'AI review re-run requested'
+
+
+def clear_ai_review_stamp(submission_id: int) -> None:
+    """Reset ``last_ai_review_ts`` to NULL.
+
+    Used by the M4 "Re-run AI review" admin button so the worker thread
+    doesn't short-circuit the next review with the idempotency guard.
+    """
+    _require_ready()
+    with _lock:
+        _conn.execute(  # type: ignore[union-attr]
+            'UPDATE submissions SET last_ai_review_ts = NULL WHERE id = ?',
+            (submission_id,),
+        )
+
+
+def count_recent_ai_reruns(submission_id: int, within_seconds: int = 86400) -> int:
+    """How many AI re-runs of this submission happened in the last window.
+
+    Used by the rerun endpoint to enforce
+    ``AI_REVIEW_RERUN_DAILY_CAP_PER_SUBMISSION``. Counts system comments
+    whose body starts with the stable marker prefix
+    ``AI_RERUN_MARKER`` so no new schema column is needed.
+
+    A ``within_seconds`` of 86400 = the rolling last 24 hours.
+    """
+    _require_ready()
+    cutoff = time.time() - max(int(within_seconds), 1)
+    with _lock:
+        row = _conn.execute(  # type: ignore[union-attr]
+            'SELECT COUNT(*) FROM submission_comments '
+            'WHERE submission_id = ? '
+            '  AND author_role = ? '
+            "  AND body LIKE ? "
+            '  AND created_ts >= ?',
+            (submission_id, ROLE_SYSTEM, f'{AI_RERUN_MARKER}%', cutoff),
+        ).fetchone()
+    return int(row[0]) if row else 0
+
+
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------

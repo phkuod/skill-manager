@@ -12,7 +12,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 # (from .classifier import get_categories) - removed dependency
-from . import contributions, usage
+from . import ai_review, contributions, usage
 from .contributions import ContributionError
 from .file_reader import read_skill_files
 from .installer import install_skill, InstallError, uninstall_skill
@@ -1016,3 +1016,62 @@ def api_contribution_delete(request, submission_id: int):
     except ContributionError as exc:
         return _contrib_error_response(exc)
     return JsonResponse({'status': 'ok'})
+
+
+@require_POST
+def api_contribution_rerun_ai(request, submission_id: int):
+    """Admin triggers another AI review pass on this submission.
+
+    Enforces ``AI_REVIEW_RERUN_DAILY_CAP_PER_SUBMISSION`` (default 3) so
+    an admin clicking the button repeatedly doesn't burn the daily
+    OpenRouter quota for everyone. Writes one ``ROLE_SYSTEM`` audit
+    comment whose body starts with ``contributions.AI_RERUN_MARKER``
+    (the same marker the quota helper counts), clears the
+    ``last_ai_review_ts`` stamp so the worker's idempotency guard
+    won't short-circuit the review, and enqueues a fresh review.
+    """
+    admin = _is_skill_admin(request)
+    if not admin:
+        return HttpResponseForbidden('Forbidden')
+
+    sub = contributions.get_submission(submission_id, include_comments=False)
+    if sub is None:
+        raise Http404()
+
+    cap = int(getattr(settings, 'AI_REVIEW_RERUN_DAILY_CAP_PER_SUBMISSION', 3))
+    recent = contributions.count_recent_ai_reruns(submission_id)
+    if recent >= cap:
+        return JsonResponse({
+            'error': (
+                f'Daily AI re-run quota reached for this submission '
+                f'({recent}/{cap}). Try again after the rolling 24h window '
+                f'resets.'
+            ),
+        }, status=429)
+
+    try:
+        contributions.add_comment(
+            submission_id,
+            author=admin,
+            author_role=contributions.ROLE_SYSTEM,
+            body=f'{contributions.AI_RERUN_MARKER} by {admin}',
+        )
+        contributions.clear_ai_review_stamp(submission_id)
+    except ContributionError as exc:
+        return _contrib_error_response(exc)
+
+    ai_review.enqueue_review(submission_id)
+
+    usage.record_event(
+        'contribution_rerun_ai',
+        skill=sub.get('slug'),
+        user=admin,
+        status=200,
+        extra={'submissionId': sub['id'], 'recentCount': recent + 1},
+        ip=get_client_ip(request) or None,
+    )
+    return JsonResponse({
+        'status': 'ok',
+        'recentCount': recent + 1,
+        'dailyCap': cap,
+    })

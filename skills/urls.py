@@ -28,6 +28,8 @@ urlpatterns = [
          views.api_contribution_publish, name='api_contribution_publish'),
     path('api/contributions/<int:submission_id>/delete',
          views.api_contribution_delete, name='api_contribution_delete'),
+    path('api/contributions/<int:submission_id>/rerun_ai',
+         views.api_contribution_rerun_ai, name='api_contribution_rerun_ai'),
 
     # Usage dashboard JSON (admin-gated)
     path('api/usage/summary', views.api_usage_summary, name='api_usage_summary'),

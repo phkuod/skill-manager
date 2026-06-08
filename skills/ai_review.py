@@ -502,7 +502,66 @@ def _run_review(submission_id):
         submission_id, verdict.model, verdict.overall,
         len(verdict.findings), verdict.latency_s,
     )
+
+    # Auto-nudge from 'submitted' so the row lands in the admin's queue.
+    # Other statuses (under_review, approved, rejected, published) are
+    # left alone — the admin is already aware of those.
+    if _should_nudge_to_under_review(verdict, sub.get('status')):
+        try:
+            contributions.update_status(
+                submission_id,
+                new_status=contributions.STATUS_UNDER_REVIEW,
+                actor=None,
+                actor_role=contributions.ROLE_SYSTEM,
+                comment_body=None,
+            )
+            logger.info(
+                'AI nudged submission %d → under_review (policy=%s)',
+                submission_id, _config.auto_nudge if _config else 'always',
+            )
+        except Exception as exc:
+            # update_status raises ContributionError on illegal transitions
+            # — should never happen here (we already checked status), but
+            # the worker keeps running even if it does.
+            logger.warning(
+                'AI nudge for submission %d failed: %s', submission_id, exc,
+            )
+
     return comment
+
+
+def _should_nudge_to_under_review(verdict, current_status) -> bool:
+    """Decide whether an AI verdict should nudge the submission's status.
+
+    Three policies driven by ``AI_REVIEW_AUTO_NUDGE``:
+
+    * ``always`` (default) — every successful AI verdict on a
+      ``submitted`` row bumps it to ``under_review``. Mostly noiseless
+      because the chain wrapper synthesizes ``needs_human_review`` for
+      total LLM failures, and those should still surface to an admin.
+    * ``if_findings`` — only nudge when the verdict has at least one
+      ``warn`` or ``block`` finding. Lets the admin's queue stay quiet
+      for clean approves.
+    * ``off`` — never nudge; admin runs the queue manually.
+
+    Returns False for any current status other than ``submitted`` —
+    the AI is a co-pilot, not a state-machine driver.
+    """
+    from . import contributions
+    if current_status != contributions.STATUS_SUBMITTED:
+        return False
+    if not _config:
+        return True
+    policy = (_config.auto_nudge or 'always').lower()
+    if policy == 'off':
+        return False
+    if policy == 'if_findings':
+        return any(
+            (f.get('severity') in ('warn', 'block'))
+            for f in (verdict.findings or [])
+        )
+    # 'always' (and anything unknown).
+    return True
 
 
 # ── stub LLM (M1) ───────────────────────────────────────────────────────────
