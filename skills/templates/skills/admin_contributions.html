@@ -40,6 +40,13 @@
   .contrib-status.approved { background-color: rgba(16,185,129,0.15); color: #047857; }
   .contrib-status.rejected { background-color: rgba(120,113,108,0.15); color: #57534e; }
   .contrib-status.published { background-color: rgba(124,58,237,0.15); color: #6d28d9; }
+  /* AI verdict pill — compact for the queue column. */
+  .ai-verdict { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 9999px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .ai-verdict::before { content: '🤖'; font-size: 0.75rem; }
+  .ai-verdict.approve { background-color: rgba(16,185,129,0.12); color: #047857; }
+  .ai-verdict.request_changes { background-color: rgba(245,158,11,0.15); color: #b45309; }
+  .ai-verdict.reject { background-color: rgba(239,68,68,0.15); color: #b91c1c; }
+  .ai-verdict.needs_human_review { background-color: rgba(120,113,108,0.15); color: #57534e; }
   .contrib-link { color: var(--accent); text-decoration: none; }
   .contrib-link:hover { text-decoration: underline; }
   .contrib-empty { text-align: center; padding: 2rem 1rem; color: var(--text-secondary); border: 1px dashed var(--border); border-radius: 0.75rem; }
@@ -63,7 +70,7 @@
       <thead>
         <tr>
           <th>#</th><th>Title</th><th>Submitter</th><th>IP</th>
-          <th>Status</th><th>Updated</th><th></th>
+          <th>Status</th><th>AI</th><th>Updated</th><th></th>
         </tr>
       </thead>
       <tbody>
@@ -77,6 +84,16 @@
             <td>{{ s.submitter|default:"—" }}</td>
             <td style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.75rem;color:var(--text-secondary);">{{ s.submitterIp|default:"—" }}</td>
             <td><span class="contrib-status {{ s.status }}">{{ s.status }}</span></td>
+            <td>
+              {% if s.aiVerdict %}
+                <span class="ai-verdict {{ s.aiVerdict.overall }}"
+                      title="model={{ s.aiVerdict.model }} · confidence={{ s.aiVerdict.confidence|floatformat:2 }} · {{ s.aiVerdict.findingsCount }} finding{{ s.aiVerdict.findingsCount|pluralize }}">
+                  {{ s.aiVerdict.overall }}
+                </span>
+              {% else %}
+                <span style="color:var(--text-secondary);font-size:0.75rem;">—</span>
+              {% endif %}
+            </td>
             <td style="color:var(--text-secondary);font-variant-numeric:tabular-nums;font-size:0.8rem;">{{ s.updatedTsIso }}</td>
             <td style="text-align:right;"><a class="contrib-link" href="/contributions/{{ s.id }}/">review →</a></td>
           </tr>

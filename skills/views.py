@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 
 from django.conf import settings
@@ -777,6 +778,9 @@ def _serialize_submission(sub: dict, *, include_files: bool = False) -> dict:
     out['comments'] = [_serialize_comment(c) for c in comments_raw]
     if include_files:
         out['files'] = contributions.list_extracted_files(sub['id'])
+    # Extract the latest AI verdict so templates can render the pill +
+    # the queue's AI column without re-parsing the comment markdown.
+    out['aiVerdict'] = _extract_ai_verdict(comments_raw)
     return out
 
 
@@ -786,6 +790,69 @@ def _serialize_comment(c: dict) -> dict:
     if isinstance(v, (int, float)):
         out['createdTsIso'] = datetime.fromtimestamp(v, tz=timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
     return out
+
+
+# Regex against the single-line footer ``_render_comment_body`` emits.
+# Format (with optional capped marker):
+#     **AI review** · model=`qwen-72b` · overall=`approve` · confidence=0.80 · 6.3s
+#     **AI review** · model=`qwen-72b` · overall=`approve` · confidence=0.80 (capped) · 6.3s
+_AI_VERDICT_RE = re.compile(
+    r'\*\*AI review\*\*\s*·\s*model=`([^`]+)`'
+    r'\s*·\s*overall=`([^`]+)`'
+    r'\s*·\s*confidence=([0-9.]+)'
+)
+
+
+def _extract_ai_verdict(comments_raw):
+    """Pull the latest AI verdict out of the comment timeline.
+
+    Scans for ``ai_reviewer``-role comments and picks the most recent.
+    Regex-matches the footer line in ``_render_comment_body``'s output
+    and returns ``{'overall', 'confidence', 'model', 'findingsCount',
+    'createdTs', 'createdTsIso'}`` or ``None`` when nothing matches.
+
+    Findings count is approximated by counting the per-severity bullet
+    headers in the comment body so the queue can surface "3 findings"
+    without re-loading the source dict.
+    """
+    if not comments_raw:
+        return None
+    ai_comments = [
+        c for c in comments_raw
+        if c.get('authorRole') == contributions.ROLE_AI_REVIEWER
+    ]
+    if not ai_comments:
+        return None
+    ai_comments.sort(key=lambda c: c.get('createdTs') or 0, reverse=True)
+    latest = ai_comments[0]
+    body = latest.get('body') or ''
+    m = _AI_VERDICT_RE.search(body)
+    if not m:
+        return None
+    model, overall, confidence_str = m.group(1), m.group(2), m.group(3)
+    try:
+        confidence = float(confidence_str)
+    except ValueError:
+        confidence = 0.0
+    findings_count = sum(
+        1 for line in body.splitlines()
+        if line.startswith('- **BLOCK**')
+        or line.startswith('- **WARN**')
+        or line.startswith('- **NOTE**')
+    )
+    created_ts = latest.get('createdTs')
+    created_iso = (
+        datetime.fromtimestamp(created_ts, tz=timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+        if isinstance(created_ts, (int, float)) else None
+    )
+    return {
+        'overall': overall,
+        'confidence': confidence,
+        'model': model,
+        'findingsCount': findings_count,
+        'createdTs': created_ts,
+        'createdTsIso': created_iso,
+    }
 
 
 def _contrib_error_response(exc: ContributionError):
@@ -875,11 +942,17 @@ def contribution_detail_page(request, submission_id: int):
     if not admin and sub['submitter'] != user:
         return HttpResponseForbidden('Forbidden')
     serialized = _serialize_submission(sub, include_files=True)
+    rerun_cap = int(getattr(settings, 'AI_REVIEW_RERUN_DAILY_CAP_PER_SUBMISSION', 3))
+    rerun_recent = contributions.count_recent_ai_reruns(submission_id)
     return render(request, 'skills/contribution_detail.html', {
         'user_name': user,
         'is_admin': bool(admin),
         'submission': serialized,
         'statuses': contributions.ALL_STATUSES,
+        'rerun_recent_count': rerun_recent,
+        'rerun_daily_cap': rerun_cap,
+        'rerun_quota_exceeded': rerun_recent >= rerun_cap,
+        'ai_review_enabled': bool(getattr(settings, 'AI_REVIEW_ENABLED', False)),
     })
 
 
@@ -914,9 +987,18 @@ def admin_contributions_page(request):
         result = contributions.list_submissions(status_filter=status_filter, limit=100)
     except ContributionError as exc:
         return _contrib_error_response(exc)
+    # Batch-fetch the latest AI verdict comment per row so the AI column
+    # renders without an N+1 lookup.
+    ids = [r['id'] for r in result['rows']]
+    latest_ai = contributions.latest_ai_review_comments(ids)
+    serialized_rows = []
+    for r in result['rows']:
+        comment = latest_ai.get(r['id'])
+        r['comments'] = [comment] if comment else []
+        serialized_rows.append(_serialize_submission(r))
     return render(request, 'skills/admin_contributions.html', {
         'user_name': admin,
-        'rows': [_serialize_submission(r) for r in result['rows']],
+        'rows': serialized_rows,
         'total': result['total'],
         'status_filter': status_filter or 'all',
         'statuses': contributions.ALL_STATUSES,

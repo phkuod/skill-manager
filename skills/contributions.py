@@ -270,6 +270,47 @@ def clear_ai_review_stamp(submission_id: int) -> None:
         )
 
 
+def latest_ai_review_comments(submission_ids):
+    """Latest ``ai_reviewer`` comment per submission, in one query.
+
+    Used by the admin queue so it can render the AI verdict column
+    without an N+1 fetch over the page rows. Returns a dict mapping
+    submission_id → comment-dict (same shape as ``_list_comments``).
+    Submissions without any AI comment are absent from the dict.
+    """
+    _require_ready()
+    if not submission_ids:
+        return {}
+    placeholders = ','.join('?' * len(submission_ids))
+    sql = (
+        'SELECT sc.id, sc.submission_id, sc.author, sc.author_role, '
+        '       sc.body, sc.created_ts '
+        'FROM submission_comments sc '
+        'INNER JOIN ('
+        '  SELECT submission_id, MAX(created_ts) AS max_ts '
+        '  FROM submission_comments '
+        f' WHERE author_role = ? AND submission_id IN ({placeholders}) '
+        '  GROUP BY submission_id'
+        ') latest '
+        'ON sc.submission_id = latest.submission_id '
+        'AND sc.created_ts = latest.max_ts '
+        'WHERE sc.author_role = ?'
+    )
+    params = (ROLE_AI_REVIEWER, *submission_ids, ROLE_AI_REVIEWER)
+    with _lock:
+        rows = _conn.execute(sql, params).fetchall()  # type: ignore[union-attr]
+    out = {}
+    for r in rows:
+        out[r[1]] = {
+            'id': r[0],
+            'author': r[2],
+            'authorRole': r[3],
+            'body': r[4],
+            'createdTs': r[5],
+        }
+    return out
+
+
 def count_recent_ai_reruns(submission_id: int, within_seconds: int = 86400) -> int:
     """How many AI re-runs of this submission happened in the last window.
 
