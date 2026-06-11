@@ -174,8 +174,14 @@ LLM_EXTRA_HEADERS = os.environ.get(
 AI_REVIEW_MODELS = [
     m.strip() for m in os.environ.get(
         'AI_REVIEW_MODELS',
-        'deepseek/deepseek-r1:free,qwen/qwen-2.5-72b-instruct:free,'
-        'meta-llama/llama-3.3-70b-instruct:free',
+        # Strongest free-tier models that support response_format=json_object
+        # (checked against /api/v1/models, 2026-06: models without it 4xx on
+        # every call and burn the rate budget). openrouter/free is a
+        # meta-router that always resolves to a live free model — keeps the
+        # chain working when individual free models get delisted.
+        'nvidia/nemotron-3-super-120b-a12b:free,'
+        'qwen/qwen3-next-80b-a3b-instruct:free,'
+        'openrouter/free',
     ).split(',') if m.strip()
 ]
 try:

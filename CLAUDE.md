@@ -165,7 +165,7 @@ the next review with no code change.
 | `AI_REVIEW_ENABLED` | `false` | Master switch. Off by default. |
 | `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | OpenAI-compatible endpoint. |
 | `LLM_API_KEY` | (falls back to `OPENROUTER_API_KEY`) | Required when enabled. |
-| `AI_REVIEW_MODELS` | `deepseek/deepseek-r1:free,…` | Ordered fallback chain. |
+| `AI_REVIEW_MODELS` | `nvidia/nemotron-3-super-120b-a12b:free,…` | Ordered fallback chain; default ends in `openrouter/free` (meta-router) so delisted free models can't strand it. Pick models that support `response_format=json_object`. |
 | `AI_REVIEW_CONFIDENCE_CAP` | `0.8` | Cap rendered confidence on noisier models. |
 | `AI_REVIEW_CATALOG_DETAIL` | `hashes` | `hashes` for external; `full` for internal. |
 | `AI_REVIEW_PRIVACY_NOTICE` | non-empty default | Appended to every AI comment; clear when on internal endpoint. |
