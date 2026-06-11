@@ -129,7 +129,11 @@ CREATE TABLE IF NOT EXISTS submissions (
 );
 CREATE INDEX IF NOT EXISTS idx_subs_status_updated ON submissions(status, updated_ts DESC);
 CREATE INDEX IF NOT EXISTS idx_subs_submitter      ON submissions(submitter);
-CREATE INDEX IF NOT EXISTS idx_subs_last_ai_review ON submissions(last_ai_review_ts);
+-- NOTE: the idx_subs_last_ai_review index is created in
+-- _ensure_last_ai_review_ts_column, NOT here. On an upgraded pre-M1 DB the
+-- submissions table already exists (so CREATE TABLE is a no-op and the column
+-- is absent); creating the index here would reference a missing column and
+-- crash init before the additive ALTER can run.
 
 CREATE TABLE IF NOT EXISTS submission_comments (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -203,6 +207,13 @@ def _ensure_last_ai_review_ts_column(conn: sqlite3.Connection) -> None:
     except sqlite3.OperationalError as exc:
         if 'duplicate column' not in str(exc).lower():
             raise
+    # Create the index only now that the column is guaranteed to exist —
+    # both on a fresh DB (column from CREATE TABLE) and an upgraded one
+    # (column from the ALTER above).
+    conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_subs_last_ai_review '
+        'ON submissions(last_ai_review_ts)'
+    )
 
 
 # ---------------------------------------------------------------------------
