@@ -6,8 +6,8 @@
   --text-primary: #0f172a;
   --text-secondary: #475569; /* Increased contrast from #64748b (WCAG AA compliant) */
   --border: #e2e8f0;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
   --result-ok-bg: #dcfce7;
   --result-ok-text: #166534;
   --result-err-bg: #fee2e2;
@@ -27,8 +27,8 @@
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --border: #334155;
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
+  --accent: #a78bfa;
+  --accent-hover: #c4b5fd;
   --result-ok-bg: #14532d;
   --result-ok-text: #86efac;
   --result-err-bg: #7f1d1d;
@@ -418,31 +418,28 @@ body {
   letter-spacing: -0.01em; /* Subtle modern touch for system fonts */
 }
 
-.hero-section {
-  padding: 6rem 1.5rem;
+.hero-kicker {
+  padding: 1.75rem 1.5rem 1.25rem;
   text-align: center;
 }
 
-.hero-title {
-  font-family: var(--font-display);
-  font-size: 3.75rem; /* Slightly larger to compensate for system font plainness */
-  font-weight: 800;
-  line-height: 1;
-  margin-bottom: 1.25rem;
-  letter-spacing: -0.04em; /* Tighter tracking for that premium "Display" look */
-  color: var(--text-primary);
-  text-wrap: balance; /* Ensures even distribution of words across lines */
-}
-
-.hero-subtitle {
-  font-size: 1.25rem;
+.hero-kicker p {
+  font-size: 1rem;
   font-weight: 400;
   line-height: 1.6;
   color: var(--text-secondary);
-  max-width: 700px;
+  max-width: 640px;
   margin: 0 auto;
-  opacity: 0.8;
-  text-wrap: balance; /* Prevents single words from being orphaned on a new line */
+  text-wrap: balance;
+}
+
+.shelf-heading {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  margin: 0 0 0.75rem;
 }
 
 mark {
