@@ -190,3 +190,44 @@ the brand accent). No layout restructuring this round.
 - A sidebar filter rail (Hugging-Face style) — deferred as
   disproportionate for the current catalog size; a single Category
   dropdown covers the need today.
+
+## Addendum: `e2e/test_ui.py` repair (added 2026-07-06)
+
+Investigation while grounding this spec found `e2e/test_ui.py` (19
+Playwright tests) already broken, independent of this task — a
+leftover from the pre-Django-templates-migration UI and the earlier
+removal of the category system. Confirmed by direct inspection (grep
+across `skills/templates/`), not by running the suite (Playwright/
+`requests` aren't installed in the current venv):
+
+- `_open_detail()` waits for `#skill-root`, an element ID that exists
+  nowhere in current templates (pre-migration leftover). Breaks 5
+  tests that call it.
+- `test_home_has_category_pills`, `test_category_filter_reduces_cards`,
+  `test_all_category_pill_restores_all` assume a `.category-pill` chip
+  UI. This spec's approved design uses a `Category` `<select>`
+  dropdown instead (Section 3) — the tests are rewritten to match the
+  dropdown, the dropdown is not changed to match the tests.
+- `test_home_shows_stats` asserts literal "Skills" (capitalized) text
+  that doesn't appear anywhere in the current or planned copy —
+  rewritten to check the actual skill count as rendered in
+  `#footer-count`/`#result-count`.
+- `test_detail_shows_license` asserts license text that is parsed
+  (`parser.py`) but never rendered on `skill_detail.html`. Fixed by
+  *adding* a small license badge to the detail-page header (natural
+  fit alongside the new version popover, and matches the research
+  finding that PyPI/npm/VS Code all surface license prominently) —
+  genuine gap closed, not just a test rewrite.
+- `test_detail_shows_install_paths` asserts literal install-path text
+  that was dropped from `skill_detail.html` when the dynamic
+  install-modal flow (real configured targets, not hardcoded
+  `~/.claude/skills/`-style paths) replaced it. The old `.install-tab`
+  /`.install-tab-content` JS listeners in `skill.js` are dead code with
+  no matching markup anywhere (`grep` confirmed) — removed. The test
+  is rewritten to verify the actual current flow: clicking Install
+  opens the modal.
+- All other tests (search, sort, dark mode, card count, download link,
+  back link) already pass against current markup and are left as-is.
+
+This work is folded into the Section 4 (skill-detail) and testing
+tasks below, since it touches the same files.
