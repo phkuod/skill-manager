@@ -1,7 +1,13 @@
 """
 Playwright e2e tests for the Skill Market web UI.
 """
+import os
 import re
+import shutil
+import time
+
+import pytest
+import requests
 
 
 def _card_name(card):
@@ -15,6 +21,68 @@ def _open_detail(page, server_url, name):
     """Navigate to the detail page and wait for it to finish loading."""
     page.goto(f"{server_url}/skills/{name}/")
     page.locator("#content-section").wait_for(state="visible", timeout=5000)
+
+
+# ---------------------------------------------------------------------------
+# Version fixture — gives webapp-testing a second version so the
+# version-popover keyboard-nav tests have >=2 items to move between.
+# Mirrors skills/tests/test_views.py's _create_version_fixture/
+# _remove_version_fixture pattern, adapted for the live subprocess server:
+# the watcher's watchdog observer (300ms debounce) picks the new directory
+# up on its own, so setup polls the API until it's visible instead of
+# reaching into watcher internals directly.
+# ---------------------------------------------------------------------------
+
+SKILL_REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "../skill_repo"))
+VERSION_FIXTURE_SKILL = "webapp-testing"
+VERSION_FIXTURE_DIR = os.path.join(SKILL_REPO, VERSION_FIXTURE_SKILL, "20260331-version-test")
+
+
+def _create_version_fixture():
+    os.makedirs(VERSION_FIXTURE_DIR, exist_ok=True)
+    with open(os.path.join(VERSION_FIXTURE_DIR, "SKILL.md"), "w") as f:
+        f.write(
+            "---\n"
+            "name: webapp-testing\n"
+            "description: \"Versioned webapp testing skill (e2e fixture)\"\n"
+            "license: Complete terms in LICENSE.txt\n"
+            "---\n\n"
+            "Versioned content for webapp-testing (e2e fixture).\n"
+        )
+
+
+def _remove_version_fixture():
+    if os.path.exists(VERSION_FIXTURE_DIR):
+        shutil.rmtree(VERSION_FIXTURE_DIR, ignore_errors=True)
+
+
+@pytest.fixture(scope="module")
+def versioned_skill(server_url):
+    """Ensure webapp-testing has >=2 versions, then clean up afterward.
+
+    Defensive check first: if the skill already has versions for some other
+    reason, don't clobber whatever created them — just use what's there.
+    """
+    existing = requests.get(f"{server_url}/api/skills/{VERSION_FIXTURE_SKILL}", timeout=5).json()
+    if existing.get("versions"):
+        yield existing
+        return
+
+    _remove_version_fixture()  # in case a prior interrupted run left it behind
+    _create_version_fixture()
+
+    data = None
+    for _ in range(25):  # up to 10s: 300ms debounce + reparse + margin
+        time.sleep(0.4)
+        data = requests.get(f"{server_url}/api/skills/{VERSION_FIXTURE_SKILL}", timeout=5).json()
+        if data.get("versions") and len(data["versions"]) >= 2:
+            break
+    else:
+        _remove_version_fixture()
+        pytest.fail("Watcher did not pick up the version fixture directory in time")
+
+    yield data
+    _remove_version_fixture()
 
 
 # ---------------------------------------------------------------------------
@@ -181,6 +249,48 @@ def test_dark_mode_persists_on_reload(page, server_url):
 
 
 # ---------------------------------------------------------------------------
+# Home page — quick-install click delegation (regression: commit 9a6b1cd
+# fixed a wrapper div's stopPropagation() swallowing clicks before they
+# reached the document-level delegated handler).
+# ---------------------------------------------------------------------------
+
+def test_featured_shelf_quick_install_opens_modal(page, server_url):
+    page.goto(server_url)
+    featured_section = page.locator("section:has(h2:text-is('Featured'))")
+    assert featured_section.count() >= 1, (
+        "Expected a Featured shelf section on the home page (catalog needs >4 skills)"
+    )
+
+    install_btn = featured_section.locator(".quick-install-btn").first
+    skill_name = install_btn.get_attribute("data-skill")
+    install_btn.click()
+    page.wait_for_timeout(200)
+
+    modal = page.locator("#install-modal")
+    assert "is-open" in (modal.get_attribute("class") or ""), (
+        "Clicking a Featured-shelf quick-install button should open the install modal"
+    )
+    assert page.locator("#install-modal-title").inner_text() == skill_name
+
+
+def test_main_grid_quick_install_opens_modal(page, server_url):
+    # Same assertion as the Featured-shelf test, but scoped to #skill-grid so
+    # a future regression that reintroduces stopPropagation() on the wrapper
+    # div fails here regardless of which shelf a reviewer happens to check.
+    page.goto(server_url)
+    install_btn = page.locator("#skill-grid .skill-card .quick-install-btn").first
+    skill_name = install_btn.get_attribute("data-skill")
+    install_btn.click()
+    page.wait_for_timeout(200)
+
+    modal = page.locator("#install-modal")
+    assert "is-open" in (modal.get_attribute("class") or ""), (
+        "Clicking a main-grid quick-install button should open the install modal"
+    )
+    assert page.locator("#install-modal-title").inner_text() == skill_name
+
+
+# ---------------------------------------------------------------------------
 # Skill detail page
 # ---------------------------------------------------------------------------
 
@@ -224,3 +334,63 @@ def test_detail_back_link_returns_home(page, server_url):
     _open_detail(page, server_url, "pdf")
     page.locator("a[href='/']").first.click()
     page.wait_for_url(re.compile(r"/$"))
+
+
+# ---------------------------------------------------------------------------
+# Skill detail page — version popover keyboard nav (regression: commit
+# 9a6b1cd added ArrowUp/ArrowDown/Enter/Space/Escape handling to the
+# previously mouse-only version popover).
+# ---------------------------------------------------------------------------
+
+def test_version_popover_arrow_and_enter_navigate(page, server_url, versioned_skill):
+    _open_detail(page, server_url, VERSION_FIXTURE_SKILL)
+
+    page.locator("#version-popover-trigger").click()
+    page.locator("#version-popover-list").wait_for(state="visible", timeout=2000)
+
+    items = page.locator(".version-popover-item")
+    count = items.count()
+    assert count >= 2, "Expected at least 2 versions in the popover"
+
+    active_index = None
+    for i in range(count):
+        cls = items.nth(i).get_attribute("class") or ""
+        if "is-active" in cls:
+            active_index = i
+            break
+    assert active_index is not None, "Expected one item marked is-active on open"
+
+    # Move focus to a *different* item. Arrow nav clamps at the ends rather
+    # than wrapping, so pick the direction that's guaranteed to move.
+    if active_index < count - 1:
+        page.keyboard.press("ArrowDown")
+        target_index = active_index + 1
+    else:
+        page.keyboard.press("ArrowUp")
+        target_index = active_index - 1
+
+    target_version = items.nth(target_index).get_attribute("data-version")
+    page.keyboard.press("Enter")
+
+    page.wait_for_url(re.compile(re.escape(f"/skills/{VERSION_FIXTURE_SKILL}/v/{target_version}/")))
+    assert f"/skills/{VERSION_FIXTURE_SKILL}/v/{target_version}/" in page.url
+
+
+def test_version_popover_escape_closes_without_navigating_home(page, server_url, versioned_skill):
+    _open_detail(page, server_url, VERSION_FIXTURE_SKILL)
+    detail_url = page.url
+
+    page.locator("#version-popover-trigger").click()
+    page.locator("#version-popover-list").wait_for(state="visible", timeout=2000)
+
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(200)
+
+    assert "hidden" in (page.locator("#version-popover-list").get_attribute("class") or ""), (
+        "Escape should close the version popover"
+    )
+    assert page.url == detail_url, (
+        "Escape on the version popover should not also trigger the page-level "
+        "'Escape -> navigate home' shortcut"
+    )
+    assert page.url.rstrip("/") != server_url.rstrip("/")
