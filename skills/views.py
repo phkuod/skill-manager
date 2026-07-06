@@ -90,7 +90,7 @@ def _search_sort_key(skill, search):
 # (notably `contentHtml`, ~5 KB of rendered markdown per skill, and
 # `license`) is stripped before responses leave this layer.
 _LIST_FIELDS = (
-    'name', 'icon', 'description', 'fileCount', 'lastUpdated',
+    'name', 'icon', 'category', 'description', 'fileCount', 'lastUpdated',
     'content', 'currentVersion', 'versions',
 )
 
@@ -125,8 +125,12 @@ def _get_int_param(request, name, default, minimum=1, maximum=None):
 def home(request):
     skills_dict = get_skills()
     skills = [_summary(s) for s in skills_dict.values()]
+    featured_skills = sorted(
+        skills, key=lambda s: s.get('lastUpdated') or '', reverse=True
+    )[:4] if len(skills) > 4 else []
     return render(request, 'skills/home.html', {
         'skills': skills,
+        'featured_skills': featured_skills,
     })
 
 

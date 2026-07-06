@@ -93,6 +93,19 @@ def test_list_required_fields(client, version_fixture):
         assert field in skill, f"Missing field: {field}"
 
 
+_KNOWN_CATEGORIES = {
+    'Design', 'Tools', 'Code', 'Content', 'Testing', 'AI/ML',
+    'Communication', 'Other',
+}
+
+
+def test_list_includes_category_field(client, version_fixture):
+    res = client.get('/api/skills')
+    skill = res.json()['skills'][0]
+    assert 'category' in skill
+    assert skill['category'] in _KNOWN_CATEGORIES
+
+
 # ---------------------------------------------------------------------------
 # Search filter
 # ---------------------------------------------------------------------------
@@ -457,6 +470,34 @@ def test_home_contains_skill_name_in_initial_html(client, version_fixture):
     res = client.get('/')
     body = res.content.decode('utf-8')
     assert 'href="/skills/pdf/"' in body or 'href="/skills/claude-api/"' in body
+
+
+def test_home_shows_featured_shelf_for_large_catalog(client, version_fixture):
+    # Real skill_repo fixture has 17 skills (see test_parse_all_real_repo), well
+    # above the 4-skill threshold, so the Featured shelf must render.
+    res = client.get('/')
+    body = res.content.decode('utf-8')
+    assert 'Featured' in body
+
+
+def test_home_hides_featured_shelf_for_small_catalog(client, monkeypatch):
+    import skills.views as views
+
+    def _tiny_skill(name, updated):
+        return {
+            'name': name, 'icon': '📦', 'category': 'Other', 'description': '',
+            'fileCount': 1, 'lastUpdated': updated, 'content': '',
+            'currentVersion': None, 'versions': [],
+        }
+
+    tiny = {
+        'a': _tiny_skill('a', '2026-01-01T00:00:00+00:00'),
+        'b': _tiny_skill('b', '2026-01-02T00:00:00+00:00'),
+    }
+    monkeypatch.setattr(views, 'get_skills', lambda: tiny)
+    res = client.get('/')
+    body = res.content.decode('utf-8')
+    assert 'Featured' not in body
 
 
 def test_skill_detail_renders_html(client, version_fixture):
