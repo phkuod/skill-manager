@@ -14,7 +14,7 @@ def _card_name(card):
 def _open_detail(page, server_url, name):
     """Navigate to the detail page and wait for it to finish loading."""
     page.goto(f"{server_url}/skills/{name}/")
-    page.locator("#skill-root").wait_for(state="visible", timeout=5000)
+    page.locator("#content-section").wait_for(state="visible", timeout=5000)
 
 
 # ---------------------------------------------------------------------------
@@ -23,15 +23,14 @@ def _open_detail(page, server_url, name):
 
 def test_home_loads_skill_cards(page, server_url):
     page.goto(server_url)
-    cards = page.locator(".skill-card")
+    cards = page.locator("#skill-grid .skill-card")
     assert cards.count() == 17, f"Expected 17 skill cards, got {cards.count()}"
 
 
 def test_home_shows_stats(page, server_url):
     page.goto(server_url)
-    body = page.inner_text("body")
-    assert "17" in body   # skill count in hero
-    assert "Skills" in body
+    assert page.locator("#footer-count").inner_text() == "17"
+    assert "skills available" in page.inner_text("footer")
 
 
 def test_home_has_search_input(page, server_url):
@@ -39,10 +38,11 @@ def test_home_has_search_input(page, server_url):
     assert page.locator("#search-input").is_visible()
 
 
-def test_home_has_category_pills(page, server_url):
+def test_home_has_category_select(page, server_url):
     page.goto(server_url)
-    pills = page.locator(".category-pill")
-    assert pills.count() >= 2   # at least "All" + one real category
+    select = page.locator("#category-select")
+    assert select.is_visible()
+    assert select.locator("option").count() >= 2
 
 
 def test_home_has_sort_select(page, server_url):
@@ -60,9 +60,9 @@ def test_search_filters_cards(page, server_url):
     page.wait_for_timeout(300)
 
     visible = [
-        page.locator(".skill-card").nth(i)
-        for i in range(page.locator(".skill-card").count())
-        if page.locator(".skill-card").nth(i).is_visible()
+        page.locator("#skill-grid .skill-card").nth(i)
+        for i in range(page.locator("#skill-grid .skill-card").count())
+        if page.locator("#skill-grid .skill-card").nth(i).is_visible()
     ]
     assert len(visible) >= 1
     assert any(_card_name(c) == "pdf" for c in visible)
@@ -83,8 +83,8 @@ def test_search_clear_restores_all_cards(page, server_url):
     page.wait_for_timeout(300)
 
     visible_count = sum(
-        1 for i in range(page.locator(".skill-card").count())
-        if page.locator(".skill-card").nth(i).is_visible()
+        1 for i in range(page.locator("#skill-grid .skill-card").count())
+        if page.locator("#skill-grid .skill-card").nth(i).is_visible()
     )
     assert visible_count == 17
 
@@ -95,40 +95,41 @@ def test_search_clear_restores_all_cards(page, server_url):
 
 def test_category_filter_reduces_cards(page, server_url):
     page.goto(server_url)
-    pills = page.locator(".category-pill")
-    # Click first non-All pill
-    for i in range(pills.count()):
-        pill = pills.nth(i)
-        if pill.get_attribute("data-category") != "All":
-            pill.click()
+    options = page.locator("#category-select option")
+    non_all_value = None
+    for i in range(options.count()):
+        val = options.nth(i).get_attribute("value")
+        if val:
+            non_all_value = val
             break
-
+    assert non_all_value, "Expected at least one non-'All' category option"
+    page.select_option("#category-select", non_all_value)
     page.wait_for_timeout(300)
+
     visible_count = sum(
-        1 for i in range(page.locator(".skill-card").count())
-        if page.locator(".skill-card").nth(i).is_visible()
+        1 for i in range(page.locator("#skill-grid .skill-card").count())
+        if page.locator("#skill-grid .skill-card").nth(i).is_visible()
     )
     assert 0 < visible_count < 17
 
 
-def test_all_category_pill_restores_all(page, server_url):
+def test_category_select_all_restores_all_cards(page, server_url):
     page.goto(server_url)
-    # Select a non-All category first
-    pills = page.locator(".category-pill")
-    for i in range(pills.count()):
-        pill = pills.nth(i)
-        if pill.get_attribute("data-category") != "All":
-            pill.click()
+    options = page.locator("#category-select option")
+    non_all_value = None
+    for i in range(options.count()):
+        val = options.nth(i).get_attribute("value")
+        if val:
+            non_all_value = val
             break
-
+    page.select_option("#category-select", non_all_value)
     page.wait_for_timeout(200)
-    # Click "All"
-    page.locator(".category-pill[data-category='All']").click()
+    page.select_option("#category-select", "")
     page.wait_for_timeout(200)
 
     visible_count = sum(
-        1 for i in range(page.locator(".skill-card").count())
-        if page.locator(".skill-card").nth(i).is_visible()
+        1 for i in range(page.locator("#skill-grid .skill-card").count())
+        if page.locator("#skill-grid .skill-card").nth(i).is_visible()
     )
     assert visible_count == 17
 
@@ -143,9 +144,9 @@ def test_sort_by_name(page, server_url):
     page.wait_for_timeout(200)
 
     names = [
-        _card_name(page.locator(".skill-card").nth(i))
-        for i in range(page.locator(".skill-card").count())
-        if page.locator(".skill-card").nth(i).is_visible()
+        _card_name(page.locator("#skill-grid .skill-card").nth(i))
+        for i in range(page.locator("#skill-grid .skill-card").count())
+        if page.locator("#skill-grid .skill-card").nth(i).is_visible()
     ]
     assert names == sorted(names)
 
@@ -185,7 +186,7 @@ def test_dark_mode_persists_on_reload(page, server_url):
 
 def test_skill_card_navigates_to_detail(page, server_url):
     page.goto(server_url)
-    page.locator(".skill-card[href$='/pdf/']").click()
+    page.locator("#skill-grid .skill-card[href$='/pdf/']").click()
     page.wait_for_url(re.compile(r"/skills/pdf/"))
     assert "/skills/pdf/" in page.url
 
@@ -199,11 +200,12 @@ def test_detail_shows_license(page, server_url):
     assert "Proprietary" in page.inner_text("body")
 
 
-def test_detail_shows_install_paths(page, server_url):
+def test_detail_install_button_opens_modal(page, server_url):
     _open_detail(page, server_url, "pdf")
-    body = page.inner_text("body")
-    assert "~/.claude/skills/pdf" in body
-    assert "~/.opencode/skills/pdf" in body
+    page.locator("#install-button").click()
+    page.wait_for_timeout(200)
+    modal = page.locator("#install-modal")
+    assert "is-open" in (modal.get_attribute("class") or "")
 
 
 def test_detail_shows_file_list(page, server_url):
