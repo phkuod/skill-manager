@@ -99,27 +99,32 @@ def detect_versions(skill_dir):
     return versions
 
 
-def _get_default_icon(skill_name, meta):
-    """Resolve icon for a skill based on name keywords if not in meta."""
-    icon = (meta or {}).get('icon')
-    if icon:
-        return icon
-    
+def _classify(skill_name, meta):
+    """Resolve (icon, category) for a skill from its name keywords.
+
+    An explicit `icon:` in SKILL.md frontmatter overrides only the icon;
+    category always derives from the name since frontmatter has no
+    category field.
+    """
     name_lower = skill_name.lower()
-    mapping = {
-        ('design', 'art', 'theme', 'css', 'style', 'canvas', 'factory'): '🎨',
-        ('tool', 'util', 'convert', 'pdf', 'docx', 'xlsx', 'pptx', 'zip'): '🔧',
-        ('code', 'dev', 'build', 'script', 'api', 'mcp', 'skill'): '💻',
-        ('content', 'doc', 'write', 'comms', 'brand', 'internal'): '📝',
-        ('test', 'qa', 'check', 'verify'): '🧪',
-        ('ai', 'ml', 'chat', 'claude', 'bot', 'data', 'algorithm'): '🤖',
-        ('slack', 'comm', 'message', 'gif'): '💬',
-        ('git', 'repo', 'version'): '📦',
-    }
-    for keywords, emoji in mapping.items():
+    mapping = (
+        (('design', 'art', 'theme', 'css', 'style', 'canvas', 'factory'), '🎨', 'Design'),
+        (('tool', 'util', 'convert', 'pdf', 'docx', 'xlsx', 'pptx', 'zip'), '🔧', 'Tools'),
+        (('code', 'dev', 'build', 'script', 'api', 'mcp', 'skill'), '💻', 'Code'),
+        (('content', 'doc', 'write', 'comms', 'brand', 'internal'), '📝', 'Content'),
+        (('test', 'qa', 'check', 'verify'), '🧪', 'Testing'),
+        (('ai', 'ml', 'chat', 'claude', 'bot', 'data', 'algorithm'), '🤖', 'AI/ML'),
+        (('slack', 'comm', 'message', 'gif'), '💬', 'Communication'),
+        (('git', 'repo', 'version'), '📦', 'Other'),
+    )
+    default_icon, category = '📦', 'Other'
+    for keywords, emoji, cat in mapping:
         if any(k in name_lower for k in keywords):
-            return emoji
-    return '📦'
+            default_icon, category = emoji, cat
+            break
+
+    icon = (meta or {}).get('icon') or default_icon
+    return icon, category
 
 
 def parse_skill_from_dir(dir_path, skill_name):
@@ -135,7 +140,7 @@ def parse_skill_from_dir(dir_path, skill_name):
         return None
 
     meta = post.metadata
-    icon = _get_default_icon(skill_name, meta)
+    icon, category = _classify(skill_name, meta)
 
     try:
         raw_html = markdown.markdown(
@@ -157,6 +162,7 @@ def parse_skill_from_dir(dir_path, skill_name):
         'description': meta.get('description') or '',
         'license': meta.get('license') or 'Unknown',
         'icon': icon,
+        'category': category,
         'fileCount': _count_files(dir_path),
         'lastUpdated': _last_modified(dir_path),
         'content': post.content,

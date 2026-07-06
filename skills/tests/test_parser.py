@@ -103,6 +103,40 @@ def test_parse_icon(fixtures_dir):
     assert skill['icon'] is not None
 
 
+_KNOWN_CATEGORIES = {
+    'Design', 'Tools', 'Code', 'Content', 'Testing', 'AI/ML',
+    'Communication', 'Other',
+}
+
+
+def test_parse_category(fixtures_dir):
+    skill = parse_skill(os.path.join(fixtures_dir, 'valid-skill'), 'valid-skill')
+    assert skill['category'] in _KNOWN_CATEGORIES
+
+
+def test_classify_keyword_mapping():
+    from skills.parser import _classify
+    icon, category = _classify('pdf-converter', {})
+    assert category == 'Tools'
+    assert icon == '🔧'
+
+
+def test_classify_fallback_category():
+    from skills.parser import _classify
+    icon, category = _classify('completely-unmatched-xyz', {})
+    assert category == 'Other'
+    assert icon == '📦'
+
+
+def test_classify_meta_icon_override_still_classifies():
+    # An explicit SKILL.md `icon:` overrides the icon but category still
+    # derives from the name — there's no category field in frontmatter.
+    from skills.parser import _classify
+    icon, category = _classify('pdf-converter', {'icon': '🚀'})
+    assert icon == '🚀'
+    assert category == 'Tools'
+
+
 def test_parse_file_count(fixtures_dir):
     skill = parse_skill(os.path.join(fixtures_dir, 'valid-skill'), 'valid-skill')
     assert skill['fileCount'] == 2  # SKILL.md + helper.js
