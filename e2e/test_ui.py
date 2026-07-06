@@ -35,7 +35,7 @@ def _open_detail(page, server_url, name):
 
 SKILL_REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "../skill_repo"))
 VERSION_FIXTURE_SKILL = "webapp-testing"
-VERSION_FIXTURE_DIR = os.path.join(SKILL_REPO, VERSION_FIXTURE_SKILL, "20260331-version-test")
+VERSION_FIXTURE_DIR = os.path.join(SKILL_REPO, VERSION_FIXTURE_SKILL, "20260401-e2e-version-test")
 
 
 def _create_version_fixture():
