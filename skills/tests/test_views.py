@@ -363,6 +363,12 @@ def test_version_original(client, version_fixture):
     data = res.json()
     assert data['name'] == 'webapp-testing'
     assert data['content']
+    # Regression: 'original' must resolve to the un-versioned top-level
+    # SKILL.md. Passing the top-level dir back through parse_skill() (which
+    # re-runs version auto-detection) would find the fixture's newer version
+    # subdirectory again and wrongly return its content instead.
+    assert 'Versioned content' not in data['content']
+    assert 'Web Application Testing' in data['content']
 
 
 def test_version_404_bad_version(client, version_fixture):
@@ -539,6 +545,18 @@ def test_version_detail_renders_html(client, version_fixture):
 def test_version_detail_404_for_missing_version(client, version_fixture):
     res = client.get('/skills/webapp-testing/v/99999999-fake/')
     assert res.status_code == 404
+
+
+def test_version_detail_original_shows_original_content(client, version_fixture):
+    # Regression: the HTML route for the synthetic 'original' version must
+    # render the top-level SKILL.md's own content, not the newest version
+    # subdirectory's content (see test_version_original for the API-level
+    # equivalent of this bug).
+    res = client.get('/skills/webapp-testing/v/original/')
+    assert res.status_code == 200
+    body = res.content.decode('utf-8')
+    assert 'Web Application Testing' in body
+    assert 'Versioned content for webapp-testing' not in body
 
 
 def test_skill_detail_shows_license_badge(client, version_fixture):

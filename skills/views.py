@@ -19,7 +19,7 @@ from .file_reader import read_skill_files
 from .installer import install_skill, InstallError, uninstall_skill
 from .inventory import list_installed_skills, InventoryError
 from .middleware import get_client_ip
-from .parser import parse_skill, parse_skill_from_dir
+from .parser import parse_skill_from_dir
 from .zipper import create_zip_response
 from .watcher import get_skills
 
@@ -160,10 +160,7 @@ def skill_detail_version(request, name, version):
     ver_dir = _version_dir(name, version)
     if ver_dir is None:
         raise Http404(f"Version '{version}' not found")
-    if version == 'original':
-        ver_skill = parse_skill(ver_dir, name)
-    else:
-        ver_skill = _parse_version_dir(ver_dir, name)
+    ver_skill = _parse_version_dir(ver_dir, name)
     if ver_skill is None:
         raise Http404(f"Version '{version}' not found")
     # Preserve parent skill's version list and metadata so the UI stays consistent
@@ -309,7 +306,7 @@ def api_version_detail(request, name, version):
     if ver_dir is None:
         return JsonResponse({'error': f"Version '{version}' not found"}, status=404)
 
-    ver_skill = parse_skill(ver_dir, name) if version == 'original' else _parse_version_dir(ver_dir, name)
+    ver_skill = _parse_version_dir(ver_dir, name)
     if ver_skill is None:
         return JsonResponse({'error': f"Version '{version}' not found"}, status=404)
 
