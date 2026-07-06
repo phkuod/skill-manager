@@ -73,7 +73,10 @@
             '<span class="category-badge">' + escapeHtml(skill.category || 'Other') + '</span>' +
             '<div class="skill-card-targets flex flex-wrap gap-1.5 items-center min-w-0 empty:hidden ml-1" data-skill-targets="' + escapeHtml(skill.name) + '">' + targetsHtml + '</div>' +
           '</div>' +
-          '<div class="inline-flex items-center gap-1.5 shrink-0 z-10" onclick="event.preventDefault(); event.stopPropagation();">' +
+          // preventDefault (not stopPropagation) so the wrapping <a> doesn't
+          // navigate on a click here, but a click on the actual button/pill
+          // still bubbles up to the document-level delegated handler below.
+          '<div class="inline-flex items-center gap-1.5 shrink-0 z-10" onclick="event.preventDefault();">' +
             installHtml +
           '</div>' +
         '</div>' +
@@ -457,26 +460,29 @@
     });
   }
 
-  // Handle click events via event delegation on skillGrid.
-  if (skillGrid) {
-    skillGrid.addEventListener('click', function (ev) {
-      var pill = ev.target.closest('.target-pill');
-      if (pill) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        handlePillClick(pill);
-        return;
-      }
-      var installBtn = ev.target.closest('.quick-install-btn');
-      if (installBtn) {
-        ev.preventDefault();
-        ev.stopPropagation();
-        var sName = installBtn.dataset.skill;
-        if (sName) openHomeInstallModal(sName);
-        return;
-      }
-    });
-  }
+  // Handle click events via event delegation on document. Cards render in
+  // two places — the Featured shelf (its own <section>, outside #skill-grid)
+  // and the main grid (#skill-grid) — and there's no shared ancestor tighter
+  // than document (base.html's content block has no wrapping element), so
+  // delegate from document. The .closest() guards below already scope this
+  // to real hits, regardless of how broad the delegation root is.
+  document.addEventListener('click', function (ev) {
+    var pill = ev.target.closest('.target-pill');
+    if (pill) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      handlePillClick(pill);
+      return;
+    }
+    var installBtn = ev.target.closest('.quick-install-btn');
+    if (installBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var sName = installBtn.dataset.skill;
+      if (sName) openHomeInstallModal(sName);
+      return;
+    }
+  });
 
   // Esc closes an open install modal (uninstall is inline; its own listener handles Esc).
   document.addEventListener('keydown', function (e) {

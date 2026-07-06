@@ -189,10 +189,25 @@
   if (versionPopover) {
     var versionTrigger = document.getElementById('version-popover-trigger');
     var versionList = document.getElementById('version-popover-list');
+    var versionItems = Array.prototype.slice.call(versionList.querySelectorAll('.version-popover-item'));
 
     var closeVersionPopover = function () {
       versionList.classList.add('hidden');
       versionTrigger.setAttribute('aria-expanded', 'false');
+    };
+
+    var navigateToVersion = function (item) {
+      var v = item.dataset.version;
+      window.location.href = '/skills/' + encodeURIComponent(skillName) + '/v/' + encodeURIComponent(v) + '/';
+    };
+
+    // Roving focus: items stay tabindex="-1" (out of normal Tab order) and
+    // are focused programmatically — sufficient for the listbox pattern as
+    // long as arrow keys move real DOM focus between them.
+    var focusVersionItem = function (index) {
+      if (!versionItems.length) return;
+      var clamped = Math.max(0, Math.min(index, versionItems.length - 1));
+      versionItems[clamped].focus();
     };
 
     versionTrigger.addEventListener('click', function (e) {
@@ -203,22 +218,45 @@
       } else {
         versionList.classList.remove('hidden');
         versionTrigger.setAttribute('aria-expanded', 'true');
+        var activeIndex = -1;
+        versionItems.forEach(function (item, i) { if (item.classList.contains('is-active')) activeIndex = i; });
+        focusVersionItem(activeIndex === -1 ? 0 : activeIndex);
       }
     });
 
     versionList.addEventListener('click', function (e) {
       var item = e.target.closest('.version-popover-item');
       if (!item) return;
-      var v = item.dataset.version;
-      window.location.href = '/skills/' + encodeURIComponent(skillName) + '/v/' + encodeURIComponent(v) + '/';
+      navigateToVersion(item);
+    });
+
+    // Arrow Up/Down move focus between items; Enter/Space select the
+    // focused item; Escape closes and returns focus to the trigger.
+    // Attached on versionPopover (covers trigger + list) and stops
+    // propagation on Escape so it doesn't also trigger the page-level
+    // "Esc -> back to catalog" shortcut below.
+    versionPopover.addEventListener('keydown', function (e) {
+      if (versionList.classList.contains('hidden')) return;
+      var item = e.target.closest('.version-popover-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        focusVersionItem((item ? versionItems.indexOf(item) : -1) + 1);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        focusVersionItem((item ? versionItems.indexOf(item) : versionItems.length) - 1);
+      } else if (item && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        navigateToVersion(item);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        closeVersionPopover();
+        versionTrigger.focus();
+      }
     });
 
     document.addEventListener('click', function (e) {
       if (!versionPopover.contains(e.target)) closeVersionPopover();
-    });
-
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') closeVersionPopover();
     });
   }
 

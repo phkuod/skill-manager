@@ -9,7 +9,8 @@
       <span class="category-badge">{{ skill.category|default:"Other" }}</span>
       <div class="skill-card-targets flex flex-wrap gap-1.5 items-center min-w-0 empty:hidden ml-1" data-skill-targets="{{ skill.name }}"></div>
     </div>
-    <div class="inline-flex items-center gap-1.5 shrink-0 z-10" onclick="event.preventDefault(); event.stopPropagation();">
+    {# preventDefault (not stopPropagation): keeps the wrapping <a> from navigating on a click here, while letting a click on the actual button/pill bubble up to the document-level delegated handler in home.js. #}
+    <div class="inline-flex items-center gap-1.5 shrink-0 z-10" onclick="event.preventDefault();">
       <button type="button" class="quick-install-btn px-2.5 py-1 text-xs font-semibold rounded-lg border cursor-pointer transition-all hover:scale-105 hidden" style="color:var(--accent);border-color:var(--accent);background-color:var(--bg-primary);" data-skill="{{ skill.name }}">Install</button>
     </div>
   </div>
