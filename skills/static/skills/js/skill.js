@@ -1,32 +1,5 @@
 'use strict';
 
-// Copy-to-clipboard for install command blocks
-// Accessible as a global for onclick handlers in the template.
-function copyCommand(btn) {
-  var code = btn.parentElement.querySelector('code');
-  if (!code) return;
-  var text = code.textContent;
-  navigator.clipboard.writeText(text).then(function () {
-    btn.classList.add('copied');
-    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
-    setTimeout(function () {
-      btn.classList.remove('copied');
-      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
-    }, 2000);
-  }).catch(function () {
-    // Fallback for older browsers / non-https contexts
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.cssText = 'position:fixed;left:-9999px';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    btn.classList.add('copied');
-    setTimeout(function () { btn.classList.remove('copied'); }, 2000);
-  });
-}
-
 (function () {
   var skillName = document.body.dataset.skillName || '';
   var version = document.body.dataset.version || '';
@@ -209,30 +182,43 @@ function copyCommand(btn) {
   }
 
   // -------------------------------------------------------------------------
-  // Install tabs
+  // Version popover (path navigation)
   // -------------------------------------------------------------------------
 
-  Array.prototype.forEach.call(document.querySelectorAll('.install-tab'), function (tab) {
-    tab.addEventListener('click', function () {
-      var name = tab.dataset.tab;
-      document.querySelectorAll('.install-tab').forEach(function (t) {
-        t.classList.toggle('active', t.dataset.tab === name);
-      });
-      document.querySelectorAll('.install-tab-content').forEach(function (c) {
-        c.classList.toggle('hidden', c.id !== 'tab-' + name);
-      });
+  var versionPopover = document.getElementById('version-popover');
+  if (versionPopover) {
+    var versionTrigger = document.getElementById('version-popover-trigger');
+    var versionList = document.getElementById('version-popover-list');
+
+    var closeVersionPopover = function () {
+      versionList.classList.add('hidden');
+      versionTrigger.setAttribute('aria-expanded', 'false');
+    };
+
+    versionTrigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var isOpen = !versionList.classList.contains('hidden');
+      if (isOpen) {
+        closeVersionPopover();
+      } else {
+        versionList.classList.remove('hidden');
+        versionTrigger.setAttribute('aria-expanded', 'true');
+      }
     });
-  });
 
-  // -------------------------------------------------------------------------
-  // Version selector (path navigation)
-  // -------------------------------------------------------------------------
-
-  var versionSelect = document.getElementById('version-select');
-  if (versionSelect) {
-    versionSelect.addEventListener('change', function () {
-      var v = versionSelect.value;
+    versionList.addEventListener('click', function (e) {
+      var item = e.target.closest('.version-popover-item');
+      if (!item) return;
+      var v = item.dataset.version;
       window.location.href = '/skills/' + encodeURIComponent(skillName) + '/v/' + encodeURIComponent(v) + '/';
+    });
+
+    document.addEventListener('click', function (e) {
+      if (!versionPopover.contains(e.target)) closeVersionPopover();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeVersionPopover();
     });
   }
 

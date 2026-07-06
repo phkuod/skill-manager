@@ -38,13 +38,21 @@
       <div class="flex-1">
         <div class="flex flex-wrap items-center gap-3 mb-1">
           <h1 class="text-2xl font-bold" style="color:var(--text-primary)">{{ skill.name }}</h1>
+          <span class="license-badge" title="License">{{ skill.license }}</span>
           {% if skill.versions %}
-          <div class="version-badge" title="Switch version">
-            <select id="version-select" class="version-select">
+          <div class="version-popover" id="version-popover">
+            <button type="button" id="version-popover-trigger" class="version-popover-trigger" aria-haspopup="listbox" aria-expanded="false">
+              v{{ version|default:skill.currentVersion }}
+              <svg class="version-popover-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <ul id="version-popover-list" class="version-popover-list hidden" role="listbox">
               {% for v in skill.versions %}
-                <option value="{{ v.version }}"{% if v.version == skill.currentVersion and not version %} selected{% endif %}{% if v.version == version %} selected{% endif %}>v{{ v.version }}</option>
+                <li class="version-popover-item{% if v.version == version or not version and v.version == skill.currentVersion %} is-active{% endif %}" data-version="{{ v.version }}" role="option">
+                  <span>v{{ v.version }}</span>
+                  {% if v.version == skill.currentVersion %}<span class="version-popover-current-badge">current</span>{% endif %}
+                </li>
               {% endfor %}
-            </select>
+            </ul>
           </div>
           {% endif %}
         </div>

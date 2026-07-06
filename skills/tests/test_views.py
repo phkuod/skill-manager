@@ -539,3 +539,20 @@ def test_version_detail_renders_html(client, version_fixture):
 def test_version_detail_404_for_missing_version(client, version_fixture):
     res = client.get('/skills/webapp-testing/v/99999999-fake/')
     assert res.status_code == 404
+
+
+def test_skill_detail_shows_license_badge(client, version_fixture):
+    res = client.get('/skills/pdf/')
+    body = res.content.decode('utf-8')
+    assert 'license-badge' in body
+
+
+def test_skill_detail_shows_version_popover(client, version_fixture):
+    # Multi-version skills 302-redirect the bare /skills/<name>/ URL to
+    # /skills/<name>/v/<currentVersion>/ (see views.skill_detail) — this is
+    # pre-existing behavior, unrelated to this task. follow=True so we assert
+    # against the final rendered page rather than the redirect response.
+    res = client.get('/skills/webapp-testing/', follow=True)
+    body = res.content.decode('utf-8')
+    assert 'id="version-popover"' in body
+    assert 'version-popover-item' in body
