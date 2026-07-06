@@ -8,6 +8,7 @@
   var allSkills = null;       // lazily filled from #skills-data on first interaction
   var currentSearch = '';
   var currentSort = 'lastUpdated';
+  var currentCategory = '';
   var debounceTimer = null;
   var DEFAULT_SORT = 'lastUpdated';
 
@@ -18,6 +19,7 @@
   var searchInput = document.getElementById('search-input');
   var searchClear = document.getElementById('search-clear');
   var sortSelect = document.getElementById('sort-select');
+  var categorySelect = document.getElementById('category-select');
 
   function ensureSkillsLoaded() {
     if (allSkills !== null) return;
@@ -68,6 +70,7 @@
             '<div class="icon-wrapper shrink-0">' +
               '<span>' + escapeHtml(skill.icon) + '</span>' +
             '</div>' +
+            '<span class="category-badge">' + escapeHtml(skill.category || 'Other') + '</span>' +
             '<div class="skill-card-targets flex flex-wrap gap-1.5 items-center min-w-0 empty:hidden ml-1" data-skill-targets="' + escapeHtml(skill.name) + '">' + targetsHtml + '</div>' +
           '</div>' +
           '<div class="inline-flex items-center gap-1.5 shrink-0 z-10" onclick="event.preventDefault(); event.stopPropagation();">' +
@@ -96,6 +99,7 @@
     ensureSkillsLoaded();
     var q = currentSearch.toLowerCase();
     var visible = allSkills.filter(function (s) {
+      if (currentCategory && s.category !== currentCategory) return false;
       if (!q) return true;
       return matchRank(s, q) !== -1;
     });
@@ -119,6 +123,7 @@
     var params = new URLSearchParams();
     if (currentSearch) params.set('q', currentSearch);
     if (currentSort && currentSort !== DEFAULT_SORT) params.set('sort', currentSort);
+    if (currentCategory) params.set('cat', currentCategory);
     var qs = params.toString();
     var newUrl = qs
       ? window.location.pathname + '?' + qs
@@ -130,6 +135,7 @@
     var params = new URLSearchParams(window.location.search);
     var q = params.get('q') || '';
     var sort = params.get('sort');
+    var cat = params.get('cat');
     var dirty = false;
     if (q) {
       currentSearch = q;
@@ -140,6 +146,11 @@
       currentSort = sort;
       if (sortSelect) sortSelect.value = sort;
       if (sort !== DEFAULT_SORT) dirty = true;
+    }
+    if (cat) {
+      currentCategory = cat;
+      if (categorySelect) categorySelect.value = cat;
+      dirty = true;
     }
     if (dirty) render();
   }
@@ -168,6 +179,13 @@
   if (sortSelect) {
     sortSelect.addEventListener('change', function () {
       currentSort = sortSelect.value;
+      render();
+    });
+  }
+
+  if (categorySelect) {
+    categorySelect.addEventListener('change', function () {
+      currentCategory = categorySelect.value;
       render();
     });
   }

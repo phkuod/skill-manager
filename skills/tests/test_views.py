@@ -500,6 +500,18 @@ def test_home_hides_featured_shelf_for_small_catalog(client, monkeypatch):
     assert 'Featured' not in body
 
 
+def test_home_has_category_select(client, version_fixture):
+    res = client.get('/')
+    body = res.content.decode('utf-8')
+    assert 'id="category-select"' in body
+
+
+def test_home_card_shows_category_badge(client, version_fixture):
+    res = client.get('/')
+    body = res.content.decode('utf-8')
+    assert 'category-badge' in body
+
+
 def test_skill_detail_renders_html(client, version_fixture):
     res = client.get('/skills/pdf/')
     assert res.status_code == 200

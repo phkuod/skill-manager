@@ -45,14 +45,38 @@
 {% endblock %}
 
 {% block content %}
-<section class="hero-section">
-  <h1 class="hero-title">Internal Skill Market</h1>
-  <p class="hero-subtitle">Discover, share, and install AI-powered skills to supercharge your workflow</p>
+<section class="hero-kicker">
+  <p>Discover, share, and install AI-powered skills to supercharge your workflow</p>
 </section>
 
-<section class="mb-12 px-6 flex flex-wrap items-center gap-3">
+{% if featured_skills %}
+<section class="mb-8 px-6">
+  <h2 class="shelf-heading">Featured</h2>
+  <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    {% for skill in featured_skills %}
+      {% include "skills/_skill_card.html" %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="mb-6 px-6 flex flex-wrap items-center gap-3">
+  <h2 class="shelf-heading" style="margin:0;">All skills</h2>
   <div class="ml-auto flex items-center gap-2">
     <span id="result-count" class="text-sm" style="color:var(--text-secondary)">Showing {{ skills|length }} of {{ skills|length }}</span>
+    <label for="category-select" class="text-sm" style="color:var(--text-secondary)">Category:</label>
+    <select id="category-select" class="text-sm rounded-lg border px-2 py-1"
+      style="background-color:var(--bg-secondary);color:var(--text-primary);border-color:var(--border)">
+      <option value="">All</option>
+      <option value="Design">Design</option>
+      <option value="Tools">Tools</option>
+      <option value="Code">Code</option>
+      <option value="Content">Content</option>
+      <option value="Testing">Testing</option>
+      <option value="AI/ML">AI/ML</option>
+      <option value="Communication">Communication</option>
+      <option value="Other">Other</option>
+    </select>
     <label for="sort-select" class="text-sm" style="color:var(--text-secondary)">Sort:</label>
     <select id="sort-select" class="text-sm rounded-lg border px-2 py-1"
       style="background-color:var(--bg-secondary);color:var(--text-primary);border-color:var(--border)">
@@ -65,28 +89,7 @@
 <main class="px-6 pb-10">
   <div id="skill-grid" class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
     {% for skill in skills %}
-      <a href="/skills/{{ skill.name }}/"
-         class="skill-card block rounded-xl border p-5 transition-all hover:shadow-lg relative"
-         style="background-color:var(--bg-card);border-color:var(--border);text-decoration:none">
-        <div class="flex items-center justify-between gap-2 mb-3">
-          <div class="flex items-center gap-4 min-w-0">
-            <div class="icon-wrapper shrink-0">
-              <span>{{ skill.icon }}</span>
-            </div>
-            <div class="skill-card-targets flex flex-wrap gap-1.5 items-center min-w-0 empty:hidden ml-1" data-skill-targets="{{ skill.name }}"></div>
-          </div>
-          <div class="inline-flex items-center gap-1.5 shrink-0 z-10" onclick="event.preventDefault(); event.stopPropagation();">
-            <button type="button" class="quick-install-btn px-2.5 py-1 text-xs font-semibold rounded-lg border cursor-pointer transition-all hover:scale-105 hidden" style="color:var(--accent);border-color:var(--accent);background-color:var(--bg-primary);" data-skill="{{ skill.name }}">Install</button>
-          </div>
-        </div>
-        <h3 class="font-semibold mb-1 truncate" style="color:var(--text-primary)">{{ skill.name }}</h3>
-        <p class="text-sm mb-3 line-clamp-2" style="color:var(--text-secondary)">{{ skill.description }}</p>
-        <div class="inline-confirm-row hidden" data-confirm-slot="{{ skill.name }}"></div>
-        <div class="pt-2 border-t flex items-center justify-between text-xs" style="color:var(--text-secondary);border-color:var(--border)">
-          <span>{{ skill.fileCount }} file{{ skill.fileCount|pluralize }}</span>
-          <span>{{ skill.lastUpdated|slice:":10" }}</span>
-        </div>
-      </a>
+      {% include "skills/_skill_card.html" %}
     {% endfor %}
   </div>
   <p id="no-results" class="hidden text-center py-12" style="color:var(--text-secondary)">No skills match your search.</p>
