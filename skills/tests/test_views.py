@@ -595,3 +595,18 @@ def test_skill_detail_shows_version_popover(client, version_fixture):
     body = res.content.decode('utf-8')
     assert 'id="version-popover"' in body
     assert 'version-popover-item' in body
+
+
+def test_skill_detail_quiet_panel_headers(client, version_fixture):
+    # Traffic-light window dots were replaced by quiet panel headers.
+    res = client.get('/skills/pdf/')
+    body = res.content.decode('utf-8')
+    assert 'bg-red-500' not in body
+    assert 'panel-header' in body
+
+
+def test_skill_detail_classed_action_buttons(client, version_fixture):
+    res = client.get('/skills/pdf/')
+    body = res.content.decode('utf-8')
+    assert 'btn-accent' in body
+    assert 'btn-outline' in body
