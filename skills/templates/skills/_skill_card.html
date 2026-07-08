@@ -2,12 +2,11 @@
    class="skill-card block rounded-xl border p-5 transition-all hover:shadow-lg relative"
    style="background-color:var(--bg-card);border-color:var(--border);text-decoration:none">
   <div class="flex items-center justify-between gap-2 mb-3">
-    <div class="flex items-center gap-4 min-w-0">
+    <div class="flex items-center gap-3 min-w-0">
       <div class="icon-wrapper shrink-0">
         <span>{{ skill.icon }}</span>
       </div>
-      <span class="category-badge">{{ skill.category|default:"Other" }}</span>
-      <div class="skill-card-targets flex flex-wrap gap-1.5 items-center min-w-0 empty:hidden ml-1" data-skill-targets="{{ skill.name }}"></div>
+      <div class="skill-card-targets flex flex-wrap gap-1.5 items-center min-w-0 empty:hidden" data-skill-targets="{{ skill.name }}"></div>
     </div>
     {# preventDefault (not stopPropagation): keeps the wrapping <a> from navigating on a click here, while letting a click on the actual button/pill bubble up to the document-level delegated handler in home.js. #}
     <div class="inline-flex items-center gap-1.5 shrink-0 z-10" onclick="event.preventDefault();">
@@ -18,7 +17,7 @@
   <p class="text-sm mb-3 line-clamp-2" style="color:var(--text-secondary)">{{ skill.description }}</p>
   <div class="inline-confirm-row hidden" data-confirm-slot="{{ skill.name }}"></div>
   <div class="pt-2 border-t flex items-center justify-between text-xs" style="color:var(--text-secondary);border-color:var(--border)">
-    <span>{{ skill.fileCount }} file{{ skill.fileCount|pluralize }}</span>
-    <span>{{ skill.lastUpdated|slice:":10" }}</span>
+    <span class="category-badge">{{ skill.category|default:"Other" }}</span>
+    <span>{{ skill.fileCount }} file{{ skill.fileCount|pluralize }} · {{ skill.lastUpdated|slice:":10" }}</span>
   </div>
 </a>

@@ -518,6 +518,16 @@ def test_home_card_shows_category_badge(client, version_fixture):
     assert 'category-badge' in body
 
 
+def test_home_card_category_badge_in_footer(client, version_fixture):
+    # Refined card layout: the category badge lives in the footer meta row,
+    # which renders *after* the inline-confirm slot in card markup. In the
+    # old layout the badge sat in the top row (before the slot).
+    res = client.get('/')
+    body = res.content.decode('utf-8')
+    assert 'data-confirm-slot' in body and 'category-badge' in body
+    assert body.index('data-confirm-slot') < body.index('category-badge')
+
+
 def test_skill_detail_renders_html(client, version_fixture):
     res = client.get('/skills/pdf/')
     assert res.status_code == 200

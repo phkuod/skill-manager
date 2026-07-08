@@ -66,12 +66,11 @@
       ' class="skill-card block rounded-xl border p-5 transition-all hover:shadow-lg relative"' +
       ' style="background-color:var(--bg-card);border-color:var(--border);text-decoration:none">' +
         '<div class="flex items-center justify-between gap-2 mb-3">' +
-          '<div class="flex items-center gap-4 min-w-0">' +
+          '<div class="flex items-center gap-3 min-w-0">' +
             '<div class="icon-wrapper shrink-0">' +
               '<span>' + escapeHtml(skill.icon) + '</span>' +
             '</div>' +
-            '<span class="category-badge">' + escapeHtml(skill.category || 'Other') + '</span>' +
-            '<div class="skill-card-targets flex flex-wrap gap-1.5 items-center min-w-0 empty:hidden ml-1" data-skill-targets="' + escapeHtml(skill.name) + '">' + targetsHtml + '</div>' +
+            '<div class="skill-card-targets flex flex-wrap gap-1.5 items-center min-w-0 empty:hidden" data-skill-targets="' + escapeHtml(skill.name) + '">' + targetsHtml + '</div>' +
           '</div>' +
           // preventDefault (not stopPropagation) so the wrapping <a> doesn't
           // navigate on a click here, but a click on the actual button/pill
@@ -84,8 +83,8 @@
         '<p class="text-sm mb-3 line-clamp-2" style="color:var(--text-secondary)">' + highlight(skill.description, q) + '</p>' +
         '<div class="inline-confirm-row hidden" data-confirm-slot="' + escapeHtml(skill.name) + '"></div>' +
         '<div class="pt-2 border-t flex items-center justify-between text-xs" style="color:var(--text-secondary);border-color:var(--border)">' +
-          '<span>' + skill.fileCount + ' file' + (skill.fileCount === 1 ? '' : 's') + '</span>' +
-          '<span>' + escapeHtml(relativeTime(updated) || updated.slice(0, 10)) + '</span>' +
+          '<span class="category-badge">' + escapeHtml(skill.category || 'Other') + '</span>' +
+          '<span>' + skill.fileCount + ' file' + (skill.fileCount === 1 ? '' : 's') + ' · ' + escapeHtml(relativeTime(updated) || updated.slice(0, 10)) + '</span>' +
         '</div>' +
       '</a>'
     );

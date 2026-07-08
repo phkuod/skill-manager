@@ -982,3 +982,10 @@ input:focus-visible:not(#search-input),
     transform: none;
   }
 }
+
+/* Inside a card's flex top row the wrapper's bottom margin (a leftover from
+ * the pre-flex layout) skews vertical centering. The detail page's 80px
+ * icon usage keeps the default margin. */
+.skill-card .icon-wrapper {
+  margin-bottom: 0;
+}
