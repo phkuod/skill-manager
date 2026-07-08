@@ -122,7 +122,6 @@ body {
   border-color: var(--accent);
 }
 
-
 /* Markdown content styling */
 .skill-markdown h1 { font-size: 1.6rem; font-weight: 700; margin: 1.5rem 0 0.75rem; color: var(--text-primary); }
 .skill-markdown h2 { font-size: 1.3rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--text-primary); padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
@@ -449,7 +448,6 @@ body {
   background-color: var(--bg-secondary);
   color: var(--text-primary);
 }
-
 
 .hero-kicker {
   padding: 0.9rem 1.5rem 0.6rem;
