@@ -512,6 +512,17 @@ def test_home_has_category_select(client, version_fixture):
     assert 'id="category-select"' in body
 
 
+def test_home_selects_have_aria_labels(client, version_fixture):
+    # Visible "Category:" / "Sort:" labels were replaced by aria-labels in
+    # the refined toolbar.
+    res = client.get('/')
+    body = res.content.decode('utf-8')
+    assert 'aria-label="Filter by category"' in body
+    assert 'aria-label="Sort skills"' in body
+    assert 'for="category-select"' not in body
+    assert 'for="sort-select"' not in body
+
+
 def test_home_card_shows_category_badge(client, version_fixture):
     res = client.get('/')
     body = res.content.decode('utf-8')
