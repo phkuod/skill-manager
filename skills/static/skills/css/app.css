@@ -1252,7 +1252,7 @@ html { scroll-behavior: smooth; }
 .dark .status-chip.approved { color: #6ee7b7; }
 .dark .status-chip.rejected { color: #d6d3d1; }
 .dark .status-chip.published { color: #c4b5fd; }
-.table-panel { border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; background-color: var(--bg-card); }
+.table-panel { border: 1px solid var(--border); border-radius: var(--radius-card); overflow-x: auto; background-color: var(--bg-card); }
 .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .data-table th, .data-table td { padding: 0.6rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); color: var(--text-primary); }
 .data-table th {
@@ -1349,7 +1349,9 @@ select.detail-input { width: auto; font-size: 0.85rem; }
 .dark .detail-btn.primary { color: #0a0a0c; }
 .detail-btn.danger { border-color: var(--result-err-text); color: var(--result-err-text); background-color: transparent; }
 .detail-btn[disabled] { opacity: 0.55; cursor: progress; }
-#admin-actions { position: sticky; bottom: 0.75rem; z-index: 10; box-shadow: var(--shadow-overlay); }
+@media (min-width: 1024px) {
+  #admin-actions { position: sticky; bottom: 0.75rem; z-index: 10; box-shadow: var(--shadow-overlay); }
+}
 .row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 
 /* --- usage dashboard --- */

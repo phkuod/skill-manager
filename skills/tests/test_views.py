@@ -794,7 +794,8 @@ def test_app_css_has_review_components():
     css = open(finders.find('skills/css/app.css'), encoding='utf-8').read()
     assert '.feed-entry.ai_reviewer' in css
     assert '.ai-verdict.approve' in css
-    assert '#admin-actions' in css
+    assert '#admin-actions { position: sticky' in css
+    assert '.table-panel { border: 1px solid var(--border); border-radius: var(--radius-card); overflow-x: auto;' in css
 
 
 def test_usage_template_no_inline_style():
