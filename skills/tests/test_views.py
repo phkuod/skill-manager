@@ -763,6 +763,9 @@ def test_contribute_page_restyled(client):
     assert '<style>' not in html
     assert 'contrib-drop' in html          # dropzone label
     assert 'req-list' in html              # requirements checklist
+    from django.contrib.staticfiles import finders
+    css = open(finders.find('skills/css/app.css'), encoding='utf-8').read()
+    assert '.btn-accent[disabled]' in css
 
 
 def test_my_contributions_restyled(client):

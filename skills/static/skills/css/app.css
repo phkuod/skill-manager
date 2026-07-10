@@ -912,6 +912,7 @@ input:focus-visible:not(#search-input),
 .btn-accent:active {
   transform: translateY(1px);
 }
+.btn-accent[disabled] { opacity: 0.55; cursor: progress; }
 /* Dark-mode accent is violet-400 — dark text reads far better on it than
  * white (contrast ~2.2:1 vs ~7:1). */
 .dark .btn-accent {
