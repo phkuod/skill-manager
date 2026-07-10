@@ -466,8 +466,8 @@ document.addEventListener('DOMContentLoaded', function () {
     overlay.classList.remove('hidden');
     input.value = '';
     fetchCatalog().then(renderResults);
-    input.focus();
     releaseTrap = focusTrap(overlay.querySelector('.cmd-palette-panel'));
+    input.focus();
   }
 
   function closePalette() {
