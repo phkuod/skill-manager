@@ -1056,3 +1056,106 @@ input:focus-visible:not(#search-input),
 .btn-outline:active {
   transform: translateY(1px);
 }
+
+/* ==========================================================================
+   Site shell — sticky nav + footer (redesign 2026-07-10)
+   ========================================================================== */
+.site-nav {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 1rem;
+  height: var(--nav-h); padding: 0 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background-color: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.site-nav-brand {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-weight: 650; font-size: 0.95rem; letter-spacing: -0.02em;
+  color: var(--text-primary); text-decoration: none;
+}
+.site-nav-logo {
+  display: inline-flex; width: 22px; height: 22px;
+  align-items: center; justify-content: center;
+  border-radius: 5px; background-color: var(--accent);
+  color: #ffffff; font-size: 0.72rem; font-weight: 700;
+  font-family: var(--font-mono);
+}
+.dark .site-nav-logo { color: #0a0a0c; }
+.site-nav-links { display: flex; align-items: center; gap: 0.25rem; }
+.site-nav-links a {
+  padding: 0.35rem 0.65rem; border-radius: var(--radius-ctl);
+  font-size: 0.85rem; font-weight: 500;
+  color: var(--text-secondary); text-decoration: none;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+.site-nav-links a:hover { color: var(--text-primary); background-color: var(--bg-secondary); }
+.site-nav-links a[aria-current="page"] { color: var(--text-primary); background-color: var(--bg-secondary); }
+.site-nav-actions { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+.palette-trigger {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border); border-radius: var(--radius-ctl);
+  background-color: var(--bg-card); color: var(--text-secondary);
+  font-size: 0.8rem; font-family: var(--font-ui); cursor: pointer;
+  transition: border-color 140ms ease-out, color 140ms ease-out;
+}
+.palette-trigger:hover { border-color: var(--accent); color: var(--text-primary); }
+.palette-trigger svg { width: 14px; height: 14px; }
+.palette-trigger kbd {
+  font-family: var(--font-mono); font-size: 0.68rem;
+  padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px;
+  background-color: var(--bg-secondary);
+}
+.nav-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  border: 1px solid var(--border); border-radius: var(--radius-ctl);
+  background-color: transparent; color: var(--text-secondary); cursor: pointer;
+  transition: border-color 140ms ease-out, color 140ms ease-out;
+}
+.nav-icon-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+.site-footer {
+  text-align: center; padding: 1rem 0; margin-top: 2rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-mono); font-size: 0.75rem;
+}
+@media (max-width: 640px) {
+  .site-nav { padding: 0 1rem; gap: 0.5rem; }
+  .site-nav-wordmark { display: none; }
+  .palette-trigger-label, .palette-trigger kbd { display: none; }
+}
+
+.toolbar-search {
+  position: relative; display: inline-flex; align-items: center;
+  min-width: 220px; flex: 0 1 300px;
+}
+.toolbar-search svg {
+  position: absolute; left: 10px; width: 14px; height: 14px;
+  color: var(--text-secondary); pointer-events: none;
+}
+.toolbar-search input {
+  width: 100%; padding: 0.4rem 3.4rem 0.4rem 2rem;
+  border: 1px solid var(--border); border-radius: var(--radius-ctl);
+  background-color: var(--bg-card); color: var(--text-primary);
+  font-size: 0.85rem; font-family: var(--font-ui); outline: none;
+  transition: border-color 140ms ease-out, box-shadow 140ms ease-out;
+}
+.toolbar-search input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.toolbar-search #search-clear {
+  position: absolute; right: 2rem; padding: 2px 6px;
+  color: var(--text-secondary); background: transparent; border: 0;
+  cursor: pointer; font-size: 1rem; line-height: 1;
+}
+.toolbar-search kbd {
+  position: absolute; right: 0.5rem;
+  font-family: var(--font-mono); font-size: 0.68rem;
+  padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text-secondary); background-color: var(--bg-secondary);
+  pointer-events: none;
+}
+
+.page-head-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1rem; }

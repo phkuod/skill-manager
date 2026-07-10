@@ -29,15 +29,42 @@
       style="background-color:var(--bg-primary);color:var(--text-primary)"
       {% block body_attrs %}{% endblock %}>
 
-{% block header %}{% endblock %}
+{% block header %}
+<nav class="site-nav">
+  <a class="site-nav-brand" href="/"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}>
+    <span class="site-nav-logo" aria-hidden="true">S</span>
+    <span class="site-nav-wordmark">Skill Market</span>
+  </a>
+  <div class="site-nav-links">
+    <a href="/"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}>Browse</a>
+    <a href="/installed/" id="nav-installed"{% if request.resolver_match.url_name == 'installed_page' %} aria-current="page"{% endif %}>Installed</a>
+    <a href="/contribute/" id="nav-contribute"{% if request.resolver_match.url_name == 'contribute_page' %} aria-current="page"{% endif %}>Contribute</a>
+  </div>
+  <div class="site-nav-actions">
+    <button type="button" id="palette-trigger" class="palette-trigger" aria-haspopup="dialog" aria-label="Search skills">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      <span class="palette-trigger-label">Search</span>
+      <kbd id="palette-kbd">Ctrl K</kbd>
+    </button>
+    <button id="theme-toggle" class="nav-icon-btn" aria-label="Toggle theme">
+      <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 5a7 7 0 100 14 7 7 0 000-14z"/>
+      </svg>
+      <svg id="icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+      </svg>
+    </button>
+  </div>
+</nav>
+{% endblock %}
 
 {% block content %}{% endblock %}
 
-<footer class="text-center py-4 text-sm border-t" style="color:var(--text-secondary);border-color:var(--border)">
+<footer class="site-footer">
   {% block footer %}<span id="footer-count">—</span> skills available{% endblock %}
 </footer>
 
-<button id="back-to-top" class="p-3 rounded-full shadow-lg border" style="position: fixed; bottom: 2rem; right: 2rem; background-color: var(--bg-card); border-color: var(--border); color: var(--text-primary); z-index: 9999; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);" aria-label="Back to top" title="Back to Top (J)">
+<button id="back-to-top" class="p-3 rounded-full shadow-lg border back-to-top" style="position: fixed; bottom: 2rem; right: 2rem; background-color: var(--bg-card); border-color: var(--border); color: var(--text-primary); z-index: 9999; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);" aria-label="Back to top" title="Back to Top (J)">
   <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7 7 7M12 3v18"/></svg>
 </button>
 

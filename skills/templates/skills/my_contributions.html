@@ -3,26 +3,6 @@
 
 {% block title %}My contributions — Skill Market{% endblock %}
 
-{% block header %}
-<header class="sticky top-0 z-50 border-b px-6 py-4 flex items-center gap-4"
-        style="background-color:var(--bg-secondary);border-color:var(--border)">
-  <a href="/" class="flex items-center gap-2 text-sm font-medium flex-shrink-0"
-     style="color:var(--text-secondary);text-decoration:none">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-    </svg>
-    Back
-  </a>
-  <div class="flex items-center gap-2 flex-shrink-0">
-    <span class="text-2xl">📚</span>
-    <span class="font-bold text-lg hidden sm:inline" style="color:var(--text-primary)">My contributions</span>
-  </div>
-  <div class="flex-1"></div>
-  <a href="/contribute/" class="text-sm font-medium px-3 py-2 rounded-lg border flex-shrink-0"
-     style="color:var(--text-primary);border-color:var(--border);text-decoration:none">+ New</a>
-</header>
-{% endblock %}
-
 {% block content %}
 <style>
   .contrib-list-wrap { max-width: 56rem; margin: 0 auto; padding: 2rem 1.5rem; }
@@ -43,7 +23,10 @@
 </style>
 
 <div class="contrib-list-wrap">
-  <h1 style="font-size:1.5rem;font-weight:700;color:var(--text-primary);margin-bottom:1rem;">My contributions</h1>
+  <div class="page-head-row">
+    <h1 style="font-size:1.5rem;font-weight:700;color:var(--text-primary);margin-bottom:0;">My contributions</h1>
+    <a class="btn-outline" href="/contribute/">+ New submission</a>
+  </div>
 
   {% if not user_name %}
     <div class="contrib-empty">

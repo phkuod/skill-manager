@@ -652,3 +652,28 @@ def test_app_css_no_longer_defines_tokens():
     css = open(finders.find('skills/css/app.css'), encoding='utf-8').read()
     assert '--accent: #4f46e5' not in css      # old light accent gone
     assert '--bg-primary: #0f172a' not in css  # old dark canvas gone
+
+
+# ---------------------------------------------------------------------------
+# Shared shell — single sticky nav in base.html (Task 2: UI redesign)
+# ---------------------------------------------------------------------------
+
+def test_site_nav_on_all_pages(client):
+    for url in ('/', '/installed/', '/contribute/', '/contributions/'):
+        html = client.get(url).content.decode()
+        assert 'class="site-nav"' in html, url
+        assert 'id="palette-trigger"' in html, url
+        assert 'id="theme-toggle"' in html, url
+
+
+def test_home_old_header_gone(client):
+    html = client.get('/').content.decode()
+    assert '🛍️' not in html                      # old emoji brand
+    assert 'id="search-input"' in html            # search survives, relocated
+
+
+def test_nav_marks_current_page(client):
+    home = client.get('/').content.decode()
+    installed = client.get('/installed/').content.decode()
+    assert 'href="/" aria-current="page"' in home.replace('\n', ' ')
+    assert 'href="/installed/" id="nav-installed" aria-current="page"' in installed.replace('\n', ' ')
