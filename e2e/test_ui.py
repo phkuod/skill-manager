@@ -254,21 +254,21 @@ def test_dark_mode_persists_on_reload(page, server_url):
 # reached the document-level delegated handler).
 # ---------------------------------------------------------------------------
 
-def test_featured_shelf_quick_install_opens_modal(page, server_url):
+def test_featured_card_quick_install_opens_modal(page, server_url):
     page.goto(server_url)
-    featured_section = page.locator("section:has(h2:text-is('Featured'))")
-    assert featured_section.count() >= 1, (
-        "Expected a Featured shelf section on the home page (catalog needs >4 skills)"
+    featured_card = page.locator(".skill-card.is-featured")
+    assert featured_card.count() >= 1, (
+        "Expected at least one featured card in the home grid (catalog needs >4 skills)"
     )
 
-    install_btn = featured_section.locator(".quick-install-btn").first
+    install_btn = featured_card.locator(".quick-install-btn").first
     skill_name = install_btn.get_attribute("data-skill")
     install_btn.click()
     page.wait_for_timeout(200)
 
     modal = page.locator("#install-modal")
     assert "is-open" in (modal.get_attribute("class") or ""), (
-        "Clicking a Featured-shelf quick-install button should open the install modal"
+        "Clicking a featured-card quick-install button should open the install modal"
     )
     assert page.locator("#install-modal-title").inner_text() == skill_name
 

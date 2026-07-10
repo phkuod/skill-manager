@@ -12,6 +12,12 @@
   var debounceTimer = null;
   var DEFAULT_SORT = 'lastUpdated';
 
+  // Map to store skillName -> array of installed targets. Must exist before
+  // the first render() call: render() now calls decorateVisibleCards() (it
+  // didn't in the dual-renderer version), and decorateVisibleCards() reads
+  // this map unconditionally.
+  window.__installedMap = window.__installedMap || {};
+
   var skillGrid = document.getElementById('skill-grid');
   var noResults = document.getElementById('no-results');
   var footerCount = document.getElementById('footer-count');
@@ -49,47 +55,6 @@
     return out + escapeHtml(text.slice(last));
   }
 
-  function cardHtml(skill) {
-    var q = currentSearch;
-    var updated = skill.lastUpdated || '';
-    var tgts = window.__installedMap ? (window.__installedMap[skill.name] || []) : [];
-    var targetsHtml = '';
-    if (tgts.length > 0) {
-      tgts.forEach(function (t) { targetsHtml += targetPillHtml(skill.name, t); });
-    }
-    var installHtml = '';
-    if (tgts.length === 0) {
-      installHtml = '<button type="button" class="quick-install-btn px-2.5 py-1 text-xs font-semibold rounded-lg border cursor-pointer transition-all hover:scale-105" style="color:var(--accent);border-color:var(--accent);background-color:var(--bg-primary);" data-skill="' + escapeHtml(skill.name) + '">Install</button>';
-    }
-    return (
-      '<a href="/skills/' + encodeURIComponent(skill.name) + '/"' +
-      ' class="skill-card block rounded-xl border p-5 transition-all hover:shadow-lg relative"' +
-      ' style="background-color:var(--bg-card);border-color:var(--border);text-decoration:none">' +
-        '<div class="flex items-center justify-between gap-2 mb-3">' +
-          '<div class="flex items-center gap-3 min-w-0">' +
-            '<div class="icon-wrapper shrink-0">' +
-              '<span>' + escapeHtml(skill.icon) + '</span>' +
-            '</div>' +
-            '<div class="skill-card-targets flex flex-wrap gap-1.5 items-center min-w-0 empty:hidden" data-skill-targets="' + escapeHtml(skill.name) + '">' + targetsHtml + '</div>' +
-          '</div>' +
-          // preventDefault (not stopPropagation) so the wrapping <a> doesn't
-          // navigate on a click here, but a click on the actual button/pill
-          // still bubbles up to the document-level delegated handler below.
-          '<div class="inline-flex items-center gap-1.5 shrink-0 z-10" onclick="event.preventDefault();">' +
-            installHtml +
-          '</div>' +
-        '</div>' +
-        '<h3 class="font-semibold mb-1 truncate" style="color:var(--text-primary)">' + highlight(skill.name, q) + '</h3>' +
-        '<p class="text-sm mb-3 line-clamp-2" style="color:var(--text-secondary)">' + highlight(skill.description, q) + '</p>' +
-        '<div class="inline-confirm-row hidden" data-confirm-slot="' + escapeHtml(skill.name) + '"></div>' +
-        '<div class="pt-2 border-t flex items-center justify-between text-xs" style="color:var(--text-secondary);border-color:var(--border)">' +
-          '<span class="category-badge">' + escapeHtml(skill.category || 'Other') + '</span>' +
-          '<span>' + skill.fileCount + ' file' + (skill.fileCount === 1 ? '' : 's') + ' · ' + escapeHtml(relativeTime(updated) || updated.slice(0, 10)) + '</span>' +
-        '</div>' +
-      '</a>'
-    );
-  }
-
   function matchRank(skill, q) {
     if ((skill.name || '').toLowerCase().indexOf(q) !== -1) return 0;
     if ((skill.description || '').toLowerCase().indexOf(q) !== -1) return 1;
@@ -97,25 +62,53 @@
     return -1;
   }
 
+  var cardsIndexed = false;
+  var catalogByName = {};
+
+  function ensureIndexes() {
+    if (cardsIndexed) return;
+    cardsIndexed = true;
+    allSkills.forEach(function (s) { catalogByName[s.name] = s; });
+  }
+
   function render() {
     ensureSkillsLoaded();
-    var q = currentSearch.toLowerCase();
-    var visible = allSkills.filter(function (s) {
-      if (currentCategory && s.category !== currentCategory) return false;
-      if (!q) return true;
-      return matchRank(s, q) !== -1;
+    ensureIndexes();
+    var q = currentSearch.trim().toLowerCase();
+    var visible = [];
+    skillGrid.querySelectorAll('.skill-card').forEach(function (card) {
+      var s = catalogByName[card.dataset.name];
+      if (!s) { card.classList.add('hidden'); return; }
+      var okCat = !currentCategory || (s.category || 'Other') === currentCategory;
+      // matchRank returns -1 for "no match" and 0/1/2 for name/description/content
+      // matches respectively (lower is a *better* match) — not the 0-is-no-match,
+      // higher-is-better convention a first draft of this renderer assumed.
+      var rank = q ? matchRank(s, q) : 0;
+      var show = okCat && (!q || rank !== -1);
+      card.classList.toggle('hidden', !show);
+      if (show) visible.push({ card: card, skill: s, rank: rank });
     });
     visible.sort(function (a, b) {
-      if (currentSort === 'name') return (a.name || '').localeCompare(b.name || '');
-      return (b.lastUpdated || '').localeCompare(a.lastUpdated || '');
+      if (q && b.rank !== a.rank) return a.rank - b.rank;
+      if (currentSort === 'name') return a.skill.name.localeCompare(b.skill.name);
+      /* default sort: featured pinned first (only without a query), then lastUpdated desc */
+      var fa = a.card.dataset.featured ? 1 : 0;
+      var fb = b.card.dataset.featured ? 1 : 0;
+      if (!q && fb !== fa) return fb - fa;
+      return (b.skill.lastUpdated || '').localeCompare(a.skill.lastUpdated || '');
     });
-    if (q) visible.sort(function (a, b) { return matchRank(a, q) - matchRank(b, q); });
-
-    skillGrid.innerHTML = visible.map(cardHtml).join('');
+    visible.forEach(function (v) { skillGrid.appendChild(v.card); });
+    visible.forEach(function (v) {
+      var nameEl = v.card.querySelector('.card-name');
+      var descEl = v.card.querySelector('.card-desc');
+      if (nameEl) nameEl.innerHTML = q ? highlight(v.skill.name, currentSearch) : escapeHtml(v.skill.name);
+      if (descEl) descEl.innerHTML = q ? highlight(v.skill.description, currentSearch) : escapeHtml(v.skill.description);
+    });
     noResults.classList.toggle('hidden', visible.length > 0);
     if (footerCount) footerCount.textContent = visible.length;
     if (resultCount) resultCount.textContent = 'Showing ' + visible.length + ' of ' + allSkills.length;
     if (searchClear) searchClear.classList.toggle('hidden', !currentSearch);
+    decorateVisibleCards();
     writeUrlState();
   }
 
@@ -388,9 +381,6 @@
     });
   }
 
-  // Map to store skillName -> array of installed targets
-  window.__installedMap = window.__installedMap || {};
-
   function loadInstalledState() {
     fetchInstallTargets().then(function(targets) {
       var map = {};
@@ -446,19 +436,17 @@
         var slot = document.createElement('div');
         slot.className = 'inline-confirm-row hidden';
         slot.setAttribute('data-confirm-slot', sName);
-        var footer = card.querySelector('.pt-2.border-t');
+        var footer = card.querySelector('.card-foot');
         if (footer) card.insertBefore(slot, footer);
         else card.appendChild(slot);
       }
     });
   }
 
-  // Handle click events via event delegation on document. Cards render in
-  // two places — the Featured shelf (its own <section>, outside #skill-grid)
-  // and the main grid (#skill-grid) — and there's no shared ancestor tighter
-  // than document (base.html's content block has no wrapping element), so
-  // delegate from document. The .closest() guards below already scope this
-  // to real hits, regardless of how broad the delegation root is.
+  // Handle click events via event delegation on document (rather than
+  // scoping to #skill-grid) since base.html's content block has no wrapping
+  // element that would make a tighter delegation root meaningfully cheaper.
+  // The .closest() guards below already scope this to real hits.
   document.addEventListener('click', function (ev) {
     var pill = ev.target.closest('.target-pill');
     if (pill) {

@@ -689,3 +689,24 @@ def test_command_palette_markup_on_every_page(client):
         assert 'id="cmd-palette"' in html, url
         assert 'id="cmd-palette-input"' in html, url
         assert 'role="dialog"' in html, url
+
+
+# ---------------------------------------------------------------------------
+# Card redesign + single renderer (Task 4: featured merged into one grid)
+# ---------------------------------------------------------------------------
+
+def test_home_cards_merged_single_grid(client):
+    import re
+    html = client.get('/').content.decode()
+    names = re.findall(r'data-name="([^"]+)"', html)
+    assert names, 'cards must carry data-name'
+    assert len(names) == len(set(names)), 'featured cards must not duplicate grid cards'
+    # the standalone Featured shelf is gone; featured skills are tagged in-grid
+    assert '<h2 class="shelf-heading">Featured</h2>' not in html
+    assert 'card-featured-tag' in html  # real repo has 12+ skills → featured exists
+
+
+def test_home_js_single_card_renderer():
+    from django.contrib.staticfiles import finders
+    js = open(finders.find('skills/js/home.js'), encoding='utf-8').read()
+    assert 'function cardHtml' not in js, 'dual renderer must be gone'

@@ -50,19 +50,6 @@ body {
   border-color: var(--result-ok-text);
 }
 
-/* Skill card hover */
-.skill-card {
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, border-color 0.2s ease;
-}
-.skill-card:hover {
-  transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15), 0 0 0 2px var(--accent);
-  border-color: var(--accent) !important;
-}
-.dark .skill-card:hover {
-  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4), 0 0 0 2px var(--accent);
-}
-
 .icon-wrapper {
   display: flex;
   align-items: center;
@@ -75,12 +62,6 @@ body {
   font-size: 1.75rem;
   margin-bottom: 1rem;
   transition: background-color 0.2s, transform 0.2s;
-}
-
-.skill-card:hover .icon-wrapper {
-  background-color: var(--bg-primary);
-  transform: translateY(-2px);
-  border-color: var(--accent);
 }
 
 /* Markdown content styling */
@@ -251,7 +232,6 @@ body {
 
 /* Shared pill family — one metric set for all small status chips. */
 .license-badge,
-.category-badge,
 .installed-target-type,
 .installed-card-badge {
   display: inline-flex;
@@ -936,17 +916,6 @@ input:focus-visible:not(#search-input),
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
-  .skill-card:hover,
-  .skill-card:hover .icon-wrapper {
-    transform: none;
-  }
-}
-
-/* Inside a card's flex top row the wrapper's bottom margin (a leftover from
- * the pre-flex layout) skews vertical centering. The detail page's 80px
- * icon usage keeps the default margin. */
-.skill-card .icon-wrapper {
-  margin-bottom: 0;
 }
 
 /* ---------- Home toolbar ---------- */
@@ -1206,3 +1175,74 @@ input:focus-visible:not(#search-input),
 }
 .cmd-palette-meta { margin-left: auto; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary); }
 .cmd-palette-empty { padding: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem; }
+
+/* --- skill cards (redesign) ---------------------------------------------- */
+.skill-card {
+  display: flex; flex-direction: column;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border); border-radius: var(--radius-card);
+  background-color: var(--bg-card);
+  text-decoration: none;
+  transition: border-color 140ms ease-out, transform 140ms ease-out;
+}
+.skill-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.skill-card.hidden { display: none; }
+.card-top { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.7rem; min-width: 0; }
+.skill-card .icon-wrapper {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex-shrink: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-ctl);
+  background-color: var(--bg-secondary);
+  font-size: 1.05rem; margin-bottom: 0;
+}
+.card-featured-tag {
+  font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 2px 7px; border-radius: 999px;
+  background-color: var(--accent-soft); color: var(--accent);
+  flex-shrink: 0;
+}
+.skill-card-targets { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; min-width: 0; }
+.skill-card-targets:empty { display: none; }
+.card-actions { margin-left: auto; flex-shrink: 0; }
+.quick-install-btn {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--accent); border-radius: var(--radius-ctl);
+  background-color: transparent; color: var(--accent);
+  font-size: 0.72rem; font-weight: 600; font-family: var(--font-ui);
+  cursor: pointer; opacity: 0;
+  transition: opacity 140ms ease-out, background-color 140ms ease-out;
+}
+.skill-card:hover .quick-install-btn,
+.skill-card:focus-within .quick-install-btn { opacity: 1; }
+.quick-install-btn:hover { background-color: var(--accent-soft); }
+.quick-install-btn.hidden { display: none; }
+@media (max-width: 1023px) { .quick-install-btn { opacity: 1; } }
+.card-name {
+  font-size: 0.95rem; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--text-primary); margin: 0 0 0.25rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.card-name mark, .card-desc mark { background-color: var(--highlight-bg); color: var(--highlight-text); border-radius: 2px; }
+.card-desc {
+  font-size: 0.82rem; line-height: 1.45; color: var(--text-secondary);
+  margin: 0 0 0.8rem; min-height: 2.35rem;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-foot {
+  margin-top: auto; padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+}
+.card-meta { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-secondary); white-space: nowrap; }
+.category-badge {
+  font-family: var(--font-mono); font-size: 0.65rem;
+  padding: 1px 7px; border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text-secondary); background-color: var(--bg-secondary);
+}
+.skill-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+/* Brief's original spec set horizontal padding to 0; restored to 1.5rem to
+   match the hero/toolbar sections' px-6 gutter — 0 left cards flush against
+   the viewport edge while every sibling section keeps a 24px inset. */
+.home-grid-wrap { padding: 0 1.5rem 2.5rem; }
+#no-results { text-align: center; padding: 3rem 0; color: var(--text-secondary); }
