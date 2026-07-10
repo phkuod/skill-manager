@@ -752,3 +752,20 @@ def test_installed_page_restyled_no_inline_styles(client):
     assert 'id="installed-search"' in html
     from django.contrib.staticfiles import finders
     assert '.page-title' in open(finders.find('skills/css/app.css'), encoding='utf-8').read()
+
+
+# ---------------------------------------------------------------------------
+# Contribute + My contributions redesign (Task 8: dropzone, shared chips/tables)
+# ---------------------------------------------------------------------------
+
+def test_contribute_page_restyled(client):
+    html = client.get('/contribute/').content.decode()
+    assert '<style>' not in html
+    assert 'contrib-drop' in html          # dropzone label
+    assert 'req-list' in html              # requirements checklist
+
+
+def test_my_contributions_restyled(client):
+    html = client.get('/contributions/').content.decode()
+    assert '<style>' not in html
+    assert ('empty-state' in html) or ('data-table' in html)

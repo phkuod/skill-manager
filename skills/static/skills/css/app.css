@@ -1231,3 +1231,68 @@ html { scroll-behavior: smooth; }
   .detail-side { order: -1; }          /* sidebar stacks ABOVE content on mobile */
   .side-card { position: static; }
 }
+
+/* --- shared: status chips, data tables, segmented control, empty states --- */
+.status-chip {
+  display: inline-block; padding: 2px 9px; border-radius: 999px;
+  font-family: var(--font-mono); font-size: 0.65rem; font-weight: 700;
+  letter-spacing: 0.02em; text-transform: uppercase;
+}
+.status-chip.submitted { background-color: rgba(59,130,246,0.14); color: #2563eb; }
+.status-chip.under_review { background-color: rgba(245,158,11,0.15); color: #b45309; }
+.status-chip.changes_requested { background-color: rgba(239,68,68,0.15); color: #b91c1c; }
+.status-chip.approved { background-color: rgba(16,185,129,0.15); color: #047857; }
+.status-chip.rejected { background-color: rgba(120,113,108,0.15); color: #57534e; }
+.status-chip.published { background-color: rgba(124,58,237,0.15); color: #6d28d9; }
+.dark .status-chip.submitted { color: #93c5fd; }
+.dark .status-chip.under_review { color: #fcd34d; }
+.dark .status-chip.changes_requested { color: #fca5a5; }
+.dark .status-chip.approved { color: #6ee7b7; }
+.dark .status-chip.rejected { color: #d6d3d1; }
+.dark .status-chip.published { color: #c4b5fd; }
+.table-panel { border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; background-color: var(--bg-card); }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.data-table th, .data-table td { padding: 0.6rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); color: var(--text-primary); }
+.data-table th {
+  font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-secondary); background-color: var(--bg-secondary);
+}
+.data-table tr:last-child td { border-bottom: 0; }
+.data-table .mono { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); }
+.table-link { color: var(--accent); text-decoration: none; }
+.table-link:hover { text-decoration: underline; }
+.seg-control {
+  display: inline-flex; gap: 2px; padding: 3px; flex-wrap: wrap;
+  border: 1px solid var(--border); border-radius: var(--radius-ctl);
+  background-color: var(--bg-secondary);
+}
+.seg-control a {
+  padding: 0.3rem 0.8rem; font-size: 0.78rem; border-radius: calc(var(--radius-ctl) - 2px);
+  color: var(--text-secondary); text-decoration: none;
+}
+.seg-control a.active { background-color: var(--bg-card); color: var(--accent); font-weight: 600; }
+.empty-state { text-align: center; padding: 2rem 1rem; color: var(--text-secondary); border: 1px dashed var(--border); border-radius: var(--radius-card); }
+
+/* --- contribute ------------------------------------------------------------ */
+.contrib-wrap { max-width: 44rem; margin: 0 auto; padding: 2rem 1.5rem; }
+.contrib-list-wrap { max-width: 56rem; margin: 0 auto; padding: 2rem 1.5rem; }
+.contrib-card { border: 1px solid var(--border); border-radius: var(--radius-card); background-color: var(--bg-card); padding: 1.5rem; margin-bottom: 1rem; }
+.contrib-sub { color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 0.5rem; }
+.req-list { list-style: none; margin: 0.75rem 0 0; padding: 0; display: grid; gap: 0.4rem; }
+.req-list li { display: flex; gap: 0.5rem; align-items: baseline; color: var(--text-secondary); font-size: 0.85rem; }
+.req-list li::before { content: '✓'; color: var(--accent); font-weight: 700; font-family: var(--font-mono); }
+.contrib-drop {
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+  padding: 2rem 1rem; border: 1.5px dashed var(--border); border-radius: var(--radius-card);
+  cursor: pointer; text-align: center; color: var(--text-secondary);
+  transition: border-color 140ms ease-out, background-color 140ms ease-out;
+}
+.contrib-drop:hover, .contrib-drop.is-dragover { border-color: var(--accent); background-color: var(--accent-soft); }
+.contrib-drop-title { font-weight: 600; color: var(--text-primary); font-size: 0.9rem; }
+.contrib-drop-sub { color: var(--text-secondary); font-size: 0.78rem; }
+.contrib-file-input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+.contrib-meta { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.6rem; }
+.contrib-msg { padding: 0.75rem 1rem; border-radius: var(--radius-ctl); font-size: 0.85rem; margin-top: 0.75rem; }
+.contrib-msg.err { background-color: var(--result-err-bg); color: var(--result-err-text); }
+.contrib-msg.ok { background-color: var(--result-ok-bg); color: var(--result-ok-text); }

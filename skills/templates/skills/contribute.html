@@ -4,31 +4,14 @@
 {% block title %}Contribute a skill — Skill Market{% endblock %}
 
 {% block content %}
-<style>
-  .contrib-wrap { max-width: 48rem; margin: 0 auto; padding: 2rem 1.5rem; }
-  .contrib-card { border: 1px solid var(--border); border-radius: 0.75rem; background-color: var(--bg-card); padding: 1.5rem; margin-bottom: 1rem; }
-  .contrib-h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem; }
-  .contrib-sub { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem; }
-  .contrib-list { margin: 0.5rem 0 0 1.25rem; color: var(--text-secondary); font-size: 0.875rem; }
-  .contrib-list li { margin-bottom: 0.25rem; }
-  .contrib-input { width: 100%; padding: 0.5rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); font-size: 0.9rem; }
-  .contrib-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .contrib-btn { padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid var(--accent); background-color: var(--accent); color: white; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
-  .contrib-btn[disabled] { opacity: 0.55; cursor: progress; }
-  .contrib-msg { padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; margin-top: 0.75rem; }
-  .contrib-msg.err { background-color: var(--result-err-bg); color: var(--result-err-text); }
-  .contrib-msg.ok { background-color: var(--result-ok-bg); color: var(--result-ok-text); }
-  .contrib-meta { display: flex; gap: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem; }
-</style>
-
 <div class="contrib-wrap">
   <div class="contrib-card">
-    <div class="contrib-h1">Contribute a skill</div>
+    <h1 class="page-title">Contribute a skill</h1>
     <div class="contrib-sub">
       Upload a ZIP containing your skill bundle. An admin will review,
       leave comments, and (after approval) publish it to the catalog.
     </div>
-    <ul class="contrib-list">
+    <ul class="req-list">
       <li>The ZIP must contain a <code>SKILL.md</code> at the root or inside a single top-level folder.</li>
       <li><code>SKILL.md</code> frontmatter requires a <code>name</code> and <code>description</code>; <code>license</code> is recommended.</li>
       <li>Maximum upload size: {{ max_zip_bytes|filesizeformat }}.</li>
@@ -37,11 +20,15 @@
   </div>
 
   <form id="contrib-form" class="contrib-card" enctype="multipart/form-data">
-    <label for="contrib-file" style="display:block;font-weight:600;margin-bottom:0.5rem;color:var(--text-primary)">Skill bundle (.zip)</label>
-    <input type="file" id="contrib-file" name="file" accept=".zip,application/zip,application/x-zip-compressed" required class="contrib-input">
+    <label for="contrib-file" class="contrib-drop" id="contrib-drop">
+      <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+      <span class="contrib-drop-title">Choose a ZIP file</span>
+      <span class="contrib-drop-sub">or drag &amp; drop it here · max {{ max_zip_bytes|filesizeformat }}</span>
+    </label>
+    <input type="file" id="contrib-file" name="file" accept=".zip,application/zip,application/x-zip-compressed" required class="contrib-file-input">
     <div class="contrib-meta" id="contrib-meta" hidden></div>
     <div style="display:flex;align-items:center;gap:0.75rem;margin-top:1rem;">
-      <button type="submit" id="contrib-submit" class="contrib-btn">Submit for review</button>
+      <button type="submit" id="contrib-submit" class="btn-accent">Submit for review</button>
       <a href="/contributions/" style="color:var(--text-secondary);font-size:0.875rem;text-decoration:none;">View my submissions →</a>
     </div>
     <div id="contrib-result" class="contrib-msg" hidden></div>
@@ -75,6 +62,22 @@
       result.hidden = true;
     }
   });
+
+  var drop = document.getElementById('contrib-drop');
+  if (drop) {
+    ['dragenter', 'dragover'].forEach(function (t) {
+      drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('is-dragover'); });
+    });
+    ['dragleave', 'drop'].forEach(function (t) {
+      drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('is-dragover'); });
+    });
+    drop.addEventListener('drop', function (e) {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        fileInput.dispatchEvent(new Event('change'));
+      }
+    });
+  }
 
   form.addEventListener('submit', function(e){
     e.preventDefault();
