@@ -804,9 +804,23 @@ def test_usage_template_no_inline_style():
 
 
 def test_404_template_mono_treatment():
+    # Lives at the app-template-dir ROOT (skills/templates/404.html), not the
+    # namespaced skills/ subdir: Django's default page_not_found handler only
+    # auto-discovers a template literally named '404.html' at a template-dir
+    # root, so the namespaced copy was dead code in production (DEBUG=False
+    # served Django's bare "Not Found" instead).
     from pathlib import Path
-    src = Path('skills/templates/skills/404.html').read_text(encoding='utf-8')
+    src = Path('skills/templates/404.html').read_text(encoding='utf-8')
     assert 'notfound-code' in src
+
+
+def test_404_page_renders_custom_template(client, version_fixture):
+    # Test runs force DEBUG=False, so this exercises the real production
+    # handler404 path end-to-end (regression: template previously unreachable).
+    res = client.get('/skills/definitely-not-real/')
+    assert res.status_code == 404
+    assert b'notfound-code' in res.content
+    assert b'Skill not found' in res.content
 
 
 def test_tailwind_regen_tooling_committed():
