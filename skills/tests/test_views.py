@@ -677,3 +677,15 @@ def test_nav_marks_current_page(client):
     installed = client.get('/installed/').content.decode()
     assert 'href="/" aria-current="page"' in home.replace('\n', ' ')
     assert 'href="/installed/" id="nav-installed" aria-current="page"' in installed.replace('\n', ' ')
+
+
+# ---------------------------------------------------------------------------
+# Command palette (Task 3: Ctrl/Cmd+K global search overlay)
+# ---------------------------------------------------------------------------
+
+def test_command_palette_markup_on_every_page(client):
+    for url in ('/', '/installed/', '/contribute/'):
+        html = client.get(url).content.decode()
+        assert 'id="cmd-palette"' in html, url
+        assert 'id="cmd-palette-input"' in html, url
+        assert 'role="dialog"' in html, url

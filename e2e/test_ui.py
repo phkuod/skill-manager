@@ -394,3 +394,38 @@ def test_version_popover_escape_closes_without_navigating_home(page, server_url,
         "'Escape -> navigate home' shortcut"
     )
     assert page.url.rstrip("/") != server_url.rstrip("/")
+
+
+# ---------------------------------------------------------------------------
+# Command palette (Task 3: global Ctrl/Cmd+K search overlay)
+# ---------------------------------------------------------------------------
+
+def test_palette_opens_filters_and_navigates(page, server_url):
+    page.goto(server_url)
+    page.keyboard.press("Control+k")
+    page.locator("#cmd-palette").wait_for(state="visible", timeout=2000)
+    page.fill("#cmd-palette-input", "pdf")
+    page.wait_for_timeout(200)
+    page.keyboard.press("Enter")
+    page.wait_for_url(re.compile(r"/skills/pdf/"))
+    assert "/skills/pdf/" in page.url
+
+
+def test_palette_escape_closes_and_restores_focus(page, server_url):
+    page.goto(server_url)
+    page.locator("#palette-trigger").click()
+    page.locator("#cmd-palette").wait_for(state="visible", timeout=2000)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(200)
+    assert "hidden" in (page.locator("#cmd-palette").get_attribute("class") or "")
+    assert page.evaluate("document.activeElement.id") == "palette-trigger"
+
+
+def test_palette_escape_on_detail_does_not_navigate_home(page, server_url):
+    _open_detail(page, server_url, "pdf")
+    page.keyboard.press("Control+k")
+    page.locator("#cmd-palette").wait_for(state="visible", timeout=2000)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(200)
+    assert "hidden" in (page.locator("#cmd-palette").get_attribute("class") or "")
+    assert "/skills/pdf" in page.url

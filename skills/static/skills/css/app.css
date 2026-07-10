@@ -1159,3 +1159,50 @@ input:focus-visible:not(#search-input),
 }
 
 .page-head-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1rem; }
+
+/* --- command palette ----------------------------------------------------- */
+.cmd-palette {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 12vh 1rem 0;
+  background-color: rgba(0, 0, 0, 0.35);
+}
+.dark .cmd-palette { background-color: rgba(0, 0, 0, 0.55); }
+.cmd-palette.hidden { display: none; }
+.cmd-palette-panel {
+  width: 100%; max-width: 560px;
+  border: 1px solid var(--border); border-radius: var(--radius-card);
+  background-color: var(--bg-card);
+  box-shadow: var(--shadow-overlay);
+  overflow: hidden;
+}
+.cmd-palette-inputrow {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.8rem 1rem; border-bottom: 1px solid var(--border);
+}
+.cmd-palette-inputrow svg { width: 16px; height: 16px; color: var(--text-secondary); flex-shrink: 0; }
+.cmd-palette-inputrow input {
+  flex: 1; border: 0; outline: none; background: transparent;
+  color: var(--text-primary); font-size: 0.95rem; font-family: var(--font-ui);
+}
+.cmd-palette-inputrow kbd {
+  font-family: var(--font-mono); font-size: 0.68rem;
+  padding: 1px 5px; border: 1px solid var(--border); border-radius: 4px;
+  color: var(--text-secondary); background-color: var(--bg-secondary);
+}
+.cmd-palette-results { list-style: none; margin: 0; padding: 0.4rem; max-height: 320px; overflow-y: auto; }
+.cmd-palette-item {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.5rem 0.6rem; border-radius: var(--radius-ctl);
+  cursor: pointer;
+}
+.cmd-palette-item.is-active { background-color: var(--accent-soft); }
+.cmd-palette-icon { font-size: 1rem; width: 1.4rem; text-align: center; flex-shrink: 0; }
+.cmd-palette-name { font-weight: 550; font-size: 0.88rem; color: var(--text-primary); }
+.cmd-palette-cat {
+  font-family: var(--font-mono); font-size: 0.65rem;
+  padding: 1px 6px; border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text-secondary);
+}
+.cmd-palette-meta { margin-left: auto; font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary); }
+.cmd-palette-empty { padding: 1rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem; }

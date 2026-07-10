@@ -392,3 +392,134 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 });
+
+/* ---------------------------------------------------------------------------
+ * Command palette (Ctrl/Cmd+K) — global skill search overlay.
+ * Markup lives in base.html (#cmd-palette). Fetches /api/skills once per
+ * page load on first open; case-insensitive substring match, name matches
+ * ranked above description matches, ties alphabetical. Esc handling runs in
+ * the CAPTURE phase so it wins over skill.js's page-level Esc (navigate home).
+ * ------------------------------------------------------------------------- */
+(function () {
+  var overlay, input, list, empty, trigger;
+  var catalog = null;
+  var releaseTrap = null;
+  var lastFocus = null;
+  var activeIndex = -1;
+
+  function fetchCatalog() {
+    if (catalog) return Promise.resolve(catalog);
+    return fetch('/api/skills?limit=100')
+      .then(function (r) { return r.json(); })
+      .then(function (j) { catalog = (j && j.skills) || []; return catalog; })
+      .catch(function () { return []; });
+  }
+
+  function rank(skill, q) {
+    if ((skill.name || '').toLowerCase().indexOf(q) !== -1) return 2;
+    if ((skill.description || '').toLowerCase().indexOf(q) !== -1) return 1;
+    return 0;
+  }
+
+  function resultHtml(skill) {
+    return (
+      '<li class="cmd-palette-item" role="option" data-name="' + escapeHtml(skill.name) + '" aria-selected="false">' +
+        '<span class="cmd-palette-icon">' + escapeHtml(skill.icon || '📦') + '</span>' +
+        '<span class="cmd-palette-name">' + escapeHtml(skill.name) + '</span>' +
+        '<span class="cmd-palette-cat">' + escapeHtml(skill.category || 'Other') + '</span>' +
+        '<span class="cmd-palette-meta">' + (skill.fileCount || 0) + ' files</span>' +
+      '</li>'
+    );
+  }
+
+  function renderResults() {
+    var q = input.value.trim().toLowerCase();
+    var items = (catalog || []).slice();
+    if (q) {
+      items = items
+        .map(function (s) { return { s: s, r: rank(s, q) }; })
+        .filter(function (x) { return x.r > 0; })
+        .sort(function (a, b) { return b.r !== a.r ? b.r - a.r : a.s.name.localeCompare(b.s.name); })
+        .map(function (x) { return x.s; });
+    } else {
+      items.sort(function (a, b) { return a.name.localeCompare(b.name); });
+    }
+    items = items.slice(0, 8);
+    list.innerHTML = items.map(resultHtml).join('');
+    empty.classList.toggle('hidden', items.length > 0);
+    setActive(items.length > 0 ? 0 : -1);
+  }
+
+  function setActive(idx) {
+    activeIndex = idx;
+    var items = list.querySelectorAll('.cmd-palette-item');
+    items.forEach(function (el, i) {
+      el.setAttribute('aria-selected', i === idx ? 'true' : 'false');
+      el.classList.toggle('is-active', i === idx);
+    });
+    if (idx >= 0 && items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
+  }
+
+  function openPalette() {
+    if (!overlay || !overlay.classList.contains('hidden')) return;
+    lastFocus = document.activeElement;
+    overlay.classList.remove('hidden');
+    input.value = '';
+    fetchCatalog().then(renderResults);
+    input.focus();
+    releaseTrap = focusTrap(overlay.querySelector('.cmd-palette-panel'));
+  }
+
+  function closePalette() {
+    if (!overlay || overlay.classList.contains('hidden')) return;
+    overlay.classList.add('hidden');
+    if (releaseTrap) { releaseTrap(); releaseTrap = null; }
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
+  function go(name) {
+    window.location.href = '/skills/' + encodeURIComponent(name) + '/';
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    overlay = document.getElementById('cmd-palette');
+    if (!overlay) return;
+    input = document.getElementById('cmd-palette-input');
+    list = document.getElementById('cmd-palette-results');
+    empty = document.getElementById('cmd-palette-empty');
+    trigger = document.getElementById('palette-trigger');
+
+    if (trigger) {
+      trigger.addEventListener('click', openPalette);
+      var kbd = document.getElementById('palette-kbd');
+      if (kbd && /Mac/.test(navigator.platform)) kbd.textContent = '⌘K';
+    }
+    input.addEventListener('input', renderResults);
+    input.addEventListener('keydown', function (e) {
+      var items = list.querySelectorAll('.cmd-palette-item');
+      if (e.key === 'ArrowDown') { e.preventDefault(); if (items.length) setActive((activeIndex + 1) % items.length); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); if (items.length) setActive((activeIndex - 1 + items.length) % items.length); }
+      else if (e.key === 'Enter') {
+        e.preventDefault();
+        var el = items[activeIndex];
+        if (el) go(el.dataset.name);
+      }
+    });
+    list.addEventListener('click', function (e) {
+      var el = e.target.closest('.cmd-palette-item');
+      if (el) go(el.dataset.name);
+    });
+    overlay.addEventListener('mousedown', function (e) {
+      if (e.target === overlay) closePalette();
+    });
+    document.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        if (overlay.classList.contains('hidden')) openPalette(); else closePalette();
+      } else if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
+        e.stopPropagation();
+        closePalette();
+      }
+    }, true);
+  });
+})();

@@ -68,6 +68,18 @@
   <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7 7 7M12 3v18"/></svg>
 </button>
 
+<div id="cmd-palette" class="cmd-palette hidden" role="dialog" aria-modal="true" aria-label="Search skills">
+  <div class="cmd-palette-panel">
+    <div class="cmd-palette-inputrow">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      <input id="cmd-palette-input" type="text" placeholder="Search skills…" autocomplete="off" spellcheck="false" aria-label="Search skills">
+      <kbd>Esc</kbd>
+    </div>
+    <ul id="cmd-palette-results" class="cmd-palette-results" role="listbox"></ul>
+    <p id="cmd-palette-empty" class="cmd-palette-empty hidden">No skills match.</p>
+  </div>
+</div>
+
 <div id="toasts" aria-live="polite" aria-atomic="false"></div>
 
 <script src="{% static 'skills/js/common.js' %}?v={{ request.resolver_match.url_name|default:'1' }}&t={% now 'U' %}"></script>

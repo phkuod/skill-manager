@@ -207,12 +207,6 @@
       searchInput.select();
       return;
     }
-    if (e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey) && !e.altKey) {
-      e.preventDefault();
-      searchInput.focus();
-      searchInput.select();
-      return;
-    }
     if (e.key === 'Escape' && document.activeElement === searchInput) {
       e.preventDefault();
       searchInput.value = '';
