@@ -1,0 +1,79 @@
+/* ==========================================================================
+   Design tokens — the single source of truth for the visual identity.
+   app.css and all templates consume these variables; do not define
+   token values anywhere else. Dark mode = .dark class on <html>.
+   ========================================================================== */
+
+@font-face {
+  font-family: 'Inter';
+  src: url('../vendor/fonts/InterVariable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../vendor/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../vendor/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* surfaces */
+  --bg-primary: #fafafa;
+  --bg-secondary: #f4f4f5;
+  --bg-card: #ffffff;
+  --border: #e4e4e7;
+  /* text */
+  --text-primary: #0f0f11;
+  --text-secondary: #6b7280;
+  /* accent */
+  --accent: #0284c7;
+  --accent-hover: #0369a1;
+  --accent-soft: rgba(2, 132, 199, 0.10);
+  /* semantic */
+  --result-ok-bg: #dcfce7;
+  --result-ok-text: #166534;
+  --result-err-bg: #fee2e2;
+  --result-err-text: #991b1b;
+  --highlight-bg: #fef08a;
+  --highlight-text: #854d0e;
+  /* type */
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-main: var(--font-ui);      /* legacy alias — keep */
+  --font-display: var(--font-ui);   /* legacy alias — keep */
+  /* shape & depth */
+  --radius-card: 8px;
+  --radius-ctl: 6px;
+  --shadow-overlay: 0 16px 48px rgba(0, 0, 0, 0.18);
+  /* layout */
+  --nav-h: 56px;
+}
+
+.dark {
+  --bg-primary: #0a0a0c;
+  --bg-secondary: #131316;
+  --bg-card: #131316;
+  --border: rgba(255, 255, 255, 0.08);
+  --text-primary: #ededf0;
+  --text-secondary: #9b9ba4;
+  --accent: #38bdf8;
+  --accent-hover: #7dd3fc;
+  --accent-soft: rgba(56, 189, 248, 0.12);
+  --result-ok-bg: #14532d;
+  --result-ok-text: #86efac;
+  --result-err-bg: #7f1d1d;
+  --result-err-text: #fca5a5;
+  --highlight-bg: #854d0e;
+  --highlight-text: #fef08a;
+  --shadow-overlay: 0 16px 48px rgba(0, 0, 0, 0.6);
+}

@@ -610,3 +610,45 @@ def test_skill_detail_classed_action_buttons(client, version_fixture):
     body = res.content.decode('utf-8')
     assert 'btn-accent' in body
     assert 'btn-outline' in body
+
+
+# ---------------------------------------------------------------------------
+# Design tokens & fonts (Task 1: UI foundation)
+# ---------------------------------------------------------------------------
+
+def test_base_includes_tokens_css(client):
+    html = client.get('/').content.decode()
+    assert 'skills/css/tokens.css' in html
+    # tokens must load BEFORE app.css so app.css can consume the variables
+    assert html.index('skills/css/tokens.css') < html.index('skills/css/app.css')
+
+
+def test_tokens_css_defines_new_identity():
+    from django.contrib.staticfiles import finders
+    path = finders.find('skills/css/tokens.css')
+    assert path, 'tokens.css not found by staticfiles finders'
+    css = open(path, encoding='utf-8').read()
+    assert '@font-face' in css
+    assert 'InterVariable.woff2' in css
+    assert 'JetBrainsMono-Regular.woff2' in css
+    assert '--accent: #0284c7' in css
+    assert '--bg-primary: #0a0a0c' in css  # dark canvas
+
+
+def test_vendored_fonts_are_valid_woff2():
+    from django.contrib.staticfiles import finders
+    for rel in ('skills/vendor/fonts/InterVariable.woff2',
+                'skills/vendor/fonts/JetBrainsMono-Regular.woff2',
+                'skills/vendor/fonts/JetBrainsMono-Bold.woff2'):
+        path = finders.find(rel)
+        assert path, rel + ' missing'
+        with open(path, 'rb') as f:
+            magic = f.read(4)
+        assert magic == b'wOF2', rel + ' is not a woff2 file'
+
+
+def test_app_css_no_longer_defines_tokens():
+    from django.contrib.staticfiles import finders
+    css = open(finders.find('skills/css/app.css'), encoding='utf-8').read()
+    assert '--accent: #4f46e5' not in css      # old light accent gone
+    assert '--bg-primary: #0f172a' not in css  # old dark canvas gone
