@@ -807,3 +807,13 @@ def test_404_template_mono_treatment():
     from pathlib import Path
     src = Path('skills/templates/skills/404.html').read_text(encoding='utf-8')
     assert 'notfound-code' in src
+
+
+def test_tailwind_regen_tooling_committed():
+    from pathlib import Path
+    assert Path('tailwind.config.js').exists()
+    assert Path('tailwind.input.css').exists()
+    assert Path('scripts/tw_regen_check.py').exists()
+    css = Path('skills/static/skills/vendor/tailwind.min.css').read_text(encoding='utf-8', errors='ignore')
+    assert '.hidden{display:none' in css          # load-bearing utility survived regen
+    assert 'tailwindcss v3' in css                # regenerated header comment
