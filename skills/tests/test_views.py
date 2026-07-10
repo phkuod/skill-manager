@@ -738,3 +738,15 @@ def test_skill_detail_breadcrumb(client):
     html = client.get('/skills/pdf/').content.decode()
     assert 'aria-label="Breadcrumb"' in html
     assert 'class="crumbs' in html
+
+
+# ---------------------------------------------------------------------------
+# Installed page redesign (Task 7: dev-tool row list)
+# ---------------------------------------------------------------------------
+
+def test_installed_page_restyled_no_inline_styles(client):
+    html = client.get('/installed/').content.decode()
+    assert '<style>' not in html, 'inline style block must move to app.css'
+    assert 'installed-tabs-container' in html
+    assert 'id="bulk-sync-all"' in html
+    assert 'id="installed-search"' in html
