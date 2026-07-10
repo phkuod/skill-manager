@@ -719,3 +719,22 @@ def test_home_js_single_card_renderer():
     from django.contrib.staticfiles import finders
     js = open(finders.find('skills/js/home.js'), encoding='utf-8').read()
     assert 'function cardHtml' not in js, 'dual renderer must be gone'
+
+
+# ---------------------------------------------------------------------------
+# Skill detail redesign (Task 6: breadcrumb, two-column, sticky sidebar)
+# ---------------------------------------------------------------------------
+
+def test_skill_detail_sticky_sidebar(client):
+    html = client.get('/skills/pdf/').content.decode()
+    assert 'class="detail-side"' in html
+    assert 'class="side-card"' in html
+    assert 'side-meta' in html
+    # actions live in the sidebar now
+    assert html.index('class="side-card"') < html.index('id="install-button"')
+
+
+def test_skill_detail_breadcrumb(client):
+    html = client.get('/skills/pdf/').content.decode()
+    assert 'aria-label="Breadcrumb"' in html
+    assert 'class="crumbs' in html
