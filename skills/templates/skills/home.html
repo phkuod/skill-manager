@@ -4,51 +4,56 @@
 {% block title %}Skill Market{% endblock %}
 
 {% block content %}
-<section class="hero-kicker">
-  <p>Discover, share, and install AI-powered skills to supercharge your workflow</p>
-</section>
+<div class="page-head">
+  <h1>Browse skills</h1>
+  <p class="page-head-sub"><span class="mono-count">{{ skills|length }}</span> skills · discover, install, contribute</p>
+</div>
 
-<section class="mb-6 px-6 flex flex-wrap items-center gap-3">
-  <div class="toolbar-search">
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-    <input id="search-input" type="text" placeholder="Filter skills…" aria-label="Search skills">
-    <button id="search-clear" type="button" class="hidden" aria-label="Clear search">×</button>
-    <kbd id="search-shortcut-hint" title="Press / to focus search">/</kbd>
-  </div>
-  <h2 class="shelf-heading" style="margin:0;">All skills <span class="shelf-heading-count">· {{ skills|length }}</span></h2>
-  <div class="ml-auto flex flex-wrap items-center gap-2">
-    <span id="result-count" class="text-sm" style="color:var(--text-secondary)">Showing {{ skills|length }} of {{ skills|length }}</span>
-    <select id="category-select" class="toolbar-select" aria-label="Filter by category">
-      <option value="">All categories</option>
-      <option value="Design">Design</option>
-      <option value="Tools">Tools</option>
-      <option value="Code">Code</option>
-      <option value="Content">Content</option>
-      <option value="Testing">Testing</option>
-      <option value="AI/ML">AI/ML</option>
-      <option value="Communication">Communication</option>
-      <option value="Other">Other</option>
-    </select>
-    <select id="sort-select" class="toolbar-select" aria-label="Sort skills">
-      <option value="lastUpdated">Last Updated</option>
-      <option value="name">Name</option>
-    </select>
-  </div>
-</section>
+<div class="home-layout">
+  {% regroup skills|dictsort:"category" by category as category_groups %}
+  <aside class="rail" aria-label="Categories">
+    <button type="button" class="rail-item is-active" data-cat="" aria-current="true">
+      <span>All</span><span class="rail-count">{{ skills|length }}</span>
+    </button>
+    {% for group in category_groups %}
+    <button type="button" class="rail-item" data-cat="{{ group.grouper|default:'Other' }}">
+      <span>{{ group.grouper|default:'Other' }}</span><span class="rail-count">{{ group.list|length }}</span>
+    </button>
+    {% endfor %}
+  </aside>
 
-<main class="home-grid-wrap">
-  <div id="skill-grid" class="skill-grid">
-    {% for skill in featured_skills %}
-      {% include "skills/_skill_card.html" with is_featured=True %}
-    {% endfor %}
-    {% for skill in skills %}
-      {% if skill not in featured_skills %}
-        {% include "skills/_skill_card.html" %}
-      {% endif %}
-    {% endfor %}
+  <div class="home-main">
+    <section class="toolbar">
+      <div class="toolbar-search">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input id="search-input" type="text" placeholder="Filter skills…" aria-label="Search skills">
+        <button id="search-clear" type="button" aria-label="Clear search" class="hidden">×</button>
+        <kbd id="search-shortcut-hint" title="Press / to focus search">/</kbd>
+      </div>
+      <div class="toolbar-right">
+        <span id="result-count">Showing {{ skills|length }} of {{ skills|length }}</span>
+        <select id="sort-select" class="toolbar-select" aria-label="Sort skills">
+          <option value="lastUpdated">Last Updated</option>
+          <option value="name">Name</option>
+        </select>
+      </div>
+    </section>
+
+    <main class="home-grid-wrap">
+      <div id="skill-grid" class="skill-grid">
+        {% for skill in featured_skills %}
+          {% include "skills/_skill_card.html" with is_featured=True %}
+        {% endfor %}
+        {% for skill in skills %}
+          {% if skill not in featured_skills %}
+            {% include "skills/_skill_card.html" %}
+          {% endif %}
+        {% endfor %}
+      </div>
+      <p id="no-results" class="hidden">No skills match your search.</p>
+    </main>
   </div>
-  <p id="no-results" class="hidden">No skills match your search.</p>
-</main>
+</div>
 
 {{ skills|json_script:"skills-data" }}
 

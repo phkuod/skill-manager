@@ -106,11 +106,9 @@ def test_home_has_search_input(page, server_url):
     assert page.locator("#search-input").is_visible()
 
 
-def test_home_has_category_select(page, server_url):
+def test_home_has_category_rail(page, server_url):
     page.goto(server_url)
-    select = page.locator("#category-select")
-    assert select.is_visible()
-    assert select.locator("option").count() >= 2
+    assert page.locator('.rail-item').count() >= 2  # "All" + at least one category
 
 
 def test_home_has_sort_select(page, server_url):
@@ -161,45 +159,29 @@ def test_search_clear_restores_all_cards(page, server_url):
 # Category filter
 # ---------------------------------------------------------------------------
 
-def test_category_filter_reduces_cards(page, server_url):
+def test_category_rail_filters_and_restores(page, server_url):
     page.goto(server_url)
-    options = page.locator("#category-select option")
-    non_all_value = None
-    for i in range(options.count()):
-        val = options.nth(i).get_attribute("value")
-        if val:
-            non_all_value = val
-            break
-    assert non_all_value, "Expected at least one non-'All' category option"
-    page.select_option("#category-select", non_all_value)
-    page.wait_for_timeout(300)
-
-    visible_count = sum(
-        1 for i in range(page.locator("#skill-grid .skill-card").count())
-        if page.locator("#skill-grid .skill-card").nth(i).is_visible()
-    )
-    assert 0 < visible_count < 17
+    total = page.locator('#skill-grid .skill-card:not(.hidden)').count()
+    cat_btn = page.locator('.rail-item:not([data-cat=""])').first
+    cat_btn.click()
+    page.wait_for_timeout(200)
+    filtered = page.locator('#skill-grid .skill-card:not(.hidden)').count()
+    assert 0 < filtered < total
+    assert 'is-active' in cat_btn.get_attribute('class')
+    page.click('.rail-item[data-cat=""]')
+    page.wait_for_timeout(200)
+    assert page.locator('#skill-grid .skill-card:not(.hidden)').count() == total
 
 
-def test_category_select_all_restores_all_cards(page, server_url):
+def test_category_deep_link_prefilters(page, server_url):
     page.goto(server_url)
-    options = page.locator("#category-select option")
-    non_all_value = None
-    for i in range(options.count()):
-        val = options.nth(i).get_attribute("value")
-        if val:
-            non_all_value = val
-            break
-    page.select_option("#category-select", non_all_value)
-    page.wait_for_timeout(200)
-    page.select_option("#category-select", "")
-    page.wait_for_timeout(200)
-
-    visible_count = sum(
-        1 for i in range(page.locator("#skill-grid .skill-card").count())
-        if page.locator("#skill-grid .skill-card").nth(i).is_visible()
-    )
-    assert visible_count == 17
+    cat_btn = page.locator('.rail-item:not([data-cat=""])').first
+    cat = cat_btn.get_attribute('data-cat')
+    total = page.locator('#skill-grid .skill-card:not(.hidden)').count()
+    page.goto(server_url + '/?cat=' + cat)
+    assert page.locator('#skill-grid .skill-card:not(.hidden)').count() < total
+    active = page.locator('.rail-item.is-active')
+    assert active.get_attribute('data-cat') == cat
 
 
 # ---------------------------------------------------------------------------

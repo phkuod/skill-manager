@@ -506,10 +506,20 @@ def test_home_hides_featured_shelf_for_small_catalog(client, monkeypatch):
     assert 'Featured' not in body
 
 
-def test_home_has_category_select(client, version_fixture):
+def test_home_category_rail(client, version_fixture):
     res = client.get('/')
     body = res.content.decode('utf-8')
-    assert 'id="category-select"' in body
+    assert 'class="rail"' in body
+    assert 'data-cat=""' in body          # "All" item
+    assert 'rail-count' in body           # per-category counts
+    assert 'id="category-select"' not in body
+
+
+def test_home_page_head_replaces_hero(client, version_fixture):
+    res = client.get('/')
+    body = res.content.decode('utf-8')
+    assert 'hero-kicker' not in body
+    assert 'Browse skills' in body
 
 
 def test_home_selects_have_aria_labels(client, version_fixture):
@@ -517,7 +527,6 @@ def test_home_selects_have_aria_labels(client, version_fixture):
     # the refined toolbar.
     res = client.get('/')
     body = res.content.decode('utf-8')
-    assert 'aria-label="Filter by category"' in body
     assert 'aria-label="Sort skills"' in body
     assert 'for="category-select"' not in body
     assert 'for="sort-select"' not in body

@@ -25,7 +25,17 @@
   var searchInput = document.getElementById('search-input');
   var searchClear = document.getElementById('search-clear');
   var sortSelect = document.getElementById('sort-select');
-  var categorySelect = document.getElementById('category-select');
+  var rail = document.querySelector('.rail');
+
+  function setActiveRailItem(cat) {
+    if (!rail) return;
+    rail.querySelectorAll('.rail-item').forEach(function (btn) {
+      var on = (btn.dataset.cat || '') === cat;
+      btn.classList.toggle('is-active', on);
+      if (on) btn.setAttribute('aria-current', 'true');
+      else btn.removeAttribute('aria-current');
+    });
+  }
 
   function ensureSkillsLoaded() {
     if (allSkills !== null) return;
@@ -144,7 +154,7 @@
     }
     if (cat) {
       currentCategory = cat;
-      if (categorySelect) categorySelect.value = cat;
+      setActiveRailItem(currentCategory);
       dirty = true;
     }
     if (dirty) render();
@@ -178,9 +188,12 @@
     });
   }
 
-  if (categorySelect) {
-    categorySelect.addEventListener('change', function () {
-      currentCategory = categorySelect.value;
+  if (rail) {
+    rail.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.rail-item');
+      if (!btn) return;
+      currentCategory = btn.dataset.cat || '';
+      setActiveRailItem(currentCategory);
       render();
     });
   }

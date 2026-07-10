@@ -390,30 +390,6 @@ body {
   color: var(--text-primary);
 }
 
-.hero-kicker {
-  padding: 0.9rem 1.5rem 0.6rem;
-  text-align: center;
-}
-
-.hero-kicker p {
-  font-size: 0.95rem;
-  font-weight: 400;
-  line-height: 1.6;
-  color: var(--text-secondary);
-  max-width: 640px;
-  margin: 0 auto;
-  text-wrap: balance;
-}
-
-.shelf-heading {
-  font-family: var(--font-display);
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: var(--text-primary);
-  margin: 0 0 0.75rem;
-}
-
 mark {
   background-color: var(--highlight-bg);
   color: var(--highlight-text);
@@ -919,11 +895,6 @@ input:focus-visible:not(#search-input),
 }
 
 /* ---------- Home toolbar ---------- */
-.shelf-heading-count {
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
 .toolbar-select {
   height: 32px;
   padding: 0 8px;
@@ -1241,8 +1212,40 @@ input:focus-visible:not(#search-input),
   color: var(--text-secondary); background-color: var(--bg-secondary);
 }
 .skill-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
-/* Brief's original spec set horizontal padding to 0; restored to 1.5rem to
-   match the hero/toolbar sections' px-6 gutter — 0 left cards flush against
-   the viewport edge while every sibling section keeps a 24px inset. */
-.home-grid-wrap { padding: 0 1.5rem 2.5rem; }
+/* Task 5: the outer .home-layout now supplies the 1.5rem gutter, so the
+   horizontal padding Task 4 added here (to match the old hero/toolbar
+   sections' gutter) would double up. Bottom padding stays — it's still the
+   grid's own bottom margin inside .home-main. */
+.home-grid-wrap { padding: 0 0 2.5rem; }
 #no-results { text-align: center; padding: 3rem 0; color: var(--text-secondary); }
+
+/* --- home: page head, rail, toolbar --------------------------------------- */
+.page-head { padding: 2rem 1.5rem 1rem; }
+.page-head h1 { font-size: 1.6rem; font-weight: 650; letter-spacing: -0.02em; color: var(--text-primary); margin: 0 0 0.2rem; }
+.page-head-sub { color: var(--text-secondary); font-size: 0.85rem; margin: 0; }
+.mono-count { font-family: var(--font-mono); color: var(--text-primary); }
+.home-layout {
+  display: grid; grid-template-columns: 190px minmax(0, 1fr);
+  gap: 1.5rem; padding: 0 1.5rem 2.5rem; align-items: start;
+}
+.rail { position: sticky; top: calc(var(--nav-h) + 1rem); display: flex; flex-direction: column; gap: 2px; }
+.rail-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: 0.4rem 0.65rem; border: 0; border-radius: var(--radius-ctl);
+  background: transparent; color: var(--text-secondary);
+  font-size: 0.85rem; font-family: var(--font-ui); text-align: left; cursor: pointer;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+.rail-item:hover { color: var(--text-primary); background-color: var(--bg-secondary); }
+.rail-item.is-active { color: var(--accent); background-color: var(--accent-soft); font-weight: 600; }
+.rail-count { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-secondary); }
+.rail-item.is-active .rail-count { color: var(--accent); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+.toolbar-right { margin-left: auto; display: flex; align-items: center; gap: 0.6rem; }
+#result-count { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-secondary); }
+@media (max-width: 1023px) {
+  .home-layout { display: block; }
+  .rail { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 0.75rem; }
+  .rail-item { flex-shrink: 0; border: 1px solid var(--border); }
+  .rail-item.is-active { border-color: var(--accent); }
+}
