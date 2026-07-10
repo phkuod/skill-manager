@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Stack
 
-The running app is **Django 5.x** with frontend served via Django templates from the `skills` app (`skills/templates/skills/{base,home,skill_detail,404}.html`). Static assets live under `skills/static/skills/...` and are picked up by Django's `APP_DIRS=True` static finder, then served by WhiteNoise. There is no frontend build step — vendored Tailwind and highlight.js live in `skills/static/skills/vendor/`. Design tokens live in skills/static/skills/css/tokens.css (consumed by css/app.css); UI fonts are vendored under skills/static/skills/vendor/fonts/ (Inter variable + JetBrains Mono, OFL). SKILL.md markdown is pre-rendered to HTML in `parser.py` (the `contentHtml` field) and emitted in templates via `{{ skill.contentHtml|safe }}`.
+The running app is **Django 5.x** with frontend served via Django templates from the `skills` app (`skills/templates/skills/{base,home,skill_detail,…}.html`; the 404 page lives at `skills/templates/404.html` so Django's default handler finds it). Static assets live under `skills/static/skills/...` and are picked up by Django's `APP_DIRS=True` static finder, then served by WhiteNoise. There is no frontend build step — vendored Tailwind and highlight.js live in `skills/static/skills/vendor/`. Design tokens live in skills/static/skills/css/tokens.css (consumed by css/app.css); UI fonts are vendored under skills/static/skills/vendor/fonts/ (Inter variable + JetBrains Mono, OFL). SKILL.md markdown is pre-rendered to HTML in `parser.py` (the `contentHtml` field) and emitted in templates via `{{ skill.contentHtml|safe }}`.
 
 ## Commands
 

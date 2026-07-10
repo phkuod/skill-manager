@@ -361,15 +361,6 @@ mark {
   font-weight: inherit;
 }
 
-/* Site header gradient. Scoped to `body > header` so any future
- * <article><header>…</header></article> blocks (or other semantic
- * headers) won't pick up the page-chrome gradient. */
-body > header {
-  background: linear-gradient(to bottom, var(--bg-secondary), var(--bg-primary)) !important;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
 .install-modal-kicker {
   margin: 0 0 4px;
   font-size: 0.7rem;
@@ -401,9 +392,9 @@ body > header {
   gap: 6px;
   padding: 3px 10px;
   border-radius: 999px;
-  background-color: var(--badge-content-bg);
-  color: var(--badge-content-text);
-  font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  background-color: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   font-weight: 600;
 }
@@ -799,11 +790,6 @@ body > header {
   opacity: 0.55; cursor: not-allowed;
 }
 
-/* ---------- Category badge (home page cards) ---------- */
-.category-badge {
-  flex-shrink: 0;
-}
-
 /* ===========================================================================
  * Refinement pass (2026-07-08): focus-visible system, reduced motion.
  * =========================================================================== */
@@ -1142,6 +1128,7 @@ input:focus-visible:not(#search-input),
 }
 .card-meta { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-secondary); white-space: nowrap; }
 .category-badge {
+  flex-shrink: 0;
   font-family: var(--font-mono); font-size: 0.65rem;
   padding: 1px 7px; border: 1px solid var(--border); border-radius: 999px;
   color: var(--text-secondary); background-color: var(--bg-secondary);
