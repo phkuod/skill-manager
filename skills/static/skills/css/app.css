@@ -632,6 +632,7 @@ body > header {
 }
 
 /* --- installed page: target groups as row lists --------------------------- */
+.page-title { font-size: 1.6rem; font-weight: 650; letter-spacing: -0.02em; color: var(--text-primary); margin: 0 0 0.2rem; }
 .installed-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin: 1rem 0 1.25rem; }
 .installed-controls .toolbar-search { flex: 1 1 260px; }
 .installed-tabs-container {

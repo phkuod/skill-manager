@@ -750,3 +750,5 @@ def test_installed_page_restyled_no_inline_styles(client):
     assert 'installed-tabs-container' in html
     assert 'id="bulk-sync-all"' in html
     assert 'id="installed-search"' in html
+    from django.contrib.staticfiles import finders
+    assert '.page-title' in open(finders.find('skills/css/app.css'), encoding='utf-8').read()
