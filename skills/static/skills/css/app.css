@@ -830,6 +830,7 @@ input:focus-visible:not(#search-input),
     animation-iteration-count: 1 !important;
   }
   html { scroll-behavior: auto; }
+  .skill-card:hover { transform: none !important; }
 }
 
 /* ---------- Home toolbar ---------- */
@@ -1281,8 +1282,8 @@ html { scroll-behavior: smooth; }
 .contrib-card { border: 1px solid var(--border); border-radius: var(--radius-card); background-color: var(--bg-card); padding: 1.5rem; margin-bottom: 1rem; }
 .contrib-sub { color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 0.5rem; }
 .req-list { list-style: none; margin: 0.75rem 0 0; padding: 0; display: grid; gap: 0.4rem; }
-.req-list li { display: flex; gap: 0.5rem; align-items: baseline; color: var(--text-secondary); font-size: 0.85rem; }
-.req-list li::before { content: '✓'; color: var(--accent); font-weight: 700; font-family: var(--font-mono); }
+.req-list li { position: relative; padding-left: 1.25rem; color: var(--text-secondary); font-size: 0.85rem; }
+.req-list li::before { content: '✓'; position: absolute; left: 0; top: 0; color: var(--accent); font-weight: 700; font-family: var(--font-mono); }
 .contrib-drop {
   display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
   padding: 2rem 1rem; border: 1.5px dashed var(--border); border-radius: var(--radius-card);

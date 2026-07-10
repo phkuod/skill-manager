@@ -411,3 +411,41 @@ def test_palette_escape_on_detail_does_not_navigate_home(page, server_url):
     page.wait_for_timeout(200)
     assert "hidden" in (page.locator("#cmd-palette").get_attribute("class") or "")
     assert "/skills/pdf" in page.url
+
+
+# ---------------------------------------------------------------------------
+# Reduced motion (final visual gate, Task 12): the redesigned skill-card
+# hover lift (transform: translateY(-1px), commit 88443ea) must not apply
+# under prefers-reduced-motion — the shared media query only zeroed out
+# transition/animation *durations*, so the hover end-state transform still
+# rendered instantly instead of being suppressed.
+# ---------------------------------------------------------------------------
+
+def test_skill_card_hover_no_transform_under_reduced_motion(browser_instance, server_url):
+    ctx = browser_instance.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    page.goto(server_url)
+    card = page.locator("#skill-grid .skill-card").first
+    card.hover()
+    page.wait_for_timeout(200)
+    transform = card.evaluate("el => getComputedStyle(el).transform")
+    ctx.close()
+    assert transform == "none", f"Expected no hover transform under reduced motion, got {transform!r}"
+
+
+# ---------------------------------------------------------------------------
+# Mobile overflow (final visual gate, Task 12): the contribute page's
+# .req-list li used display:flex (commit 30a2844), which turned each text
+# run into a non-wrapping anonymous flex item — at 375px their min-content
+# widths summed past the viewport, forcing horizontal page scroll and
+# clipping the requirement text.
+# ---------------------------------------------------------------------------
+
+def test_contribute_no_horizontal_overflow_at_mobile_width(browser_instance, server_url):
+    ctx = browser_instance.new_context(viewport={"width": 375, "height": 812})
+    page = ctx.new_page()
+    page.goto(f"{server_url}/contribute/")
+    page.locator(".req-list li").first.wait_for(state="visible", timeout=5000)
+    scroll_w = page.evaluate("document.documentElement.scrollWidth")
+    ctx.close()
+    assert scroll_w <= 375, f"Contribute page overflows horizontally at 375px (scrollWidth={scroll_w})"
