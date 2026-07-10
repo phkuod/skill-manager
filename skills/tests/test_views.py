@@ -795,3 +795,15 @@ def test_app_css_has_review_components():
     assert '.feed-entry.ai_reviewer' in css
     assert '.ai-verdict.approve' in css
     assert '#admin-actions' in css
+
+
+def test_usage_template_no_inline_style():
+    from pathlib import Path
+    src = Path('skills/templates/skills/usage.html').read_text(encoding='utf-8')
+    assert '<style>' not in src
+
+
+def test_404_template_mono_treatment():
+    from pathlib import Path
+    src = Path('skills/templates/skills/404.html').read_text(encoding='utf-8')
+    assert 'notfound-code' in src
