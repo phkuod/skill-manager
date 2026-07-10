@@ -772,3 +772,26 @@ def test_my_contributions_restyled(client):
     html = client.get('/contributions/').content.decode()
     assert '<style>' not in html
     assert ('empty-state' in html) or ('data-table' in html)
+
+
+# ---------------------------------------------------------------------------
+# Review pages redesign (Task 9: admin queue + contribution detail feed)
+# ---------------------------------------------------------------------------
+
+def test_review_templates_use_shared_classes():
+    from pathlib import Path
+    admin_src = Path('skills/templates/skills/admin_contributions.html').read_text(encoding='utf-8')
+    detail_src = Path('skills/templates/skills/contribution_detail.html').read_text(encoding='utf-8')
+    for src in (admin_src, detail_src):
+        assert '<style>' not in src
+        assert 'status-chip' in src
+    assert 'seg-control' in admin_src
+    assert 'feed-entry' in detail_src
+
+
+def test_app_css_has_review_components():
+    from django.contrib.staticfiles import finders
+    css = open(finders.find('skills/css/app.css'), encoding='utf-8').read()
+    assert '.feed-entry.ai_reviewer' in css
+    assert '.ai-verdict.approve' in css
+    assert '#admin-actions' in css

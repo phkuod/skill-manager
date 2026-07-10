@@ -4,34 +4,6 @@
 {% block title %}Contribution queue — Skill Market{% endblock %}
 
 {% block content %}
-<style>
-  .admin-wrap { max-width: 64rem; margin: 0 auto; padding: 2rem 1.5rem; }
-  .admin-filter { display: inline-flex; gap: 2px; padding: 4px; border-radius: 10px; border: 1px solid var(--border); background-color: var(--bg-secondary); margin-bottom: 1rem; flex-wrap: wrap; }
-  .admin-filter a { padding: 6px 12px; font-size: 0.8rem; border-radius: 8px; color: var(--text-secondary); text-decoration: none; }
-  .admin-filter a.active { background-color: var(--bg-primary); color: var(--accent); font-weight: 600; }
-  .contrib-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; }
-  .contrib-table th, .contrib-table td { padding: 0.6rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); color: var(--text-primary); }
-  .contrib-table th { font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); background-color: var(--bg-secondary); }
-  .contrib-table tr:last-child td { border-bottom: 0; }
-  .contrib-status { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; }
-  .contrib-status.submitted { background-color: rgba(59,130,246,0.15); color: #2563eb; }
-  .contrib-status.under_review { background-color: rgba(245,158,11,0.15); color: #b45309; }
-  .contrib-status.changes_requested { background-color: rgba(239,68,68,0.15); color: #b91c1c; }
-  .contrib-status.approved { background-color: rgba(16,185,129,0.15); color: #047857; }
-  .contrib-status.rejected { background-color: rgba(120,113,108,0.15); color: #57534e; }
-  .contrib-status.published { background-color: rgba(124,58,237,0.15); color: #6d28d9; }
-  /* AI verdict pill — compact for the queue column. */
-  .ai-verdict { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 9999px; font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
-  .ai-verdict::before { content: '🤖'; font-size: 0.75rem; }
-  .ai-verdict.approve { background-color: rgba(16,185,129,0.12); color: #047857; }
-  .ai-verdict.request_changes { background-color: rgba(245,158,11,0.15); color: #b45309; }
-  .ai-verdict.reject { background-color: rgba(239,68,68,0.15); color: #b91c1c; }
-  .ai-verdict.needs_human_review { background-color: rgba(120,113,108,0.15); color: #57534e; }
-  .contrib-link { color: var(--accent); text-decoration: none; }
-  .contrib-link:hover { text-decoration: underline; }
-  .contrib-empty { text-align: center; padding: 2rem 1rem; color: var(--text-secondary); border: 1px dashed var(--border); border-radius: 0.75rem; }
-</style>
-
 <div class="admin-wrap">
   <div class="page-head-row" style="margin-bottom:0.25rem;">
     <h1 style="font-size:1.5rem;font-weight:700;color:var(--text-primary);margin-bottom:0;">Contribution queue</h1>
@@ -41,7 +13,7 @@
     Signed in as <strong>{{ user_name }}</strong> · {{ total }} submission{{ total|pluralize }}
   </div>
 
-  <div class="admin-filter" role="tablist" aria-label="Status filter">
+  <div class="seg-control" role="tablist" aria-label="Status filter">
     <a href="/admin/contributions/" class="{% if status_filter == 'all' %}active{% endif %}">all</a>
     {% for st in statuses %}
       <a href="/admin/contributions/?status={{ st }}" class="{% if status_filter == st %}active{% endif %}">{{ st }}</a>
@@ -49,42 +21,44 @@
   </div>
 
   {% if rows %}
-    <table class="contrib-table">
-      <thead>
-        <tr>
-          <th>#</th><th>Title</th><th>Submitter</th><th>IP</th>
-          <th>Status</th><th>AI</th><th>Updated</th><th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in rows %}
+    <div class="table-panel">
+      <table class="data-table">
+        <thead>
           <tr>
-            <td>{{ s.id }}</td>
-            <td>
-              <a class="contrib-link" href="/contributions/{{ s.id }}/">{{ s.title }}</a>
-              <div style="color:var(--text-secondary);font-size:0.7rem;">{{ s.slug }}</div>
-            </td>
-            <td>{{ s.submitter|default:"—" }}</td>
-            <td style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.75rem;color:var(--text-secondary);">{{ s.submitterIp|default:"—" }}</td>
-            <td><span class="contrib-status {{ s.status }}">{{ s.status }}</span></td>
-            <td>
-              {% if s.aiVerdict %}
-                <span class="ai-verdict {{ s.aiVerdict.overall }}"
-                      title="model={{ s.aiVerdict.model }} · confidence={{ s.aiVerdict.confidence|floatformat:2 }} · {{ s.aiVerdict.findingsCount }} finding{{ s.aiVerdict.findingsCount|pluralize }}">
-                  {{ s.aiVerdict.overall }}
-                </span>
-              {% else %}
-                <span style="color:var(--text-secondary);font-size:0.75rem;">—</span>
-              {% endif %}
-            </td>
-            <td style="color:var(--text-secondary);font-variant-numeric:tabular-nums;font-size:0.8rem;">{{ s.updatedTsIso }}</td>
-            <td style="text-align:right;"><a class="contrib-link" href="/contributions/{{ s.id }}/">review →</a></td>
+            <th>#</th><th>Title</th><th>Submitter</th><th>IP</th>
+            <th>Status</th><th>AI</th><th>Updated</th><th></th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for s in rows %}
+            <tr>
+              <td>{{ s.id }}</td>
+              <td>
+                <a class="table-link" href="/contributions/{{ s.id }}/">{{ s.title }}</a>
+                <div class="mono">{{ s.slug }}</div>
+              </td>
+              <td>{{ s.submitter|default:"—" }}</td>
+              <td class="mono">{{ s.submitterIp|default:"—" }}</td>
+              <td><span class="status-chip {{ s.status }}">{{ s.status }}</span></td>
+              <td>
+                {% if s.aiVerdict %}
+                  <span class="ai-verdict {{ s.aiVerdict.overall }}"
+                        title="model={{ s.aiVerdict.model }} · confidence={{ s.aiVerdict.confidence|floatformat:2 }} · {{ s.aiVerdict.findingsCount }} finding{{ s.aiVerdict.findingsCount|pluralize }}">
+                    {{ s.aiVerdict.overall }}
+                  </span>
+                {% else %}
+                  <span style="color:var(--text-secondary);font-size:0.75rem;">—</span>
+                {% endif %}
+              </td>
+              <td class="mono">{{ s.updatedTsIso }}</td>
+              <td style="text-align:right;"><a class="table-link" href="/contributions/{{ s.id }}/">review →</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% else %}
-    <div class="contrib-empty">No submissions in this filter.</div>
+    <div class="empty-state">No submissions in this filter.</div>
   {% endif %}
 </div>
 {% endblock %}

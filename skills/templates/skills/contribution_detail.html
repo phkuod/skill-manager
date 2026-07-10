@@ -4,52 +4,10 @@
 {% block title %}{{ submission.title }} · review — Skill Market{% endblock %}
 
 {% block content %}
-<style>
-  .detail-wrap { max-width: 56rem; margin: 0 auto; padding: 2rem 1.5rem; display: grid; gap: 1rem; }
-  .detail-card { border: 1px solid var(--border); border-radius: 0.75rem; background-color: var(--bg-card); padding: 1.25rem 1.5rem; }
-  .detail-h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0; }
-  .detail-meta { display: flex; flex-wrap: wrap; gap: 0.75rem; color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.5rem; }
-  .detail-meta span { display: inline-flex; gap: 4px; align-items: center; }
-  .contrib-status { display: inline-block; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; }
-  .contrib-status.submitted { background-color: rgba(59,130,246,0.15); color: #2563eb; }
-  .contrib-status.under_review { background-color: rgba(245,158,11,0.15); color: #b45309; }
-  .contrib-status.changes_requested { background-color: rgba(239,68,68,0.15); color: #b91c1c; }
-  .contrib-status.approved { background-color: rgba(16,185,129,0.15); color: #047857; }
-  .contrib-status.rejected { background-color: rgba(120,113,108,0.15); color: #57534e; }
-  .contrib-status.published { background-color: rgba(124,58,237,0.15); color: #6d28d9; }
-  /* AI verdict pill — same shape as contrib-status, distinct colours. */
-  .ai-verdict { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 9999px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-  .ai-verdict::before { content: '🤖'; font-size: 0.85rem; }
-  .ai-verdict.approve { background-color: rgba(16,185,129,0.12); color: #047857; }
-  .ai-verdict.request_changes { background-color: rgba(245,158,11,0.15); color: #b45309; }
-  .ai-verdict.reject { background-color: rgba(239,68,68,0.15); color: #b91c1c; }
-  .ai-verdict.needs_human_review { background-color: rgba(120,113,108,0.15); color: #57534e; }
-  .ai-verdict-meta { font-size: 0.7rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-  .panel-h { font-weight: 600; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.6rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
-  .filetree { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; max-height: 14rem; overflow: auto; }
-  .filetree li { padding: 1px 0; color: var(--text-secondary); }
-  .filetree .skill-md { color: var(--accent); font-weight: 600; }
-  .timeline { display: grid; gap: 0.6rem; }
-  .timeline .entry { border-left: 3px solid var(--border); padding: 0.4rem 0.75rem; }
-  .timeline .entry.system { border-color: rgba(120,113,108,0.6); color: var(--text-secondary); font-style: italic; font-size: 0.8rem; }
-  .timeline .entry.admin { border-color: #6d28d9; }
-  .timeline .entry.submitter { border-color: var(--accent); }
-  .timeline .entry.ai_reviewer { border-color: #06b6d4; }
-  .timeline .meta { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
-  .timeline .body { white-space: pre-wrap; color: var(--text-primary); font-size: 0.9rem; }
-  textarea.detail-input { width: 100%; min-height: 4rem; padding: 0.5rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); font-family: inherit; font-size: 0.9rem; resize: vertical; }
-  select.detail-input { padding: 0.4rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); font-size: 0.85rem; }
-  .detail-btn { padding: 0.4rem 0.9rem; border-radius: 0.5rem; border: 1px solid var(--border); background-color: var(--bg-primary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem; font-weight: 600; }
-  .detail-btn.primary { border-color: var(--accent); background-color: var(--accent); color: white; }
-  .detail-btn.danger { border-color: #ef4444; color: #b91c1c; background-color: rgba(239,68,68,0.05); }
-  .detail-btn[disabled] { opacity: 0.55; cursor: progress; }
-  .row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
-</style>
-
-<div class="detail-wrap">
+<div class="contrib-detail-wrap">
   <div class="detail-card">
     <div class="row" style="justify-content:space-between;align-items:flex-start;">
-      <h1 class="detail-h1">{{ submission.title }}</h1>
+      <h1 class="page-title" style="margin:0;">{{ submission.title }}</h1>
       <div class="row" style="gap:0.4rem;align-items:center;">
         {% if submission.aiVerdict %}
           <span class="ai-verdict {{ submission.aiVerdict.overall }}"
@@ -57,7 +15,7 @@
             {{ submission.aiVerdict.overall }}
           </span>
         {% endif %}
-        <span class="contrib-status {{ submission.status }}">{{ submission.status }}</span>
+        <span class="status-chip {{ submission.status }}">{{ submission.status }}</span>
         {% if is_admin %}<span class="panel-chip">admin view</span>{% endif %}
       </div>
     </div>
@@ -69,7 +27,7 @@
         {% if submission.aiVerdict.createdTsIso %} · {{ submission.aiVerdict.createdTsIso }}{% endif %}
       </div>
     {% endif %}
-    <div class="detail-meta">
+    <div class="detail-meta-row">
       <span>by <strong style="color:var(--text-primary);">{{ submission.submitter|default:"—" }}</strong></span>
       {% if is_admin %}<span>· ip <span style="font-family:ui-monospace,Menlo,monospace;">{{ submission.submitterIp|default:"—" }}</span></span>{% endif %}
       <span>· slug <code>{{ submission.slug }}</code></span>
@@ -89,7 +47,7 @@
   </div>
 
   <div class="detail-card">
-    <div class="panel-h">Bundle</div>
+    <div class="detail-card-h">Bundle</div>
     <div class="row" style="margin-bottom:0.5rem;">
       <a href="/api/contributions/{{ submission.id }}/zip" class="detail-btn">⬇ Download ZIP ({{ submission.originalFilename|default:"skill.zip" }})</a>
     </div>
@@ -104,7 +62,7 @@
 
   {% if is_admin %}
     <div class="detail-card" id="admin-actions">
-      <div class="panel-h">Admin actions</div>
+      <div class="detail-card-h">Admin actions</div>
       <form id="status-form" class="row" style="align-items:flex-end;gap:0.6rem;">
         <div style="display:flex;flex-direction:column;gap:0.25rem;">
           <label for="status-select" style="font-size:0.75rem;color:var(--text-secondary);">Move to</label>
@@ -140,16 +98,16 @@
   {% endif %}
 
   <div class="detail-card">
-    <div class="panel-h">Discussion</div>
-    <div class="timeline">
+    <div class="detail-card-h">Discussion</div>
+    <div class="feed">
       {% for c in submission.comments %}
-        <div class="entry {{ c.authorRole }}">
-          <div class="meta">
+        <div class="feed-entry {{ c.authorRole }}">
+          <div class="feed-meta">
             {{ c.authorRole }} ·
             {{ c.author|default:"—" }} ·
             <span style="font-family:ui-monospace,Menlo,monospace;text-transform:none;">{{ c.createdTsIso }}</span>
           </div>
-          <div class="body">{{ c.body }}</div>
+          <div class="feed-body">{{ c.body }}</div>
         </div>
       {% empty %}
         <div style="color:var(--text-secondary);font-size:0.85rem;">No comments yet.</div>
